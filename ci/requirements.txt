@@ -1,0 +1,5 @@
+virtualenv
+pip
+setuptools
+six
+tox
