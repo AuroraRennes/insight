@@ -1,0 +1,19 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+capstone = "==5.0.0rc2"
+
+[dev-packages]
+pytest = "*"
+mypy = "*"
+ruff = "*"
+tox = "*"
+pre-commit = "*"
+pytest-mock = "*"
+unicorn = "==2.0.1.post1"
+
+[requires]
+python_version = "3.12"
