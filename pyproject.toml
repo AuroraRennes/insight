@@ -64,7 +64,7 @@ exclude = [
 ]
 
 # Same as Black.
-line-length = 88
+line-length = 120
 indent-width = 4
 
 # Assume Python 3.12
@@ -125,24 +125,21 @@ envlist = check, py312
 ; Base tests
 [testenv]
 passenv = *
-deps = pipenv
+deps = pytest
 commands =
-    pipenv install --dev
-    pipenv run pytest -s
+    pytest -s
 
 ; Linting and import tests with flake, black and isort
 [testenv:check]
 passenv = *
 basepython = python3.12
 deps = 
-    pipenv
     ruff
     mypy
 commands =
-    pipenv install --dev
-    pipenv run ruff check --fix
-    pipenv run ruff format
-    pipenv run mypy onsight
+    ruff check --fix
+    ruff format
+    mypy onsight
 """
 
 
