@@ -1,7 +1,7 @@
-import os
 from logging.config import fileConfig
+from pathlib import Path
 
-if not os.path.exists("log/"):
-    os.mkdir("log/")
+if not Path("log/").exists():
+    Path("log/").mkdir()
 
 fileConfig("logging.ini", disable_existing_loggers=False)
