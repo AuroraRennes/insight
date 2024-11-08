@@ -33,14 +33,27 @@ class PerfScriptParser:
     # BB1: 7d8 - 7ec (last branch NOT TAKEN)
     # BB2: 7f0 - 7f4 (last branch TAKEN)
 
+    # REGEXES
     TRACE_START_LINE: str = "ARM CoreSight Trace Data Assembler Dump"
     TRACE_END_LINE: str = "End"
     # Regex line   00000000000007f8 <main+0x20>:
     #  matches     00000000000007f8  main
-    START_FUNCTION_REGEX: str = r"(\w*) <([\w\+x]+)>:"
+
+    # Alternative with offset from function symbol
+    START_FUNCTION_REGEX: str = r"([\w\._]*) <([\w\._]+)(\+0x\w+)?>:"
     # Regex line   828:  b9801fe0  ldrsw  x0, [sp, #28]
     #  matches     828   b9801fe0  ldrsw
     DISASM_LINE_REGEX: str = r"(\w+):\s+(\w+)\s+(\w+[\.\w*]*)"
+
+    # libc set up and teardown
+    AVOIDED_FUNC_NAMES: tuple[str, ...] = (
+        ".plt",
+        "call_weak_fn",
+        "_init",
+        "register_tm_clones",
+        "deregister_tm_clones",
+        "__do_global_dtors_aux",
+    )
 
     def parse_disasm_log(self, disasm_log_file: str) -> ExecutionTrace:
         # Execution trace initialization
@@ -59,10 +72,19 @@ class PerfScriptParser:
                 # Iterate over the file to extract basic blocks
                 for line in disasm_file:
                     trace_end: bool = line.strip() == PerfScriptParser.TRACE_END_LINE
-                    match_start = re.search(PerfScriptParser.START_FUNCTION_REGEX, line)
+                    match_start: re.Match[str] | None = re.search(PerfScriptParser.START_FUNCTION_REGEX, line)
 
                     if match_start:
-                        basic_blocks += self.parse_function(disasm_file)
+                        function_address: int = string_to_int(match_start.group(1))
+                        function_name: str = match_start.group(2)
+                        if match_start.group(3):
+                            function_address = function_address - string_to_int(match_start.group(3))
+
+                        if function_name in PerfScriptParser.AVOIDED_FUNC_NAMES:
+                            continue
+                        basic_blocks += self.parse_function(
+                            disasm_file=disasm_file, function_address=function_address, function_name=function_name
+                        )
 
                 if not trace_end:
                     raise NoEndLineError
@@ -70,7 +92,6 @@ class PerfScriptParser:
         # Parsing failed
         except (OSError, WrongStartLineError, NoEndLineError):
             logger.exception("Parsing Failed.")
-
         else:
             # Note: not extracting basic blocks already present might be faster?
             exec_trace = ExecutionTrace(
@@ -79,7 +100,7 @@ class PerfScriptParser:
 
         return exec_trace
 
-    def parse_function(self, disasm_file: TextIOWrapper) -> list[BasicBlock]:
+    def parse_function(self, disasm_file: TextIOWrapper, function_address: int, function_name: str) -> list[BasicBlock]:
         basic_blocks: list[BasicBlock] = []
 
         line: str = next(disasm_file)
@@ -97,7 +118,14 @@ class PerfScriptParser:
 
             # End of basic block, should
             if Disassembler.is_str_branch(instr_mnemonic):
-                basic_blocks.append(BasicBlock(address=bb_address, instructions=instructions))
+                basic_blocks.append(
+                    BasicBlock(
+                        function_address=function_address,
+                        function_name=function_name,
+                        address=bb_address,
+                        instructions=instructions,
+                    )
+                )
                 # FIXME: Dirty way of passing the address
                 bb_address = -1
                 instructions = []
