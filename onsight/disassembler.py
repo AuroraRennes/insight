@@ -1,13 +1,12 @@
 from capstone import CS_ARCH_ARM64, CS_MODE_ARM, Cs
 
-BRANCHES: list[str] = [
-    "bl",
-    "bx",
-    "blx",
-    "cbz",
-    "cbnz",
-    "tbb",
-    "tbh",
+CALLS: list[str] = ["bl", "bx", "blx"]
+
+RET: list[str] = [
+    "ret",
+]
+
+CONDITIONAL_BRANCHES: list[str] = [
     "b.eq",
     "b.ne",
     "b.cs",
@@ -23,14 +22,29 @@ BRANCHES: list[str] = [
     "b.gt",
     "b.le",
     "b.al",
-    "b",
-    "ret",
 ]
+
+DIRECT_BRANCHES: list[str] = [
+    "b",
+    "br",
+]
+
+TEST_AND_BRANCHES: list[str] = [
+    "cbz",
+    "cbnz",
+]
+
+TABLE_BASED_BRANCHES: list[str] = [
+    "tbb",
+    "tbh",
+]
+
+BRANCHES: list[str] = CALLS + RET + DIRECT_BRANCHES + CONDITIONAL_BRANCHES + TEST_AND_BRANCHES + TABLE_BASED_BRANCHES
 
 
 class Disassembler:
     @staticmethod
-    def is_branch(instr: str) -> bool:
+    def is_str_branch(instr: str) -> bool:
         return instr in BRANCHES
 
     @staticmethod
@@ -38,3 +52,15 @@ class Disassembler:
         disassembler = Cs(CS_ARCH_ARM64, CS_MODE_ARM)
         instr = next(disassembler.disasm(instr_bytes, 0))
         return f"{instr.mnemonic} {instr.op_str}"
+
+    @staticmethod
+    def is_call(instr_bytes: bytes) -> bool:
+        disassembler = Cs(CS_ARCH_ARM64, CS_MODE_ARM)
+        instr = next(disassembler.disasm(instr_bytes, 0))
+        return instr.mnemonic in CALLS
+
+    @staticmethod
+    def is_ret(instr_bytes: bytes) -> bool:
+        disassembler = Cs(CS_ARCH_ARM64, CS_MODE_ARM)
+        instr = next(disassembler.disasm(instr_bytes, 0))
+        return instr.mnemonic in RET

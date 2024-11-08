@@ -35,6 +35,7 @@ check_untyped_defs = true
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
 exclude = [
+    "onsight/playground.py",
     ".bzr",
     ".direnv",
     ".eggs",
@@ -73,9 +74,14 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
-    "D", "FIX", "TD",
-    "TRY301", "ERA001", "A002", "PLR0913",
-    "G004", "COM812", "ISC001"
+    "D", "FIX", "TD",  # Docstring, fixmes, todos
+    "TRY301",  # Raising exceptions and catching it in the same try block
+    "ERA001",  # Commented-out code
+    "A002",    # built-in argument shadowing
+    "PLR0913", # too many arguments
+    "G004",    # f-string in logging messages
+    "COM812",  # check for trailing commas
+    "ISC001"   # implicit concatenate strings
 ]
 
 # Allow fix for all enabled rules (when `--fix`) is provided.

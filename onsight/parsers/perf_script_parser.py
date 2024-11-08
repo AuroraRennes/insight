@@ -6,6 +6,7 @@ from pathlib import Path
 from onsight.basic_block import BasicBlock
 from onsight.disassembler import Disassembler
 from onsight.exceptions import NoEndLineError, WrongStartLineError
+from onsight.execution_trace import ExecutionTrace
 from onsight.helpers import reverse_endianness, string_to_bytes, string_to_int
 
 logger = logging.getLogger("onsight")
@@ -41,8 +42,9 @@ class PerfScriptParser:
     #  matches     828   b9801fe0  ldrsw
     DISASM_LINE_REGEX: str = r"(\w+):\s+(\w+)\s+(\w+[\.\w*]*)"
 
-    def parse_disasm_log(self, disasm_log_file: str) -> list[BasicBlock]:
-        # Regex and trace info
+    def parse_disasm_log(self, disasm_log_file: str) -> ExecutionTrace:
+        # Execution trace initialization
+        exec_trace = ExecutionTrace(address_trace=[], basic_blocks={})
 
         # Main parsing function
         try:
@@ -52,7 +54,6 @@ class PerfScriptParser:
                     raise WrongStartLineError
 
                 # Extracted list of basic blocks
-                # FIXME: Should be a list of execution and a reference set
                 basic_blocks: list[BasicBlock] = []
 
                 # Iterate over the file to extract basic blocks
@@ -71,9 +72,12 @@ class PerfScriptParser:
             logger.exception("Parsing Failed.")
 
         else:
-            return basic_blocks
+            # Note: not extracting basic blocks already present might be faster?
+            exec_trace = ExecutionTrace(
+                address_trace=[bb.address for bb in basic_blocks], basic_blocks={bb.address: bb for bb in basic_blocks}
+            )
 
-        return []  # To silence mypy...
+        return exec_trace
 
     def parse_function(self, disasm_file: TextIOWrapper) -> list[BasicBlock]:
         basic_blocks: list[BasicBlock] = []
@@ -92,7 +96,7 @@ class PerfScriptParser:
             instructions.append(instr_bytes)
 
             # End of basic block, should
-            if Disassembler.is_branch(instr_mnemonic):
+            if Disassembler.is_str_branch(instr_mnemonic):
                 basic_blocks.append(BasicBlock(address=bb_address, instructions=instructions))
                 # FIXME: Dirty way of passing the address
                 bb_address = -1
