@@ -39,7 +39,10 @@ def basic_block_setup():
     function_address: int = MAIN_ADDRESS
     instructions = BB_INSTRUCTIONS
     return BasicBlock(
-        address=address, function_address=function_address, function_name=function_name, instructions=instructions
+        address=address,
+        function_address=function_address,
+        function_name=function_name,
+        instructions=instructions,
     )
 
 

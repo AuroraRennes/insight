@@ -1,5 +1,7 @@
 class BasicBlock:
-    def __init__(self, address: int, function_address: int, function_name: str, instructions: list[bytes]) -> None:
+    def __init__(
+        self, address: int, function_address: int, function_name: str, instructions: list[bytes]
+    ) -> None:
         self.address: int = address
         self.instructions: list[bytes] = instructions
         self.function_name: str = function_name

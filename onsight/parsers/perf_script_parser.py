@@ -47,12 +47,17 @@ class PerfScriptParser:
 
     # libc set up and teardown
     AVOIDED_FUNC_NAMES: tuple[str, ...] = (
+        "_start",
+        "__libc_start_main",
         ".plt",
         "call_weak_fn",
         "_init",
+        "frame_dummy",
         "register_tm_clones",
         "deregister_tm_clones",
+        "__cxa_finalize",
         "__do_global_dtors_aux",
+        "_fini",
     )
 
     def parse_disasm_log(self, disasm_log_file: str) -> ExecutionTrace:
@@ -83,7 +88,9 @@ class PerfScriptParser:
                         if function_name in PerfScriptParser.AVOIDED_FUNC_NAMES:
                             continue
                         basic_blocks += self.parse_function(
-                            disasm_file=disasm_file, function_address=function_address, function_name=function_name
+                            disasm_file=disasm_file,
+                            function_address=function_address,
+                            function_name=function_name,
                         )
 
                 if not trace_end:
@@ -92,15 +99,19 @@ class PerfScriptParser:
         # Parsing failed
         except (OSError, WrongStartLineError, NoEndLineError):
             logger.exception("Parsing Failed.")
+            raise
         else:
             # Note: not extracting basic blocks already present might be faster?
             exec_trace = ExecutionTrace(
-                address_trace=[bb.address for bb in basic_blocks], basic_blocks={bb.address: bb for bb in basic_blocks}
+                address_trace=[bb.address for bb in basic_blocks],
+                basic_blocks={bb.address: bb for bb in basic_blocks},
             )
 
         return exec_trace
 
-    def parse_function(self, disasm_file: TextIOWrapper, function_address: int, function_name: str) -> list[BasicBlock]:
+    def parse_function(
+        self, disasm_file: TextIOWrapper, function_address: int, function_name: str
+    ) -> list[BasicBlock]:
         basic_blocks: list[BasicBlock] = []
 
         line: str = next(disasm_file)

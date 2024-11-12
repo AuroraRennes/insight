@@ -39,7 +39,9 @@ TABLE_BASED_BRANCHES: list[str] = [
     "tbh",
 ]
 
-BRANCHES: list[str] = CALLS + RET + DIRECT_BRANCHES + CONDITIONAL_BRANCHES + TEST_AND_BRANCHES + TABLE_BASED_BRANCHES
+BRANCHES: list[str] = (
+    CALLS + RET + DIRECT_BRANCHES + CONDITIONAL_BRANCHES + TEST_AND_BRANCHES + TABLE_BASED_BRANCHES
+)
 
 
 class Disassembler:
@@ -64,3 +66,9 @@ class Disassembler:
         disassembler = Cs(CS_ARCH_ARM64, CS_MODE_ARM)
         instr = next(disassembler.disasm(instr_bytes, 0))
         return instr.mnemonic in RET
+
+    @staticmethod
+    def is_direct_branch(instr_bytes: bytes) -> bool:
+        disassembler = Cs(CS_ARCH_ARM64, CS_MODE_ARM)
+        instr = next(disassembler.disasm(instr_bytes, 0))
+        return instr.mnemonic in DIRECT_BRANCHES + CONDITIONAL_BRANCHES
