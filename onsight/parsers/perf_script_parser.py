@@ -141,8 +141,12 @@ class PerfScriptParser:
                 bb_address = -1
                 instructions = []
 
-            # Next one!
-            line = next(disasm_file)
-            match_line = re.search(PerfScriptParser.DISASM_LINE_REGEX, line)
+            # Test for end of file
+            try:
+                # Next one!
+                line = next(disasm_file)
+                match_line = re.search(PerfScriptParser.DISASM_LINE_REGEX, line)
+            except StopIteration as exc:
+                raise NoEndLineError from exc
 
         return basic_blocks

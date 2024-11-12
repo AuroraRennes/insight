@@ -53,3 +53,8 @@ def test_initialization(basic_block_setup):
     assert bb.function_address == MAIN_ADDRESS
     assert bb.ending_instruction == b"\x05\x00\x00\x14"
     assert bb.size == len(BB_INSTRUCTIONS) * 4
+
+
+def test_string_repr(basic_block_setup):
+    bb = basic_block_setup
+    assert str(bb) == f"BB: {hex(BB_ADDRESS)} - size {hex(len(BB_INSTRUCTIONS) * 4)}"
