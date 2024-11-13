@@ -1,18 +1,19 @@
 import datetime
+import io
 import logging
 import os
 import random
 import shutil
 from pathlib import Path
+from typing import Any
 
 import pytest
 from capstone import CS_ARCH_ARM64, CS_MODE_ARM, Cs
 
 from onsight.helpers import bytes_to_int
 
-# =================================================
-#                  Logging setup
-# =================================================
+# Logging setup
+# \______________
 
 
 TEST_LOG_DIR = "log/tests/"
@@ -49,11 +50,62 @@ def move_log_file(request: pytest.FixtureRequest) -> None:
     request.addfinalizer(fin)
 
 
-# =================================================
-#                    Capstone
-# =================================================
+# Base logging disabled
+@pytest.fixture(autouse=True)
+def disable_logger(caplog):
+    caplog.set_level(logging.CRITICAL, logger="onsight")
+
+
+# Can be reactivated on a given test by passing the 'log_test' argument
+@pytest.fixture
+def log_test(request, caplog):
+    caplog.set_level(logging.DEBUG, logger="onsight")
+    logger.info(f"Tracing test '{request.node.name}'  🚀")
+
+    def fin() -> None:
+        logger.info(f"Trace complete for test '{request.node.name}' 🏁")
+        caplog.set_level(logging.CRITICAL, logger="onsight")
+
+    request.addfinalizer(fin)
+
+
+# Capstone Disassembler
+# \______________________
 
 
 @pytest.fixture
 def cap_disasm_setup():
     return Cs(CS_ARCH_ARM64, CS_MODE_ARM)
+
+
+# Reusable fixtures
+# \__________________
+
+
+# Parametrizable fixture, use @pytest.mark.parametrize with 'indirect'
+# set up to pass a corresponding file (list[str]). For example:
+# @pytest.mark.parametrize(
+#   "mock_file", [ (["line1\n", "line2\n"]) ], indirect=["mock_file"]
+# )
+@pytest.fixture
+def mock_file(monkeypatch, request):
+    # Retrive the file content from the test parameter
+    file_content = request.param
+
+    # Custom open function to use StringIO instead of an actual file
+    def mock_open(*args: tuple, **kwargs: dict[str, Any]) -> io.StringIO:
+        return io.StringIO("".join(file_content))
+
+    monkeypatch.setattr(Path, "open", mock_open)
+
+
+# Data files
+# \___________
+
+DATA_DIR = "data/"
+PERF_DISASM_FILES: list[Path] = list(Path.glob(Path(DATA_DIR), "*perf.disasm.log"))
+
+PERF_BREAKING_DISASM_FILE: Path = [Path(DATA_DIR) / "stack_overflow.perf.disasm.log"]
+PERF_COMPLYING_DISASM_FILES: list[Path] = [
+    path for path in PERF_DISASM_FILES if path not in PERF_BREAKING_DISASM_FILE
+]

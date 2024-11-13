@@ -1,6 +1,4 @@
-import io
-from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -12,22 +10,8 @@ if TYPE_CHECKING:
     from onsight.basic_block import BasicBlock
     from onsight.execution_trace import AddressTrace, ExecutionTrace
 
-
-# Parametrizable fixture, use @pytest.mark.parametrize with 'indirect'
-# set up to pass a corresponding file (list[str]). For example:
-# @pytest.mark.parametrize(
-#   "mock_file", [ (["line1\n", "line2\n"]) ], indirect=["mock_file"]
-# )
-@pytest.fixture
-def mock_file(monkeypatch, request):
-    # Retrive the file content from the test parameter
-    file_content = request.param
-
-    # Custom open function to use StringIO instead of an actual file
-    def mock_open(*args: tuple, **kwargs: dict[str, Any]) -> io.StringIO:
-        return io.StringIO("".join(file_content))
-
-    monkeypatch.setattr(Path, "open", mock_open)
+# Note: The mock_file function is in conftest.py and parametrized for each fake file
+#       using pytest parametrization along with the 'indirect' argument
 
 
 @pytest.mark.parametrize(
