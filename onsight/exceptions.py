@@ -6,6 +6,21 @@ class ParserError(Exception):
     pass
 
 
+# Perf report
+# ---
+
+
+class TraceSizeError(ParserError):
+    def __init__(self, expected_size: int, size: int, cpu_nb: int) -> None:
+        super().__init__(
+            f"Trace of CPU n{cpu_nb} is expected to be {hex(expected_size)} long, was {hex(size)} long."
+        )
+
+
+# Perf script
+# ---
+
+
 class WrongExtensionError(ParserError):
     def __init__(self, expected_extension: str, extension: str) -> None:
         super().__init__(f"This parser expects files with '{expected_extension}', got '{extension}'")

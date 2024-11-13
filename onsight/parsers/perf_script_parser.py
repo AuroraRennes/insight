@@ -64,25 +64,25 @@ class PerfScriptParser(Parser):
     def __init__(self) -> None:
         super().__init__(extension=".perf.disasm.log")
 
-    def parse(self, disasm_log_file: str) -> ExecutionTrace:
+    def parse(self, file_name: str) -> ExecutionTrace:
         # Check extension
-        self.check_extension(disasm_log_file)
+        self.check_extension(file_name)
 
         # Execution trace initialization
         exec_trace = ExecutionTrace(address_trace=[], basic_blocks={})
 
         # Main parsing function
         try:
-            with Path(disasm_log_file).open() as disasm_file:
+            with Path(file_name).open() as perf_disasm_file:
                 # Check first line
-                if PerfScriptParser.TRACE_START_LINE not in next(disasm_file).strip():
+                if PerfScriptParser.TRACE_START_LINE not in next(perf_disasm_file).strip():
                     raise WrongStartLineError
 
                 # Extracted list of basic blocks
                 basic_blocks: list[BasicBlock] = []
 
                 # Iterate over the file to extract basic blocks
-                for line in disasm_file:
+                for line in perf_disasm_file:
                     trace_end: bool = line.strip() == PerfScriptParser.TRACE_END_LINE
                     match_start: re.Match[str] | None = re.search(PerfScriptParser.START_FUNCTION_REGEX, line)
 
@@ -95,7 +95,7 @@ class PerfScriptParser(Parser):
                         if function_name in PerfScriptParser.AVOIDED_FUNC_NAMES:
                             continue
                         basic_blocks += self.parse_function(
-                            disasm_file=disasm_file,
+                            disasm_file=perf_disasm_file,
                             function_address=function_address,
                             function_name=function_name,
                         )
@@ -105,7 +105,7 @@ class PerfScriptParser(Parser):
 
         # Parsing failed
         except (OSError, WrongStartLineError, NoEndLineError):
-            logger.exception("Parsing Failed.")
+            logger.exception("[-] Parsing Failed.")
             raise
         else:
             # Note: not extracting basic blocks already present might be faster?
