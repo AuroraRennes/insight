@@ -6,6 +6,11 @@ class ParserError(Exception):
     pass
 
 
+class WrongExtensionError(ParserError):
+    def __init__(self, expected_extension: str, extension: str) -> None:
+        super().__init__(f"This parser expects files with '{expected_extension}', got '{extension}'")
+
+
 class WrongStartLineError(ParserError):
     def __init__(self) -> None:
         super().__init__("perf script trace should start with 'ARM CoreSight Trace Data Assembler Dump'.")

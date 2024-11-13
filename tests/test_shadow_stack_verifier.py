@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 )
 def test_shadow_stack_verification_passed(mock_file):
     parser: PerfScriptParser = PerfScriptParser()
-    exec_trace: ExecutionTrace = parser.parse_disasm_log("dummy_name")
+    exec_trace: ExecutionTrace = parser.parse("dummy_path.perf.disasm.log")
     verifier: ShadowStackVerifier = ShadowStackVerifier()
 
     assert verifier.verify_trace(exec_trace=exec_trace)
@@ -53,7 +53,7 @@ def test_shadow_stack_verification_passed(mock_file):
 @pytest.mark.parametrize("file", PERF_COMPLYING_DISASM_FILES)
 def test_complying_data_files(file):
     parser: PerfScriptParser = PerfScriptParser()
-    exec_trace: ExecutionTrace = parser.parse_disasm_log(file)
+    exec_trace: ExecutionTrace = parser.parse(file)
     verifier: ShadowStackVerifier = ShadowStackVerifier()
     assert verifier.verify_trace(exec_trace=exec_trace)
 
@@ -61,7 +61,7 @@ def test_complying_data_files(file):
 @pytest.mark.parametrize("file", PERF_BREAKING_DISASM_FILE)
 def test_breaking_files(file):
     parser: PerfScriptParser = PerfScriptParser()
-    exec_trace: ExecutionTrace = parser.parse_disasm_log(file)
+    exec_trace: ExecutionTrace = parser.parse(file)
     verifier: ShadowStackVerifier = ShadowStackVerifier()
     with pytest.raises(ShadowStackError):
         verifier.verify_trace(exec_trace=exec_trace)

@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 )
 def test_direct_jump_verification_passed(mock_file):
     parser: PerfScriptParser = PerfScriptParser()
-    exec_trace: ExecutionTrace = parser.parse_disasm_log("dummy_name")
+    exec_trace: ExecutionTrace = parser.parse("dummy_path.perf.disasm.log")
     verifier: DirectJumpVerifier = DirectJumpVerifier()
 
     assert verifier.verify_trace(exec_trace=exec_trace)
@@ -39,6 +39,6 @@ def test_direct_jump_verification_passed(mock_file):
 @pytest.mark.parametrize("file", PERF_DISASM_FILES)
 def test_data_files(file):
     parser: PerfScriptParser = PerfScriptParser()
-    exec_trace: ExecutionTrace = parser.parse_disasm_log(file)
+    exec_trace: ExecutionTrace = parser.parse(file)
     verifier: DirectJumpVerifier = DirectJumpVerifier()
     assert verifier.verify_trace(exec_trace=exec_trace)

@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 def test_missing_start_line(mock_file):
     parser = PerfScriptParser()
     with pytest.raises(WrongStartLineError):
-        parser.parse_disasm_log("dummy_path")
+        parser.parse("dummy_path.perf.disasm.log")
 
 
 @pytest.mark.parametrize(
@@ -50,7 +50,7 @@ def test_missing_start_line(mock_file):
 def test_missing_end_line_in_function(mock_file):
     parser = PerfScriptParser()
     with pytest.raises(NoEndLineError):
-        parser.parse_disasm_log("dummy_path")
+        parser.parse("dummy_path.perf.disasm.log")
 
 
 @pytest.mark.parametrize(
@@ -70,7 +70,7 @@ def test_missing_end_line_in_function(mock_file):
 def test_missing_end_line_in_file(mock_file):
     parser = PerfScriptParser()
     with pytest.raises(NoEndLineError):
-        parser.parse_disasm_log("dummy_path")
+        parser.parse("dummy_path.perf.disasm.log")
 
 
 @pytest.mark.parametrize(
@@ -96,7 +96,7 @@ def test_parsing_one_function(mock_file):
     main_address: int = 0x100
     main_size: int = 0x10
     parser = PerfScriptParser()
-    exec_trace: ExecutionTrace = parser.parse_disasm_log("dummy_path")
+    exec_trace: ExecutionTrace = parser.parse("dummy_path.perf.disasm.log")
     # Check address trace
     trace: list[AddressTrace] = exec_trace.trace
     assert len(trace) == 1

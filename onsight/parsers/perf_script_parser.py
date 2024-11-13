@@ -8,11 +8,12 @@ from onsight.disassembler import Disassembler
 from onsight.exceptions import NoEndLineError, WrongStartLineError
 from onsight.execution_trace import ExecutionTrace
 from onsight.helpers import reverse_endianness, string_to_bytes, string_to_int
+from onsight.parsers.parser import Parser
 
 logger = logging.getLogger("onsight")
 
 
-class PerfScriptParser:
+class PerfScriptParser(Parser):
     # The PerfScriptParser extract basic blocks from the execution.
     #
     # As an example, a part of the execution script might looklike:
@@ -60,7 +61,13 @@ class PerfScriptParser:
         "_fini",
     )
 
-    def parse_disasm_log(self, disasm_log_file: str) -> ExecutionTrace:
+    def __init__(self) -> None:
+        super().__init__(extension=".perf.disasm.log")
+
+    def parse(self, disasm_log_file: str) -> ExecutionTrace:
+        # Check extension
+        self.check_extension(disasm_log_file)
+
         # Execution trace initialization
         exec_trace = ExecutionTrace(address_trace=[], basic_blocks={})
 
