@@ -44,3 +44,6 @@ class ShadowStackVerifier(Verifier):
         # validated should always be true or an excpetion is raised
         # FIXME: this behavior is not very useful (remove exception? remove return value?)
         return validated
+
+    def message(self) -> str:
+        return "Shadow stack intact!"

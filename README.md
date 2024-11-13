@@ -39,7 +39,7 @@ export PIPENV_BIN="$HOME/.local/bin"
 command -v pipenv >/dev/null || export PATH="$PIPENV_BIN:$PATH"
 ```
 
-- *`gigue` installation:*
+- *`onsight` installation:*
 ```bash
 # Install gigue and its pipenv environment
 git clone git@github.com:QDucasse/onsight.git

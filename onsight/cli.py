@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from onsight.exceptions import DirectJumpError, ShadowStackError
 from onsight.parsers.parser import Parser
 from onsight.verifiers.direct_jump_verifier import DirectJumpVerifier
 from onsight.verifiers.shadow_stack_verifier import ShadowStackVerifier
@@ -60,7 +61,7 @@ def main(argv: list[str] | None = None) -> int:
         arg_parser.print_help()
         return 0
 
-    logger.debug("Finding parser.")
+    logger.info("[+] Finding parser.")
     input_file_path: Path = Path(args.input_file)
     extension: str = "".join(input_file_path.suffixes)
 
@@ -72,15 +73,22 @@ def main(argv: list[str] | None = None) -> int:
             f"Parser not defined for extension '{extension}'" "(or not propagated in the 'Parser' class)"
         )
 
-    logger.debug(f"Parsing input file {args.input_file}.")
+    logger.info(f"[+] Parsing input file {args.input_file}.")
     execution_trace: ExecutionTrace = parser.parse(args.input_file)
 
     verifiers: list[str] = args.verifiers.split(",")
     for verifier_name in verifiers:
         try:
             verifier: Verifier = VERIFIERS[verifier_name]()
-            verifier.verify_trace(execution_trace)
+            if verifier.verify_trace(execution_trace):
+                logger.info(f"[+] {verifier.message()}")
         except KeyError:
             logger.exception(f"Verifier '{verifier_name}' not defined.")
+        except ShadowStackError as err:
+            logger.info("[-] Shadow stack integrity breached.")
+            logger.info(f"[-] \tOriginal exception: {err}")
+        except DirectJumpError as err:
+            logger.info("[-] Direct jump detected to another function.")
+            logger.info(f"[-] \tOriginal exception: {err}")
 
     return 0

@@ -28,3 +28,6 @@ class DirectJumpVerifier(Verifier):
                     validated = False
                     raise DirectJumpError(expected_function=basic_block.function_name, function=next_function)
         return validated
+
+    def message(self) -> str:
+        return "Direct jumps verified!"
