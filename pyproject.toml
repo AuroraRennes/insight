@@ -116,6 +116,7 @@ envlist = check, py312
 passenv = *
 deps = pipenv
 commands =
+    pipenv install --dev
     pytest -s
 
 ; Linting and import tests with flake, black and isort
@@ -127,6 +128,7 @@ deps =
     ruff
     mypy
 commands =
+    pipenv install --dev
     ruff check --fix
     ruff format
     mypy .
