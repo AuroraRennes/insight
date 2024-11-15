@@ -17,6 +17,45 @@ class TraceSizeError(ParserError):
         )
 
 
+class WrongSizeAtomPacketError(ParserError):
+    def __init__(self, expected_size: int, size: int) -> None:
+        super().__init__(f"Expected {expected_size} elements, got {size} for atom packet.")
+
+
+class NoMatchingAddressError(ParserError):
+    def __init__(self) -> None:
+        super().__init__(
+            "Address packets are expected to have an address:"
+            "'I_ADDR_L_64IS0 : Address, Long, 64 bit, IS0.;"
+            "Addr=0x0000AAAAAAAA085C;' (address '0x0000AAAAAAAA085C' here)"
+        )
+
+
+class NoMatchingAddressContextError(ParserError):
+    def __init__(self) -> None:
+        super().__init__(
+            "Address context packets are expected to have an address and a context:"
+            "'I_ADDR_CTXT_L_64IS0 : Address & Context, Long, 64 bit, IS0.;"
+            "Addr=0x0000AAAAAAAA085C; Ctxt: AArch64,EL0, NS;'"
+            "(address '0x0000AAAAAAAA085C', context 'AArch64,EL0,NS' here)"
+        )
+
+
+class NoMatchingInfoError(ParserError):
+    def __init__(self) -> None:
+        super().__init__(
+            "Trace info packets are expected to have information:"
+            "'I_TRACE_INFO : Trace Info.; INFO=0x0 { CC.0 }' (0x0 here)"
+        )
+
+
+class NoMatchingElementsError(ParserError):
+    def __init__(self) -> None:
+        super().__init__(
+            "Atom packets are expected to have elements:" "'I_ATOM_F3 : Atom format 3.; NNE' (NNE here)"
+        )
+
+
 # Perf script
 # ---
 

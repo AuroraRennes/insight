@@ -88,6 +88,9 @@ ignore = [
 fixable = ["ALL"]
 unfixable = []
 
+# Ignore unused variadic arguments
+flake8-unused-arguments.ignore-variadic-names = true
+
 [tool.ruff.lint.extend-per-file-ignores]
 "tests/*.py" = [
     "PT021",
@@ -113,8 +116,7 @@ envlist = check, py312
 passenv = *
 deps = pipenv
 commands =
-    pipenv install --dev
-    pipenv run pytest -s
+    pytest -s
 
 ; Linting and import tests with flake, black and isort
 [testenv:check]
@@ -125,10 +127,9 @@ deps =
     ruff
     mypy
 commands =
-    pipenv install --dev
-    pipenv run ruff check --fix
-    pipenv run ruff format
-    pipenv run mypy .
+    ruff check --fix
+    ruff format
+    mypy .
 """
 
 
