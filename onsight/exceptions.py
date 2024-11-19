@@ -10,6 +10,11 @@ class ParserError(Exception):
 # ---
 
 
+class NoDumpFileError(ParserError):
+    def __init__(self) -> None:
+        super().__init__("The dump file of the traced binary is required to extract execution information.")
+
+
 class TraceSizeError(ParserError):
     def __init__(self, expected_size: int, size: int, cpu_nb: int) -> None:
         super().__init__(
