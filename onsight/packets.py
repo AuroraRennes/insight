@@ -84,7 +84,7 @@ class AddressPacket(Packet):
         return cls(name="Long Address 64bit IS0", packet_info=packet_info, address=address)
 
     @classmethod
-    def addr_s_64is0(cls, packet_info: PacketInfo, address: int) -> AddressPacket:
+    def addr_s_is0(cls, packet_info: PacketInfo, address: int) -> AddressPacket:
         return cls(name="Short Address 64bit IS0", packet_info=packet_info, address=address)
 
 
@@ -143,3 +143,11 @@ class AtomPacket(Packet):
             format=atom_format,
             elements=elements,
         )
+
+    @staticmethod
+    def check_format_size(format: int, elements_nb: int) -> bool:
+        # format 6 holds 4-24 values
+        atom_format_6: int = 6
+        if format == atom_format_6:
+            return elements_nb in range(4, 24)
+        return format == elements_nb

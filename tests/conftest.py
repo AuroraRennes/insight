@@ -103,9 +103,16 @@ def mock_file(monkeypatch, request):
 # \___________
 
 DATA_DIR = "data/"
-PERF_DISASM_FILES: list[Path] = list(Path.glob(Path(DATA_DIR), "*perf.disasm.log"))
+PERF_SCRIPT_FILES: list[Path] = sorted(Path.glob(Path(DATA_DIR), "*.perf.script"))
+PERF_REPORT_FILES: list[Path] = sorted(Path.glob(Path(DATA_DIR), "*.perf.report"))
+DUMP_FILES: list[Path] = sorted(Path.glob(Path(DATA_DIR), "*.dump"))
 
-PERF_BREAKING_DISASM_FILE: list[Path] = [Path(DATA_DIR) / "stack_overflow.perf.disasm.log"]
-PERF_COMPLYING_DISASM_FILES: list[Path] = [
-    path for path in PERF_DISASM_FILES if path not in PERF_BREAKING_DISASM_FILE
-]
+BREAKING_FILES: list[str] = ["stack_overflow"]
+
+
+def filter_files(path_list: list[Path], comply: bool) -> list[Path]:
+    return [
+        path
+        for path in path_list
+        if all((breaking_file_name in path.as_posix()) != comply for breaking_file_name in BREAKING_FILES)
+    ]

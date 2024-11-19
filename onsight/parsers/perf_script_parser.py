@@ -60,7 +60,7 @@ class PerfScriptParser(Parser):
     )
 
     def __init__(self) -> None:
-        super().__init__(extension=".perf.disasm.log")
+        super().__init__(extension=".perf.script")
 
     def parse(self, file_name: str, *args: str, **kwargs: str) -> ExecutionTrace:
         # Check extension
@@ -71,16 +71,16 @@ class PerfScriptParser(Parser):
 
         # Main parsing function
         try:
-            with Path(file_name).open() as perf_disasm_file:
+            with Path(file_name).open() as perf_script_file:
                 # Check first line
-                if PerfScriptParser.TRACE_START_LINE not in next(perf_disasm_file).strip():
+                if PerfScriptParser.TRACE_START_LINE not in next(perf_script_file).strip():
                     raise WrongStartLineError
 
                 # Extracted list of basic blocks
                 basic_blocks: list[BasicBlock] = []
 
                 # Iterate over the file to extract basic blocks
-                for line in perf_disasm_file:
+                for line in perf_script_file:
                     trace_end: bool = line.strip() == PerfScriptParser.TRACE_END_LINE
                     match_start: re.Match[str] | None = re.search(PerfScriptParser.START_FUNCTION_REGEX, line)
 
@@ -93,7 +93,7 @@ class PerfScriptParser(Parser):
                         if function_name in PerfScriptParser.AVOIDED_FUNC_NAMES:
                             continue
                         basic_blocks += self.parse_function(
-                            disasm_file=perf_disasm_file,
+                            perf_script_file=perf_script_file,
                             function_address=function_address,
                             function_name=function_name,
                         )
@@ -115,11 +115,11 @@ class PerfScriptParser(Parser):
         return exec_trace
 
     def parse_function(
-        self, disasm_file: TextIOWrapper, function_address: int, function_name: str
+        self, perf_script_file: TextIOWrapper, function_address: int, function_name: str
     ) -> list[BasicBlock]:
         basic_blocks: list[BasicBlock] = []
 
-        line: str = next(disasm_file)
+        line: str = next(perf_script_file)
         match_line: re.Match[str] | None = re.search(PerfScriptParser.DISASM_LINE_REGEX, line)
         bb_address: int = string_to_int(match_line.group(1)) if match_line else 0
         instructions: list[bytes] = []
@@ -149,7 +149,7 @@ class PerfScriptParser(Parser):
             # Test for end of file
             try:
                 # Next one!
-                line = next(disasm_file)
+                line = next(perf_script_file)
                 match_line = re.search(PerfScriptParser.DISASM_LINE_REGEX, line)
             except StopIteration as exc:
                 raise NoEndLineError from exc

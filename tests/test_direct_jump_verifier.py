@@ -4,7 +4,7 @@ import pytest
 
 from onsight.parsers.perf_script_parser import PerfScriptParser
 from onsight.verifiers.direct_jump_verifier import DirectJumpVerifier
-from tests.conftest import PERF_DISASM_FILES
+from tests.conftest import PERF_SCRIPT_FILES
 
 if TYPE_CHECKING:
     from onsight.execution_trace import ExecutionTrace
@@ -30,13 +30,13 @@ if TYPE_CHECKING:
 )
 def test_direct_jump_verification_passed(mock_file):
     parser: PerfScriptParser = PerfScriptParser()
-    exec_trace: ExecutionTrace = parser.parse("dummy_path.perf.disasm.log")
+    exec_trace: ExecutionTrace = parser.parse("dummy_path.perf.script")
     verifier: DirectJumpVerifier = DirectJumpVerifier()
 
     assert verifier.verify_trace(exec_trace=exec_trace)
 
 
-@pytest.mark.parametrize("file", PERF_DISASM_FILES)
+@pytest.mark.parametrize("file", PERF_SCRIPT_FILES)
 def test_data_files(file):
     parser: PerfScriptParser = PerfScriptParser()
     exec_trace: ExecutionTrace = parser.parse(file)

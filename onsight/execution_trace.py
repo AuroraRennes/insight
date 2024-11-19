@@ -7,6 +7,9 @@ class AddressTrace(NamedTuple):
     address: int
     taken: bool
 
+    def __repr__(self) -> str:
+        return f"AddressTrace({hex(self.address)}, {'E' if self.taken else 'N'})"
+
 
 class ExecutionTrace:
     def __init__(self, address_trace: list[int], basic_blocks: dict[int, BasicBlock]) -> None:

@@ -5,6 +5,7 @@ import pytest
 from onsight.disassembler import Disassembler
 from onsight.exceptions import NoEndLineError, WrongStartLineError
 from onsight.parsers.perf_script_parser import PerfScriptParser
+from tests.conftest import PERF_SCRIPT_FILES
 
 if TYPE_CHECKING:
     from onsight.basic_block import BasicBlock
@@ -31,7 +32,7 @@ if TYPE_CHECKING:
 def test_missing_start_line(mock_file):
     parser = PerfScriptParser()
     with pytest.raises(WrongStartLineError):
-        parser.parse("dummy_path.perf.disasm.log")
+        parser.parse("dummy_path.perf.script")
 
 
 @pytest.mark.parametrize(
@@ -50,7 +51,7 @@ def test_missing_start_line(mock_file):
 def test_missing_end_line_in_function(mock_file):
     parser = PerfScriptParser()
     with pytest.raises(NoEndLineError):
-        parser.parse("dummy_path.perf.disasm.log")
+        parser.parse("dummy_path.perf.script")
 
 
 @pytest.mark.parametrize(
@@ -70,7 +71,7 @@ def test_missing_end_line_in_function(mock_file):
 def test_missing_end_line_in_file(mock_file):
     parser = PerfScriptParser()
     with pytest.raises(NoEndLineError):
-        parser.parse("dummy_path.perf.disasm.log")
+        parser.parse("dummy_path.perf.script")
 
 
 @pytest.mark.parametrize(
@@ -96,7 +97,7 @@ def test_parsing_one_function(mock_file):
     main_address: int = 0x100
     main_size: int = 0x10
     parser = PerfScriptParser()
-    exec_trace: ExecutionTrace = parser.parse("dummy_path.perf.disasm.log")
+    exec_trace: ExecutionTrace = parser.parse("dummy_path.perf.script")
     # Check address trace
     trace: list[AddressTrace] = exec_trace.trace
     assert len(trace) == 1
@@ -109,3 +110,10 @@ def test_parsing_one_function(mock_file):
     assert bb.address == main_address
     assert bb.size == main_size
     assert Disassembler.is_ret(bb.ending_instruction)
+
+
+# Smoke test
+@pytest.mark.parametrize("file", PERF_SCRIPT_FILES)
+def test_complying_data_files(file):
+    parser: PerfScriptParser = PerfScriptParser()
+    parser.parse(file)

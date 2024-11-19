@@ -84,7 +84,7 @@ class PerfReportParser(Parser):
     # to extract the rest of the information. The syntax **dict.fromkeys(keys_list, value) maps multiple
     # keys to the same value in a more concise way.
     PACKETS_INFO: ClassVar[dict[str, ParseInfo]] = {
-        **dict.fromkeys(["I_ADDR_L_64IS0", "I_ADDR_S_64IS0"], ParseInfo("parse_addr", ADDR_REGEX)),
+        **dict.fromkeys(["I_ADDR_L_64IS0", "I_ADDR_S_IS0"], ParseInfo("parse_addr", ADDR_REGEX)),
         "I_ADDR_CTXT_L_64IS0": ParseInfo("parse_addr_ctxt", ADDR_REGEX + "; " + CTXT_REGEX),
         "I_TRACE_INFO": ParseInfo("parse_trace_info", INFO_REGEX),
         **dict.fromkeys([f"I_ATOM_F{i}" for i in range(7)], ParseInfo("parse_atom", ELTS_REGEX)),
@@ -114,7 +114,7 @@ class PerfReportParser(Parser):
     )
 
     def __init__(self) -> None:
-        super().__init__(extension=".perf.dump")
+        super().__init__(extension=".perf.report")
 
     def parse(self, file_name: str, *args: str, **kwargs: str) -> ExecutionTrace:
         dump_file_name: str = kwargs["dump_file_name"]
@@ -124,17 +124,17 @@ class PerfReportParser(Parser):
 
         # Main parsing function
         try:
-            with Path(file_name).open() as perf_dump_file:
+            with Path(file_name).open() as perf_report_file:
                 cpu_nb: int = 0
                 cpu_packets: list[list[Packet]] = []
-                for line in perf_dump_file:
+                for line in perf_report_file:
                     match_start: re.Match[str] | None = re.search(
                         PerfReportParser.TRACE_START_LINE_REGEX, line
                     )
                     if match_start:
                         trace_size: int = string_to_int(match_start.group(1))
                         packets: list[Packet] = self.parse_cpu_trace(
-                            perf_dump_file=perf_dump_file, cpu_nb=cpu_nb, trace_size=trace_size
+                            perf_dump_file=perf_report_file, cpu_nb=cpu_nb, trace_size=trace_size
                         )
                         cpu_packets.append(packets)
                         cpu_nb += 1
@@ -233,7 +233,7 @@ class PerfReportParser(Parser):
 
         # I_ATOM_F1 > [I, ATOM, F1] > 1, but atom format 6 can have more elements!
         format_extracted: str = packet_name.split("_")[-1][-1]
-        if int(format_extracted) != min(6, len(elements)):
+        if not AtomPacket.check_format_size(format=int(format_extracted), elements_nb=len(elements)):
             raise WrongSizeAtomPacketError(expected_size=int(format_extracted), size=len(elements))
         return AtomPacket.atom_format(packet_info=packet_info, elements=elements)
 
@@ -300,7 +300,10 @@ class PerfReportParser(Parser):
 
                     # Process the address of the next basic block
                     # - Branch taken
-                    if atom_element == "E" and Disassembler.is_direct_branch(current_instruction):
+                    if atom_element == "E" and (
+                        Disassembler.is_direct_branch(current_instruction)
+                        or Disassembler.is_call(current_instruction)
+                    ):
                         pie_address = (
                             func_info.address
                             + current_offset

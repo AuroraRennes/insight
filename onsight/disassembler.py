@@ -26,10 +26,9 @@ CONDITIONAL_BRANCHES: list[str] = [
     "b.al",
 ]
 
-DIRECT_BRANCHES: list[str] = [
-    "b",
-    "br",
-]
+DIRECT_BRANCHES: list[str] = ["b"]
+
+INDIRECT_BRANCHES: list[str] = ["br"]
 
 TEST_AND_BRANCHES: list[str] = [
     "cbz",
