@@ -18,7 +18,7 @@ class Parser(ABC):
         self.extension = extension
 
     @abstractmethod
-    def parse(self, file: str) -> ExecutionTrace:
+    def parse(self, file_name: str, *args: str, **kwargs: str) -> ExecutionTrace:
         pass
 
     def check_extension(self, file_name: str) -> None:

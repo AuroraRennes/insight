@@ -5,11 +5,14 @@ from io import TextIOWrapper
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 
+from onsight.basic_block import BasicBlock
+from onsight.disassembler import Disassembler
 from onsight.exceptions import (
     NoMatchingAddressContextError,
     NoMatchingAddressError,
     NoMatchingElementsError,
     NoMatchingInfoError,
+    ParserError,
     TraceSizeError,
     WrongSizeAtomPacketError,
 )
@@ -26,12 +29,12 @@ from onsight.packets import (
     PacketInfo,
     SynchronizationPacket,
 )
+from onsight.parsers.objdump_parser import FunctionDict, FunctionInfo, ObjdumpParser
 from onsight.parsers.parser import Parser
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from onsight.basic_block import BasicBlock
 
 logger = logging.getLogger("onsight")
 
@@ -66,6 +69,10 @@ class PerfReportParser(Parser):
     # In this case, 10 basic blocks (7 in ATOM_F6 + 4 in ATOM_F3) should
     # be extracted
 
+    # Starting address
+    PROGRAM_START_ADDRESS: int = 0x0000AAAAAAAA0000
+    PROGRAM_MEM_SIZE: int = 0x10000
+
     # REGEXES
     TRACE_START_LINE_REGEX: str = r"\. \.\.\. CoreSight ETMV4I Trace data: size (0x\w+) bytes"
     ADDR_REGEX: str = r"Addr=(0x\w+)"  # Address, in address    ...; Addr=0xFFFF800008AA4BE0;
@@ -91,20 +98,35 @@ class PerfReportParser(Parser):
     #                                v         v        v          v
     PACKET_BASE_REGEX: str = r"Idx:(\d+); ID:(\d+);\s(\w*)\s: ([\s\w,&]*)."
 
+    # libc set up and teardown
+    AVOIDED_FUNC_NAMES: tuple[str, ...] = (
+        "_start",
+        "__libc_start_main",
+        ".plt",
+        "call_weak_fn",
+        "_init",
+        "frame_dummy",
+        "register_tm_clones",
+        "deregister_tm_clones",
+        "__cxa_finalize",
+        "__do_global_dtors_aux",
+        "_fini",
+    )
+
     def __init__(self) -> None:
         super().__init__(extension=".perf.dump")
 
-    def parse(self, file_name: str) -> ExecutionTrace:
+    def parse(self, file_name: str, *args: str, **kwargs: str) -> ExecutionTrace:
+        dump_file_name: str = kwargs["dump_file_name"]
+
         # Check extension
         self.check_extension(file_name)
-
-        # Execution trace initialization
-        exec_trace: ExecutionTrace = ExecutionTrace(address_trace=[], basic_blocks={})
 
         # Main parsing function
         try:
             with Path(file_name).open() as perf_dump_file:
                 cpu_nb: int = 0
+                cpu_packets: list[list[Packet]] = []
                 for line in perf_dump_file:
                     match_start: re.Match[str] | None = re.search(
                         PerfReportParser.TRACE_START_LINE_REGEX, line
@@ -114,15 +136,13 @@ class PerfReportParser(Parser):
                         packets: list[Packet] = self.parse_cpu_trace(
                             perf_dump_file=perf_dump_file, cpu_nb=cpu_nb, trace_size=trace_size
                         )
+                        cpu_packets.append(packets)
                         cpu_nb += 1
-        except OSError:
+        except (OSError, ParserError):
             logger.exception("[-] Parsing Failed.")
             raise
-        else:
-            self.process_packets(packets)
-            exec_trace = ExecutionTrace(address_trace=[], basic_blocks={})
 
-        return exec_trace
+        return self.process_packets(cpu_packets, dump_file_name)
 
     def parse_cpu_trace(self, perf_dump_file: TextIOWrapper, cpu_nb: int, trace_size: int) -> list[Packet]:
         packets: list[Packet] = []
@@ -140,7 +160,8 @@ class PerfReportParser(Parser):
 
             packet_name: str = match_line.group(3)
             parse_info: ParseInfo = PerfReportParser.PACKETS_INFO[packet_name]
-            parse_method: Callable = getattr(self, parse_info.parse_method)
+
+            parse_method: Callable[..., Packet] = getattr(self, parse_info.parse_method)
             packet: Packet = parse_method(
                 packet_info=packet_info, packet_name=packet_name, line=line, regex=parse_info.regex
             )
@@ -168,7 +189,7 @@ class PerfReportParser(Parser):
         else:
             raise NoMatchingAddressError
 
-        constr_method: Callable = getattr(AddressPacket, packet_name[2:].lower())
+        constr_method: Callable[..., AddressPacket] = getattr(AddressPacket, packet_name[2:].lower())
         return constr_method(packet_info=packet_info, address=address)
 
     def parse_addr_ctxt(
@@ -186,7 +207,9 @@ class PerfReportParser(Parser):
         else:
             raise NoMatchingAddressContextError
 
-        constr_method: Callable = getattr(AddressContextPacket, packet_name[2:].lower())
+        constr_method: Callable[..., AddressContextPacket] = getattr(
+            AddressContextPacket, packet_name[2:].lower()
+        )
         return constr_method(packet_info=packet_info, address=address, context=context)
 
     def parse_trace_info(
@@ -223,15 +246,95 @@ class PerfReportParser(Parser):
     # Packet processing
     # \_________________
 
-    def process_packets(self, packets: list[Packet]) -> ExecutionTrace:
-        # TODO: run packets and find corresponding functions with program dump
-        for _ in packets:
-            pass
+    def process_packets(self, packets: list[list[Packet]], dump_file_name: str) -> ExecutionTrace:
+        # Extract function info from the dump file
+        func_dict: FunctionDict = ObjdumpParser.parse_dump(dump_file_name)
 
-        address_trace: list[int] = []
-        basic_blocks: dict[int, BasicBlock] = {}
+        # Only pick the cpu with the largest trace
+        # TODO: should be a cli argument?
+        packet_trace: list[Packet] = max(packets, key=len)
+
+        # PIE address is in reference of Position Independent Executable
+        # It is the address relative to the start of the object file
+        pie_address: int = 0
+        current_offset: int = 0
+        basic_blocks: list[BasicBlock] = []
+
+        for packet in packet_trace:
+            # Extracting address from address packet
+            if isinstance(packet, AddressPacket):
+                address_packet: AddressPacket = packet
+                pie_address = address_packet.address - PerfReportParser.PROGRAM_START_ADDRESS
+
+            # Extracting basic block(s) from atom packet
+            if isinstance(packet, AtomPacket):
+                atom_packet: AtomPacket = packet
+
+                # Search the function the address in the function dict
+                optional_func_info: FunctionInfo | None = func_dict.find_function_by_address(pie_address)
+
+                # If None, this means the  obtained address is outside the traced binary
+                if optional_func_info is None:
+                    continue
+
+                # Check if it is one of the libc setup/teardown functions
+                func_info: FunctionInfo = optional_func_info
+                if func_info.name in PerfReportParser.AVOIDED_FUNC_NAMES:
+                    continue
+
+                # Offset in the function
+                current_offset = pie_address - func_info.address
+
+                for atom_element in atom_packet.elements:
+                    # Extract instructions
+                    basic_block: BasicBlock
+                    basic_block = self.process_basic_block(
+                        func_info=func_info, current_offset=current_offset, pie_address=pie_address
+                    )
+                    # Publish the basic block and address info
+                    basic_blocks.append(basic_block)
+
+                    # Update offset
+                    current_offset += basic_block.size - 4
+                    current_instruction: bytes = func_info.instructions[current_offset // 4]
+
+                    # Process the address of the next basic block
+                    # - Branch taken
+                    if atom_element == "E" and Disassembler.is_direct_branch(current_instruction):
+                        pie_address = (
+                            func_info.address
+                            + current_offset
+                            + Disassembler.extract_branch_target(current_instruction)
+                        )
+                        optional_func_info = func_dict.find_function_by_address(pie_address)
+                        if optional_func_info:
+                            func_info = optional_func_info
+                            current_offset = pie_address - func_info.address
+                        # TODO: add else exception
+                    # - Branch not taken
+                    elif atom_element == "N":
+                        current_offset += 4
+                        pie_address = func_info.address + current_offset
 
         return ExecutionTrace(
-            address_trace=address_trace,
-            basic_blocks=basic_blocks,
+            address_trace=[bb.address for bb in basic_blocks],
+            basic_blocks={bb.address: bb for bb in basic_blocks},
+        )
+
+    def process_basic_block(
+        self, func_info: FunctionInfo, current_offset: int, pie_address: int
+    ) -> BasicBlock:
+        current_instruction: bytes = func_info.instructions[current_offset // 4]
+        instructions: list[bytes] = []
+        while not Disassembler.is_branch(current_instruction):
+            instructions.append(current_instruction)
+            current_offset += 4
+            current_instruction = func_info.instructions[current_offset // 4]
+        # Add the branch!
+        instructions.append(current_instruction)
+        return BasicBlock(
+            function_address=func_info.address,
+            function_name=func_info.name,
+            address=pie_address,
+            instructions=instructions,
         )

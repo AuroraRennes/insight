@@ -7,7 +7,7 @@ from onsight.basic_block import BasicBlock
 from onsight.disassembler import Disassembler
 from onsight.exceptions import NoEndLineError, WrongStartLineError
 from onsight.execution_trace import ExecutionTrace
-from onsight.helpers import reverse_endianness, string_to_bytes, string_to_int
+from onsight.helpers import reverse_endianness32, string_to_bytes, string_to_int
 from onsight.parsers.parser import Parser
 
 logger = logging.getLogger("onsight")
@@ -38,9 +38,7 @@ class PerfScriptParser(Parser):
     TRACE_START_LINE: str = "ARM CoreSight Trace Data Assembler Dump"
     TRACE_END_LINE: str = "End"
     # Regex line   00000000000007f8 <main+0x20>:
-    #  matches     00000000000007f8  main
-
-    # Alternative with offset from function symbol
+    #  matches     00000000000007f8  main and 0x20
     START_FUNCTION_REGEX: str = r"([\w\._]*) <([\w\._]+)(\+0x\w+)?>:"
     # Regex line   828:  b9801fe0  ldrsw  x0, [sp, #28]
     #  matches     828   b9801fe0  ldrsw
@@ -64,7 +62,7 @@ class PerfScriptParser(Parser):
     def __init__(self) -> None:
         super().__init__(extension=".perf.disasm.log")
 
-    def parse(self, file_name: str) -> ExecutionTrace:
+    def parse(self, file_name: str, *args: str, **kwargs: str) -> ExecutionTrace:
         # Check extension
         self.check_extension(file_name)
 
@@ -129,7 +127,7 @@ class PerfScriptParser(Parser):
             # Instruction information
             instr_address: int = string_to_int(match_line.group(1))
             bb_address = instr_address if (bb_address == -1) else bb_address
-            instr_bytes: bytes = reverse_endianness(string_to_bytes(match_line.group(2)))
+            instr_bytes: bytes = reverse_endianness32(string_to_bytes(match_line.group(2)))
             instr_mnemonic: str = match_line.group(3)
             # Add bytes to the instruction
             instructions.append(instr_bytes)
