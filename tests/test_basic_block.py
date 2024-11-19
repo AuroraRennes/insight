@@ -57,4 +57,4 @@ def test_initialization(basic_block_setup):
 
 def test_string_repr(basic_block_setup):
     bb = basic_block_setup
-    assert str(bb) == f"BB: {hex(BB_ADDRESS)} - size {hex(len(BB_INSTRUCTIONS) * 4)}"
+    assert str(bb) == f"BB({hex(BB_ADDRESS)} - size {hex(len(BB_INSTRUCTIONS) * 4)})"

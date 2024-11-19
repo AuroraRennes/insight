@@ -11,4 +11,4 @@ class BasicBlock:
         self.size: int = len(self.instructions) * 4  # 4-bytes instructions
 
     def __repr__(self) -> str:
-        return f"BB: {hex(self.address)} - size {hex(self.size)}"
+        return f"BB({hex(self.address)} - size {hex(self.size)})"

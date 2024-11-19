@@ -1,5 +1,7 @@
 from capstone import CS_ARCH_ARM64, CS_MODE_ARM, Cs
 
+from onsight.helpers import string_to_int, to_signed
+
 CALLS: list[str] = ["bl", "bx", "blx"]
 
 RET: list[str] = [
@@ -72,3 +74,15 @@ class Disassembler:
         disassembler = Cs(CS_ARCH_ARM64, CS_MODE_ARM)
         instr = next(disassembler.disasm(instr_bytes, 0))
         return instr.mnemonic in DIRECT_BRANCHES + CONDITIONAL_BRANCHES
+
+    @staticmethod
+    def is_branch(instr_bytes: bytes) -> bool:
+        disassembler = Cs(CS_ARCH_ARM64, CS_MODE_ARM)
+        instr = next(disassembler.disasm(instr_bytes, 0))
+        return instr.mnemonic in BRANCHES
+
+    @staticmethod
+    def extract_branch_target(instr_bytes: bytes) -> int:
+        disassembler = Cs(CS_ARCH_ARM64, CS_MODE_ARM)
+        instr = next(disassembler.disasm(instr_bytes, 0))
+        return to_signed(string_to_int(instr.op_str[1:]), 64)

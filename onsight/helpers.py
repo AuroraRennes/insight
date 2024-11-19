@@ -9,7 +9,7 @@ def flatten_list(nested_list: list[Any]) -> list[Any]:
     return [item for sublist in nested_list for item in sublist]
 
 
-def window(arr: list[Any], k: int) -> Generator:
+def window(arr: list[Any], k: int) -> Generator[Any]:
     for i in range(len(arr) - k + 1):
         yield arr[i : i + k]
 
@@ -18,6 +18,23 @@ def mean(list: list[int] | list[float]) -> float:
     if not list:
         return 0
     return sum(list) / len(list)
+
+
+# Sign extension
+# \_____________
+
+
+def to_signed(value: int, size: int) -> int:
+    sign_mask: int = 1 << (size - 1)  # 0b100000...
+    mask: int = (1 << size) - 1  # 0b01111111...
+    return ((value & mask) ^ sign_mask) - sign_mask
+
+
+def to_unsigned(value: int, size: int) -> int:
+    if value >= 0:
+        return value
+    mask: int = (1 << size) - 1  # 0b01111111...
+    return mask - abs(value) + 1
 
 
 # Byte/int conversion
@@ -44,7 +61,11 @@ def string_to_int(value: str) -> int:
     return int(value, 16)
 
 
-def reverse_endianness(value: bytes) -> bytes:
+def reverse_endianness32(value: bytes) -> bytes:
+    return int_to_bytes32(int.from_bytes(value, "big"))
+
+
+def reverse_endianness64(value: bytes) -> bytes:
     return int_to_bytes64(int.from_bytes(value, "big"))
 
 
