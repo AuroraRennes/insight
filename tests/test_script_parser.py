@@ -5,7 +5,7 @@ import pytest
 from onsight.disassembler import Disassembler
 from onsight.exceptions import NoEndLineError, WrongStartLineError
 from onsight.parsers.perf_script_parser import PerfScriptParser
-from tests.conftest import PERF_SCRIPT_FILES
+from tests.conftest import PERF_BASE_SCRIPT_FILES, PERF_BB_SCRIPT_FILES
 
 if TYPE_CHECKING:
     from onsight.basic_block import BasicBlock
@@ -113,7 +113,14 @@ def test_parsing_one_function(mock_file):
 
 
 # Smoke test
-@pytest.mark.parametrize("file", PERF_SCRIPT_FILES)
-def test_complying_data_files(file):
+@pytest.mark.parametrize("file", PERF_BASE_SCRIPT_FILES)
+def test_complying_base_data_files(file):
+    parser: PerfScriptParser = PerfScriptParser()
+    parser.parse(file)
+
+
+# Smoke test
+@pytest.mark.parametrize("file", PERF_BB_SCRIPT_FILES)
+def test_complying_bb_data_files(file):
     parser: PerfScriptParser = PerfScriptParser()
     parser.parse(file)

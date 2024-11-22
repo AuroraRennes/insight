@@ -103,11 +103,11 @@ def mock_file(monkeypatch, request):
 # \___________
 
 DATA_DIR = "data/"
-PERF_SCRIPT_FILES: list[Path] = sorted(Path.glob(Path(DATA_DIR), "*.perf.script"))
-PERF_REPORT_FILES: list[Path] = sorted(Path.glob(Path(DATA_DIR), "*.perf.report"))
-DUMP_FILES: list[Path] = sorted(Path.glob(Path(DATA_DIR), "*.dump"))
-
 BREAKING_FILES: list[str] = ["stack_overflow"]
+
+
+def find_files_with_extension(subdir: str, extension: str) -> list[Path]:
+    return sorted(Path.glob(Path(DATA_DIR) / subdir, extension))
 
 
 def filter_files(path_list: list[Path], comply: bool) -> list[Path]:
@@ -116,3 +116,13 @@ def filter_files(path_list: list[Path], comply: bool) -> list[Path]:
         for path in path_list
         if all((breaking_file_name in path.as_posix()) != comply for breaking_file_name in BREAKING_FILES)
     ]
+
+
+# Dumps
+DUMP_FILES: list[Path] = find_files_with_extension("bin/", "*.dump")
+# Base
+PERF_BASE_REPORT_FILES: list[Path] = find_files_with_extension("base/", "*.perf.report")
+PERF_BASE_SCRIPT_FILES: list[Path] = find_files_with_extension("base/", "*.perf.script")
+# Branch broadcast
+PERF_BB_REPORT_FILES: list[Path] = find_files_with_extension("branch_broadcast/", "*.perf.report")
+PERF_BB_SCRIPT_FILES: list[Path] = find_files_with_extension("branch_broadcast/", "*.perf.script")

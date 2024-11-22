@@ -1,0 +1,475 @@
+# ========
+# captured on    : Fri Nov 22 12:21:52 2024
+# header version : 1
+# data offset    : 408
+# data size      : 1936
+# feat offset    : 2344
+# hostname : xilinx-zcu104-20231
+# os release : 6.1.5-xilinx-v2023.1
+# perf version : 6.1.5
+# arch : aarch64
+# nrcpus online : 4
+# nrcpus avail : 4
+# cpuid : 0x00000000410fd030
+# total memory : 1795644 kB
+# cmdline : /usr/bin/perf record -e cs_etm/branch_broadcast,@tmc_etr0/u --filter filter 0x0000aaaaaaaa0000/0x1000 --per-thread bin/fib 
+# event : name = cs_etm/branch_broadcast,@tmc_etr0/u, , id = { 87 }, type = 8, size = 128, config = 0x100, { sample_period, sample_freq } = 1, sample_type = IP|TID|IDENTIFIER, read_format = ID|LOST, disabled = 1, exclude_kernel = 1, exclude_hv = 1, enable_on_exec = 1, sample_id_all = 1, exclude_guest = 1, { bp_len, config2 } = 0xa6509eae
+# event : name = dummy:u, , id = { 88 }, type = 1, size = 128, config = 0x9, { sample_period, sample_freq } = 1, sample_type = IP|TID|IDENTIFIER, read_format = ID|LOST, disabled = 1, exclude_kernel = 1, exclude_hv = 1, mmap = 1, comm = 1, enable_on_exec = 1, task = 1, sample_id_all = 1, exclude_guest = 1, mmap2 = 1, comm_exec = 1, context_switch = 1, ksymbol = 1, bpf_event = 1
+# sibling sockets : 0-3
+# sibling threads : 0
+# sibling threads : 1
+# sibling threads : 2
+# sibling threads : 3
+# CPU 0: Core ID 0, Socket ID 0
+# CPU 1: Core ID 1, Socket ID 0
+# CPU 2: Core ID 2, Socket ID 0
+# CPU 3: Core ID 3, Socket ID 0
+# pmu mappings: software = 1, CCI_400_r1 = 7, cs_etm = 8, breakpoint = 5, armv8_pmuv3 = 6
+# contains AUX area data (e.g. instruction trace)
+# time of first sample : 18446744073.709551
+# time of last sample : 18446744073.709551
+# sample duration :      0.000 ms
+# armv8_pmuv3 pmu capabilities: slots=0x00000000, bus_slots=0x00000000, bus_width=0x00000000
+# missing features: TRACING_DATA CPUDESC NUMA_TOPOLOGY BRANCH_STACK GROUP_DESC STAT CACHE MEM_TOPOLOGY CLOCKID DIR_FORMAT COMPRESSED CPU_PMU_CAPS CLOCK_DATA HYBRID_TOPOLOGY 
+# ========
+#
+
+0x198@trace/fib.perf.data [0x38]: event: 79
+.
+. ... raw event: size 56 bytes
+.  0000:  4f 00 00 00 00 00 38 00 15 00 00 00 00 00 00 00  O.....8.........
+.  0010:  00 00 40 01 00 00 00 00 da 0d f1 77 fa ff ff ff  ..@........w....
+.  0020:  41 3e ae 8d 00 00 00 00 ff ff ff ff ff ff ff 01  A>..............
+.  0030:  01 01 00 00 00 00 00 00                          ........        
+
+0x198 [0x38]: PERF_RECORD_TIME_CONV
+... Time Shift      21
+... Time Muliplier  20971520
+... Time Zero       18446744049952034266
+... Time Cycles     2377006657
+... Time Mask       0x1ffffffffffffff
+... Cap Time Zero   1
+... Cap Time Short  1
+: unhandled!
+
+0x1d0@trace/fib.perf.data [0x50]: event: 69
+.
+. ... raw event: size 80 bytes
+.  0000:  45 00 00 00 00 00 50 00 02 00 00 00 00 00 00 00  E.....P.........
+.  0010:  57 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  W...............
+.  0020:  ff ff ff ff ff ff ff ff 57 04 00 00 00 00 00 00  ........W.......
+.  0030:  58 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  X...............
+.  0040:  ff ff ff ff ff ff ff ff 57 04 00 00 00 00 00 00  ........W.......
+
+0x1d0 [0x50]: PERF_RECORD_ID_INDEX nr: 2
+ ... id: 87  idx: 0  cpu: -1  tid: 1111
+ ... id: 88  idx: 0  cpu: -1  tid: 1111
+
+0x220@trace/fib.perf.data [0x168]: event: 70
+.
+. ... raw event: size 360 bytes
+.  0000:  46 00 00 00 00 00 68 01 03 00 00 00 00 00 00 00  F.....h.........
+.  0010:  01 00 00 00 00 00 00 00 04 00 00 00 08 00 00 00  ................
+.  0020:  00 00 00 00 00 00 00 00 40 40 40 40 40 40 40 40  ........@@@@@@@@
+.  0030:  00 00 00 00 00 00 00 00 07 00 00 00 00 00 00 00  ................
+.  0040:  08 00 00 00 00 00 00 00 10 00 00 00 00 00 00 00  ................
+.  0050:  a1 0e 00 28 00 00 00 00 04 f4 00 41 00 00 00 00  ...(.......A....
+.  0060:  88 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+.  0070:  cc 00 00 00 00 00 00 00 40 40 40 40 40 40 40 40  ........@@@@@@@@
+.  0080:  01 00 00 00 00 00 00 00 07 00 00 00 00 00 00 00  ................
+.  0090:  08 00 00 00 00 00 00 00 12 00 00 00 00 00 00 00  ................
+.  00a0:  a1 0e 00 28 00 00 00 00 04 f4 00 41 00 00 00 00  ...(.......A....
+.  00b0:  88 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+.  00c0:  cc 00 00 00 00 00 00 00 40 40 40 40 40 40 40 40  ........@@@@@@@@
+.  00d0:  02 00 00 00 00 00 00 00 07 00 00 00 00 00 00 00  ................
+.  00e0:  08 00 00 00 00 00 00 00 14 00 00 00 00 00 00 00  ................
+.  00f0:  a1 0e 00 28 00 00 00 00 04 f4 00 41 00 00 00 00  ...(.......A....
+.  0100:  88 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+.  0110:  cc 00 00 00 00 00 00 00 40 40 40 40 40 40 40 40  ........@@@@@@@@
+.  0120:  03 00 00 00 00 00 00 00 07 00 00 00 00 00 00 00  ................
+.  0130:  08 00 00 00 00 00 00 00 16 00 00 00 00 00 00 00  ................
+.  0140:  a1 0e 00 28 00 00 00 00 04 f4 00 41 00 00 00 00  ...(.......A....
+.  0150:  88 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+.  0160:  cc 00 00 00 00 00 00 00                          ........        
+
+0x220 [0x168]: PERF_RECORD_AUXTRACE_INFO type: 3
+	Header version		       1
+	PMU type/num cpus	       800000004
+	Snapshot		       0
+	Magic number		       4040404040404040
+	CPU			       0
+	NR_TRC_PARAMS		       7
+	TRCCONFIGR		       8
+	TRCTRACEIDR		       10
+	TRCIDR0			       28000ea1
+	TRCIDR1			       4100f404
+	TRCIDR2			       488
+	TRCIDR8			       0
+	TRCAUTHSTATUS		       cc
+	Magic number		       4040404040404040
+	CPU			       1
+	NR_TRC_PARAMS		       7
+	TRCCONFIGR		       8
+	TRCTRACEIDR		       12
+	TRCIDR0			       28000ea1
+	TRCIDR1			       4100f404
+	TRCIDR2			       488
+	TRCIDR8			       0
+	TRCAUTHSTATUS		       cc
+	Magic number		       4040404040404040
+	CPU			       2
+	NR_TRC_PARAMS		       7
+	TRCCONFIGR		       8
+	TRCTRACEIDR		       14
+	TRCIDR0			       28000ea1
+	TRCIDR1			       4100f404
+	TRCIDR2			       488
+	TRCIDR8			       0
+	TRCAUTHSTATUS		       cc
+	Magic number		       4040404040404040
+	CPU			       3
+	NR_TRC_PARAMS		       7
+	TRCCONFIGR		       8
+	TRCTRACEIDR		       16
+	TRCIDR0			       28000ea1
+	TRCIDR1			       4100f404
+	TRCIDR2			       488
+	TRCIDR8			       0
+	TRCAUTHSTATUS		       cc
+
+0@(null) [0x90]: event: 64
+.
+. ... raw event: size 144 bytes
+.  0000:  40 00 00 00 00 00 90 00 00 00 00 00 80 00 00 00  @...............
+.  0010:  04 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  ................
+.  0020:  0b 01 01 00 00 00 00 00 14 00 00 00 00 00 00 00  ................
+.  0030:  60 00 14 00 00 00 00 00 00 00 00 00 00 00 00 00  `...............
+.  0040:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+.  0050:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+.  0060:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+.  0070:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+.  0080:  00 00 00 00 00 00 00 00 57 ca 9a 3b 00 00 00 00  ........W..;....
+
+0 [0x90]: PERF_RECORD_ATTR
+0@(null) [0x90]: event: 64
+.
+. ... raw event: size 144 bytes
+.  0000:  40 00 00 00 00 00 90 00 00 00 00 00 80 00 00 00  @...............
+.  0010:  01 00 00 00 00 00 00 00 a0 86 01 00 00 00 00 00  ................
+.  0020:  03 01 01 00 00 00 00 00 14 00 00 00 00 00 00 00  ................
+.  0030:  60 00 14 00 00 00 00 00 00 00 00 00 00 00 00 00  `...............
+.  0040:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+.  0050:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+.  0060:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+.  0070:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+.  0080:  00 00 00 00 00 00 00 00 58 ca 9a 3b 00 00 00 00  ........X..;....
+
+0 [0x90]: PERF_RECORD_ATTR
+0x388@trace/fib.perf.data [0x28]: event: 73
+.
+. ... raw event: size 40 bytes
+.  0000:  49 00 00 00 00 00 28 00 01 00 00 00 00 00 00 00  I.....(.........
+.  0010:  57 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00  W...............
+.  0020:  00 00 00 00 00 00 00 00                          ........        
+
+0x388 [0x28]: PERF_RECORD_THREAD_MAP nr: 1 thread: 1111
+: unhandled!
+
+0x3b0@trace/fib.perf.data [0x10]: event: 74
+.
+. ... raw event: size 16 bytes
+.  0000:  4a 00 00 00 00 00 10 00 00 00 01 00 ff ff 00 00  J...............
+
+0x3b0 [0x10]: PERF_RECORD_CPU_MAP: -1
+: unhandled!
+
+0x3c0@trace/fib.perf.data [0x30]: event: 3
+.
+. ... raw event: size 48 bytes
+.  0000:  03 00 00 00 00 00 30 00 57 04 00 00 57 04 00 00  ......0.W...W...
+.  0010:  70 65 72 66 2d 65 78 65 63 00 00 00 00 00 00 00  perf-exec.......
+.  0020:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+0x3c0 [0x30]: PERF_RECORD_COMM: perf-exec:1111/1111
+
+0x3f0@trace/fib.perf.data [0x8]: event: 82
+.
+. ... raw event: size 8 bytes
+.  0000:  52 00 00 00 00 00 08 00                          R.......        
+
+0x3f0 [0x8]: PERF_RECORD_FINISHED_INIT: unhandled!
+
+0x3f8@trace/fib.perf.data [0x20]: event: 12
+.
+. ... raw event: size 32 bytes
+.  0000:  0c 00 00 00 00 00 20 00 57 04 00 00 57 04 00 00  ...... .W...W...
+.  0010:  57 04 00 00 57 04 00 00 57 00 00 00 00 00 00 00  W...W...W.......
+
+0x3f8 [0x20]: PERF_RECORD_ITRACE_START pid: 1111 tid: 1111
+
+0x418@trace/fib.perf.data [0x28]: event: 3
+.
+. ... raw event: size 40 bytes
+.  0000:  03 00 00 00 00 20 28 00 57 04 00 00 57 04 00 00  ..... (.W...W...
+.  0010:  66 69 62 00 00 00 00 00 57 04 00 00 57 04 00 00  fib.....W...W...
+.  0020:  58 00 00 00 00 00 00 00                          X.......        
+
+0x418 [0x28]: PERF_RECORD_COMM exec: fib:1111/1111
+
+0x440@trace/fib.perf.data [0x80]: event: 10
+.
+. ... raw event: size 128 bytes
+.  0000:  0a 00 00 00 02 00 80 00 57 04 00 00 57 04 00 00  ........W...W...
+.  0010:  00 00 aa aa aa aa 00 00 00 10 02 00 00 00 00 00  ................
+.  0020:  00 00 00 00 00 00 00 00 00 00 00 00 33 00 00 00  ............3...
+.  0030:  97 87 e8 04 00 00 00 00 00 00 00 00 00 00 00 00  ................
+.  0040:  05 00 00 00 02 00 00 00 2f 68 6f 6d 65 2f 61 75  ......../home/au
+.  0050:  72 6f 72 61 2f 71 74 65 73 74 73 2f 70 65 72 66  rora/qtests/perf
+.  0060:  65 78 2f 62 69 6e 2f 66 69 62 00 00 00 00 00 00  ex/bin/fib......
+.  0070:  57 04 00 00 57 04 00 00 58 00 00 00 00 00 00 00  W...W...X.......
+
+0x440 [0x80]: PERF_RECORD_MMAP2 1111/1111: [0xaaaaaaaa0000(0x21000) @ 0 00:33 82347927 0]: r-xp /home/aurora/qtests/perfex/bin/fib
+
+0x4c0@trace/fib.perf.data [0x78]: event: 10
+.
+. ... raw event: size 120 bytes
+.  0000:  0a 00 00 00 02 00 78 00 57 04 00 00 57 04 00 00  ......x.W...W...
+.  0010:  00 e0 fb f7 ff ff 00 00 00 20 04 00 00 00 00 00  ......... ......
+.  0020:  00 00 00 00 00 00 00 00 00 00 00 00 16 00 00 00  ................
+.  0030:  6e 4a 4a 05 00 00 00 00 00 00 00 00 00 00 00 00  nJJ.............
+.  0040:  05 00 00 00 02 00 00 00 2f 6c 69 62 2f 6c 64 2d  ......../lib/ld-
+.  0050:  6c 69 6e 75 78 2d 61 61 72 63 68 36 34 2e 73 6f  linux-aarch64.so
+.  0060:  2e 31 00 00 00 00 00 00 57 04 00 00 57 04 00 00  .1......W...W...
+.  0070:  58 00 00 00 00 00 00 00                          X.......        
+
+0x4c0 [0x78]: PERF_RECORD_MMAP2 1111/1111: [0xfffff7fbe000(0x42000) @ 0 00:16 88754798 0]: r-xp /lib/ld-linux-aarch64.so.1
+
+0x538@trace/fib.perf.data [0x60]: event: 10
+.
+. ... raw event: size 96 bytes
+.  0000:  0a 00 00 00 02 00 60 00 57 04 00 00 57 04 00 00  ......`.W...W...
+.  0010:  00 b0 ff f7 ff ff 00 00 00 10 00 00 00 00 00 00  ................
+.  0020:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+.  0030:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+.  0040:  05 00 00 00 02 00 00 00 5b 76 64 73 6f 5d 00 00  ........[vdso]..
+.  0050:  57 04 00 00 57 04 00 00 58 00 00 00 00 00 00 00  W...W...X.......
+
+0x538 [0x60]: PERF_RECORD_MMAP2 1111/1111: [0xfffff7ffb000(0x1000) @ 0 00:00 0 0]: r-xp [vdso]
+
+0x598@trace/fib.perf.data [0x18]: event: 14
+.
+. ... raw event: size 24 bytes
+.  0000:  0e 00 00 00 00 20 18 00 57 04 00 00 57 04 00 00  ..... ..W...W...
+.  0010:  58 00 00 00 00 00 00 00                          X.......        
+
+0x598 [0x18]: PERF_RECORD_SWITCH OUT        
+
+0x5b0@trace/fib.perf.data [0x30]: event: 11
+.
+. ... raw event: size 48 bytes
+.  0000:  0b 00 00 00 00 00 30 00 00 00 00 00 00 00 00 00  ......0.........
+.  0010:  30 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  0...............
+.  0020:  57 04 00 00 57 04 00 00 57 00 00 00 00 00 00 00  W...W...W.......
+
+0x5b0 [0x30]: PERF_RECORD_AUX offset: 0 size: 0x30 flags: 0 []
+
+0x5e0@trace/fib.perf.data [0x20]: event: 12
+.
+. ... raw event: size 32 bytes
+.  0000:  0c 00 00 00 00 00 20 00 57 04 00 00 57 04 00 00  ...... .W...W...
+.  0010:  57 04 00 00 57 04 00 00 57 00 00 00 00 00 00 00  W...W...W.......
+
+0x5e0 [0x20]: PERF_RECORD_ITRACE_START pid: 1111 tid: 1111
+
+0x600@trace/fib.perf.data [0x18]: event: 14
+.
+. ... raw event: size 24 bytes
+.  0000:  0e 00 00 00 00 00 18 00 57 04 00 00 57 04 00 00  ........W...W...
+.  0010:  58 00 00 00 00 00 00 00                          X.......        
+
+0x600 [0x18]: PERF_RECORD_SWITCH IN         
+
+0x618@trace/fib.perf.data [0x18]: event: 14
+.
+. ... raw event: size 24 bytes
+.  0000:  0e 00 00 00 00 20 18 00 57 04 00 00 57 04 00 00  ..... ..W...W...
+.  0010:  58 00 00 00 00 00 00 00                          X.......        
+
+0x618 [0x18]: PERF_RECORD_SWITCH OUT        
+
+0x630@trace/fib.perf.data [0x30]: event: 11
+.
+. ... raw event: size 48 bytes
+.  0000:  0b 00 00 00 00 00 30 00 30 00 00 00 00 00 00 00  ......0.0.......
+.  0010:  30 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  0...............
+.  0020:  57 04 00 00 57 04 00 00 57 00 00 00 00 00 00 00  W...W...W.......
+
+0x630 [0x30]: PERF_RECORD_AUX offset: 0x30 size: 0x30 flags: 0 []
+
+0x660@trace/fib.perf.data [0x20]: event: 12
+.
+. ... raw event: size 32 bytes
+.  0000:  0c 00 00 00 00 00 20 00 57 04 00 00 57 04 00 00  ...... .W...W...
+.  0010:  57 04 00 00 57 04 00 00 57 00 00 00 00 00 00 00  W...W...W.......
+
+0x660 [0x20]: PERF_RECORD_ITRACE_START pid: 1111 tid: 1111
+
+0x680@trace/fib.perf.data [0x18]: event: 14
+.
+. ... raw event: size 24 bytes
+.  0000:  0e 00 00 00 00 00 18 00 57 04 00 00 57 04 00 00  ........W...W...
+.  0010:  58 00 00 00 00 00 00 00                          X.......        
+
+0x680 [0x18]: PERF_RECORD_SWITCH IN         
+
+0x698@trace/fib.perf.data [0x68]: event: 10
+.
+. ... raw event: size 104 bytes
+.  0000:  0a 00 00 00 02 00 68 00 57 04 00 00 57 04 00 00  ......h.W...W...
+.  0010:  00 00 e0 f7 ff ff 00 00 00 f0 1a 00 00 00 00 00  ................
+.  0020:  00 00 00 00 00 00 00 00 00 00 00 00 16 00 00 00  ................
+.  0030:  73 4a 4a 05 00 00 00 00 00 00 00 00 00 00 00 00  sJJ.............
+.  0040:  05 00 00 00 02 00 00 00 2f 6c 69 62 2f 6c 69 62  ......../lib/lib
+.  0050:  63 2e 73 6f 2e 36 00 00 57 04 00 00 57 04 00 00  c.so.6..W...W...
+.  0060:  58 00 00 00 00 00 00 00                          X.......        
+
+0x698 [0x68]: PERF_RECORD_MMAP2 1111/1111: [0xfffff7e00000(0x1af000) @ 0 00:16 88754803 0]: r-xp /lib/libc.so.6
+
+0x700@trace/fib.perf.data [0x30]: event: 11
+.
+. ... raw event: size 48 bytes
+.  0000:  0b 00 00 00 00 00 30 00 60 00 00 00 00 00 00 00  ......0.`.......
+.  0010:  30 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00  0...............
+.  0020:  57 04 00 00 57 04 00 00 57 00 00 00 00 00 00 00  W...W...W.......
+
+0x700 [0x30]: PERF_RECORD_AUX offset: 0x60 size: 0x130 flags: 0 []
+
+0x730@trace/fib.perf.data [0x30]: event: 4
+.
+. ... raw event: size 48 bytes
+.  0000:  04 00 00 00 00 00 30 00 57 04 00 00 56 04 00 00  ......0.W...V...
+.  0010:  57 04 00 00 56 04 00 00 52 4b ab 18 26 00 00 00  W...V...RK..&...
+.  0020:  57 04 00 00 57 04 00 00 58 00 00 00 00 00 00 00  W...W...X.......
+
+0x730 [0x30]: PERF_RECORD_EXIT(1111:1111):(1110:1110)
+
+0x760@trace/fib.perf.data [0x30]: event: 71
+.
+. ... raw event: size 48 bytes
+.  0000:  47 00 00 00 00 00 30 00 90 01 00 00 00 00 00 00  G.....0.........
+.  0010:  00 00 00 00 00 00 00 00 3b 42 c1 1f cf 03 5d 28  ........;B....](
+.  0020:  00 00 00 00 57 04 00 00 ff ff ff ff 00 00 00 00  ....W...........
+
+0x760 [0x30]: PERF_RECORD_AUXTRACE size: 0x190  offset: 0  ref: 0x285d03cf1fc1423b  idx: 0  tid: 1111  cpu: -1
+
+. ... CoreSight ETMV4I Trace data: size 0x30 bytes
+	Idx:0; ID:14;	I_ASYNC : Alignment Synchronisation.
+	Idx:12; ID:14;	I_TRACE_INFO : Trace Info.; INFO=0x0 { CC.0 }
+	Idx:17; ID:14;	I_ADDR_L_64IS0 : Address, Long, 64 bit, IS0.; Addr=0xFFFF800008AA4BE0; 
+
+. ... CoreSight ETMV4I Trace data: size 0x30 bytes
+	Idx:48; ID:14;	I_ASYNC : Alignment Synchronisation.
+	Idx:60; ID:14;	I_TRACE_INFO : Trace Info.; INFO=0x0 { CC.0 }
+	Idx:65; ID:14;	I_ADDR_L_64IS0 : Address, Long, 64 bit, IS0.; Addr=0xFFFF800008AA4BE0; 
+
+. ... CoreSight ETMV4I Trace data: size 0x130 bytes
+	Idx:96; ID:14;	I_ASYNC : Alignment Synchronisation.
+	Idx:108; ID:14;	I_TRACE_INFO : Trace Info.; INFO=0x0 { CC.0 }
+	Idx:113; ID:14;	I_ADDR_L_64IS0 : Address, Long, 64 bit, IS0.; Addr=0xFFFF800008AA4BE0; 
+	Idx:122; ID:14;	I_TRACE_ON : Trace On.
+	Idx:123; ID:14;	I_ADDR_CTXT_L_64IS0 : Address & Context, Long, 64 bit, IS0.; Addr=0x0000AAAAAAAA06C0; Ctxt: AArch64,EL0, NS; 
+	Idx:134; ID:14;	I_ATOM_F1 : Atom format 1.; E
+	Idx:135; ID:14;	I_ADDR_L_64IS0 : Address, Long, 64 bit, IS0.; Addr=0x0000AAAAAAAA0660; 
+	Idx:145; ID:14;	I_ATOM_F1 : Atom format 1.; E
+	Idx:146; ID:14;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x0000AAAAAAAA0640 ~[0x40]
+	Idx:148; ID:14;	I_ATOM_F1 : Atom format 1.; E
+	Idx:149; ID:14;	I_ADDR_L_64IS0 : Address, Long, 64 bit, IS0.; Addr=0x0000FFFFF7FCE9D4; 
+	Idx:158; ID:14;	I_TRACE_ON : Trace On.
+	Idx:160; ID:14;	I_ADDR_CTXT_L_64IS0 : Address & Context, Long, 64 bit, IS0.; Addr=0x0000AAAAAAAA0618; Ctxt: AArch64,EL0, NS; 
+	Idx:170; ID:14;	I_ATOM_F1 : Atom format 1.; E
+	Idx:171; ID:14;	I_ADDR_L_64IS0 : Address, Long, 64 bit, IS0.; Addr=0x0000AAAAAAAA06F4; 
+	Idx:181; ID:14;	I_ATOM_F1 : Atom format 1.; E
+	Idx:182; ID:14;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x0000AAAAAAAA0704 ~[0x104]
+	Idx:184; ID:14;	I_ATOM_F1 : Atom format 1.; E
+	Idx:185; ID:14;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x0000AAAAAAAA0628 ~[0x28]
+	Idx:187; ID:14;	I_ATOM_F1 : Atom format 1.; E
+	Idx:188; ID:14;	I_ADDR_L_64IS0 : Address, Long, 64 bit, IS0.; Addr=0x0000FFFFF7E278BC; 
+	Idx:198; ID:14;	I_TRACE_ON : Trace On.
+	Idx:199; ID:14;	I_ADDR_CTXT_L_64IS0 : Address & Context, Long, 64 bit, IS0.; Addr=0x0000AAAAAAAA07D0; Ctxt: AArch64,EL0, NS; 
+	Idx:210; ID:14;	I_ATOM_F1 : Atom format 1.; E
+	Idx:211; ID:14;	I_ADDR_L_64IS0 : Address, Long, 64 bit, IS0.; Addr=0x0000AAAAAAAA0740; 
+	Idx:220; ID:14;	I_ATOM_F1 : Atom format 1.; E
+	Idx:221; ID:14;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x0000AAAAAAAA0778 ~[0x178]
+	Idx:224; ID:14;	I_ATOM_F1 : Atom format 1.; E
+	Idx:225; ID:14;	I_ADDR_L_64IS0 : Address, Long, 64 bit, IS0.; Addr=0x0000FFFFF7E2790C; 
+	Idx:234; ID:14;	I_TRACE_ON : Trace On.
+	Idx:235; ID:14;	I_ADDR_CTXT_L_64IS0 : Address & Context, Long, 64 bit, IS0.; Addr=0x0000AAAAAAAA07D8; Ctxt: AArch64,EL0, NS; 
+	Idx:247; ID:14;	I_ATOM_F1 : Atom format 1.; E
+	Idx:248; ID:14;	I_ADDR_L_64IS0 : Address, Long, 64 bit, IS0.; Addr=0x0000AAAAAAAA084C; 
+	Idx:258; ID:14;	I_ATOM_F1 : Atom format 1.; E
+	Idx:259; ID:14;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x0000AAAAAAAA07FC ~[0x7FC]
+	Idx:262; ID:14;	I_ATOM_F1 : Atom format 1.; E
+	Idx:263; ID:14;	I_ADDR_MATCH : Exact Address Match., [0]; Addr=0x0000AAAAAAAA07FC; 
+	Idx:264; ID:14;	I_ATOM_F1 : Atom format 1.; E
+	Idx:265; ID:14;	I_ADDR_MATCH : Exact Address Match., [0]; Addr=0x0000AAAAAAAA07FC; 
+	Idx:266; ID:14;	I_ATOM_F1 : Atom format 1.; E
+	Idx:267; ID:14;	I_ADDR_MATCH : Exact Address Match., [0]; Addr=0x0000AAAAAAAA07FC; 
+	Idx:268; ID:14;	I_ATOM_F1 : Atom format 1.; E
+	Idx:269; ID:14;	I_ADDR_MATCH : Exact Address Match., [0]; Addr=0x0000AAAAAAAA07FC; 
+	Idx:270; ID:14;	I_ATOM_F1 : Atom format 1.; E
+	Idx:272; ID:14;	I_ADDR_MATCH : Exact Address Match., [0]; Addr=0x0000AAAAAAAA07FC; 
+	Idx:273; ID:14;	I_ATOM_F1 : Atom format 1.; E
+	Idx:274; ID:14;	I_ADDR_MATCH : Exact Address Match., [0]; Addr=0x0000AAAAAAAA07FC; 
+	Idx:275; ID:14;	I_ATOM_F1 : Atom format 1.; E
+	Idx:276; ID:14;	I_ADDR_MATCH : Exact Address Match., [0]; Addr=0x0000AAAAAAAA07FC; 
+	Idx:277; ID:14;	I_ATOM_F1 : Atom format 1.; E
+	Idx:278; ID:14;	I_ADDR_MATCH : Exact Address Match., [0]; Addr=0x0000AAAAAAAA07FC; 
+	Idx:279; ID:14;	I_ATOM_F2 : Atom format 2.; NE
+	Idx:280; ID:14;	I_ADDR_L_64IS0 : Address, Long, 64 bit, IS0.; Addr=0x0000FFFFF7E277B4; 
+	Idx:290; ID:14;	I_TRACE_ON : Trace On.
+	Idx:291; ID:14;	I_ADDR_CTXT_L_64IS0 : Address & Context, Long, 64 bit, IS0.; Addr=0x0000AAAAAAAA0780; Ctxt: AArch64,EL0, NS; 
+	Idx:301; ID:14;	I_ATOM_F3 : Atom format 3.; NNE
+	Idx:302; ID:14;	I_ADDR_L_64IS0 : Address, Long, 64 bit, IS0.; Addr=0x0000AAAAAAAA0670; 
+	Idx:312; ID:14;	I_ATOM_F1 : Atom format 1.; E
+	Idx:313; ID:14;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x0000AAAAAAAA0640 ~[0x40]
+	Idx:315; ID:14;	I_ATOM_F1 : Atom format 1.; E
+	Idx:316; ID:14;	I_ADDR_L_64IS0 : Address, Long, 64 bit, IS0.; Addr=0x0000FFFFF7FCE9D4; 
+	Idx:326; ID:14;	I_TRACE_ON : Trace On.
+	Idx:327; ID:14;	I_ADDR_CTXT_L_64IS0 : Address & Context, Long, 64 bit, IS0.; Addr=0x0000AAAAAAAA07B4; Ctxt: AArch64,EL0, NS; 
+	Idx:338; ID:14;	I_ATOM_F1 : Atom format 1.; E
+	Idx:339; ID:14;	I_ADDR_L_64IS0 : Address, Long, 64 bit, IS0.; Addr=0x0000AAAAAAAA0710; 
+	Idx:348; ID:14;	I_ATOM_F1 : Atom format 1.; E
+	Idx:349; ID:14;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x0000AAAAAAAA073C ~[0x13C]
+	Idx:352; ID:14;	I_ATOM_F1 : Atom format 1.; E
+	Idx:353; ID:14;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x0000AAAAAAAA07B8 ~[0x1B8]
+	Idx:355; ID:14;	I_ATOM_F1 : Atom format 1.; E
+	Idx:356; ID:14;	I_ADDR_L_64IS0 : Address, Long, 64 bit, IS0.; Addr=0x0000FFFFF7FC24C0; 
+	Idx:365; ID:14;	I_TRACE_ON : Trace On.
+	Idx:368; ID:14;	I_ADDR_CTXT_L_64IS0 : Address & Context, Long, 64 bit, IS0.; Addr=0x0000AAAAAAAA0864; Ctxt: AArch64,EL0, NS; 
+	Idx:378; ID:14;	I_ATOM_F1 : Atom format 1.; E
+	Idx:379; ID:14;	I_ADDR_L_64IS0 : Address, Long, 64 bit, IS0.; Addr=0x0000FFFFF7FC24E4; 
+
+0x920@trace/fib.perf.data [0x8]: event: 68
+.
+. ... raw event: size 8 bytes
+.  0000:  44 00 00 00 00 00 08 00                          D.......        
+
+0x920 [0x8]: PERF_RECORD_FINISHED_ROUND
+
+Aggregated stats: (excludes AUX area (e.g. instruction trace) decoded / synthesized events)
+           TOTAL events:         27
+            COMM events:          2  ( 7.4%)
+            EXIT events:          1  ( 3.7%)
+           MMAP2 events:          4  (14.8%)
+             AUX events:          3  (11.1%)
+    ITRACE_START events:          3  (11.1%)
+          SWITCH events:          4  (14.8%)
+            ATTR events:          2  ( 7.4%)
+  FINISHED_ROUND events:          1  ( 3.7%)
+        ID_INDEX events:          1  ( 3.7%)
+   AUXTRACE_INFO events:          1  ( 3.7%)
+        AUXTRACE events:          1  ( 3.7%)
+      THREAD_MAP events:          1  ( 3.7%)
+         CPU_MAP events:          1  ( 3.7%)
+       TIME_CONV events:          1  ( 3.7%)
+   FINISHED_INIT events:          1  ( 3.7%)

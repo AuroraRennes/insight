@@ -8,8 +8,10 @@ from onsight.parsers.perf_script_parser import PerfScriptParser
 from onsight.verifiers.shadow_stack_verifier import ShadowStackVerifier
 from tests.conftest import (
     DUMP_FILES,
-    PERF_REPORT_FILES,
-    PERF_SCRIPT_FILES,
+    PERF_BASE_REPORT_FILES,
+    PERF_BASE_SCRIPT_FILES,
+    PERF_BB_REPORT_FILES,
+    PERF_BB_SCRIPT_FILES,
     filter_files,
 )
 
@@ -56,7 +58,9 @@ def test_shadow_stack_verification_passed(mock_file):
 # \_______________________
 
 
-@pytest.mark.parametrize("file", filter_files(path_list=PERF_SCRIPT_FILES, comply=True))
+@pytest.mark.parametrize(
+    "file", filter_files(path_list=PERF_BASE_SCRIPT_FILES + PERF_BB_SCRIPT_FILES, comply=True)
+)
 def test_complying_data_files_script_parser(file):
     parser: PerfScriptParser = PerfScriptParser()
     exec_trace: ExecutionTrace = parser.parse(file)
@@ -64,7 +68,9 @@ def test_complying_data_files_script_parser(file):
     assert verifier.verify_trace(exec_trace=exec_trace)
 
 
-@pytest.mark.parametrize("file", filter_files(path_list=PERF_SCRIPT_FILES, comply=False))
+@pytest.mark.parametrize(
+    "file", filter_files(path_list=PERF_BASE_SCRIPT_FILES + PERF_BB_SCRIPT_FILES, comply=False)
+)
 def test_breaking_files_script_parser(file):
     parser: PerfScriptParser = PerfScriptParser()
     exec_trace: ExecutionTrace = parser.parse(file)
@@ -77,7 +83,14 @@ def test_breaking_files_script_parser(file):
     ("report_file", "dump_file"),
     list(
         zip(
-            filter_files(path_list=PERF_REPORT_FILES, comply=True),
+            filter_files(path_list=PERF_BASE_REPORT_FILES, comply=True),
+            filter_files(path_list=DUMP_FILES, comply=True),
+            strict=False,
+        )
+    )
+    + list(
+        zip(
+            filter_files(path_list=PERF_BB_REPORT_FILES, comply=True),
             filter_files(path_list=DUMP_FILES, comply=True),
             strict=False,
         )
@@ -94,7 +107,14 @@ def test_complying_data_files_report_parser(report_file, dump_file):
     ("report_file", "dump_file"),
     list(
         zip(
-            filter_files(path_list=PERF_REPORT_FILES, comply=False),
+            filter_files(path_list=PERF_BASE_REPORT_FILES, comply=False),
+            filter_files(path_list=DUMP_FILES, comply=False),
+            strict=False,
+        )
+    )
+    + list(
+        zip(
+            filter_files(path_list=PERF_BB_REPORT_FILES, comply=False),
             filter_files(path_list=DUMP_FILES, comply=False),
             strict=False,
         )

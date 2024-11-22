@@ -1,0 +1,208 @@
+ARM CoreSight Trace Data Assembler Dump
+	0000000000000740 <_start>:
+	 740:	d503245f 	bti	c
+	 744:	d280001d 	mov	x29, #0x0                   	// #0
+	 748:	d280001e 	mov	x30, #0x0                   	// #0
+	 74c:	aa0003e5 	mov	x5, x0
+	 750:	f94003e1 	ldr	x1, [sp]
+	 754:	910023e2 	add	x2, sp, #0x8
+	 758:	910003e6 	mov	x6, sp
+	 75c:	f00000e0 	adrp	x0, 1f000 <__FRAME_END__+0x1e5a4>
+	 760:	f947ec00 	ldr	x0, [x0, #4056]
+	 764:	d2800003 	mov	x3, #0x0                   	// #0
+	 768:	d2800004 	mov	x4, #0x0                   	// #0
+	 76c:	97ffffdd 	bl	6e0 <__libc_start_main@plt>
+  stack_overflow  1256/1256  [0002]         0.000000000  _start+0x2c                              ....36-r0/csu/../sysdeps/aarch64/start.S   81 <source not found>
+	00000000000006e0 <__libc_start_main@plt>:
+	 6e0:	90000110 	adrp	x16, 20000 <exit@GLIBC_2.17>
+	 6e4:	f9400611 	ldr	x17, [x16, #8]
+	 6e8:	91002210 	add	x16, x16, #0x8
+	 6ec:	d61f0220 	br	x17
+  stack_overflow  1256/1256  [0002]         0.000000000  __libc_start_main@plt+0xc                /home/aurora/qtests/perfex/bin/stack_overflow
+	00000000000006b0 <.plt>:
+	 6b0:	d503245f 	bti	c
+	 6b4:	a9bf7bf0 	stp	x16, x30, [sp, #-16]!
+	 6b8:	f00000f0 	adrp	x16, 1f000 <__FRAME_END__+0x1e5a4>
+	 6bc:	f947fe11 	ldr	x17, [x16, #4088]
+	 6c0:	913fe210 	add	x16, x16, #0xff8
+	 6c4:	d61f0220 	br	x17
+  stack_overflow  1256/1256  [0002]         0.000000000  _init+0x3c                               
+	0000000000000688 <_init>:
+	 688:	d503233f 	paciasp
+	 68c:	a9bf7bfd 	stp	x29, x30, [sp, #-16]!
+	 690:	910003fd 	mov	x29, sp
+	 694:	94000038 	bl	774 <call_weak_fn>
+  stack_overflow  1256/1256  [0002]         0.000000000  _init+0xc                                ...2.36-r0/csu/../sysdeps/aarch64/crti.S   86 <source not found>
+	0000000000000774 <call_weak_fn>:
+	 774:	f00000e0 	adrp	x0, 1f000 <__FRAME_END__+0x1e5a4>
+	 778:	f947e800 	ldr	x0, [x0, #4048]
+	 77c:	b4000040 	cbz	x0, 784 <call_weak_fn+0x10>
+  stack_overflow  1256/1256  [0002]         0.000000000  call_weak_fn+0x8                         ...2.36-r0/csu/../sysdeps/aarch64/crti.S   65 <source not found>
+	0000000000000784 <call_weak_fn+0x10>:
+	 784:	d65f03c0 	ret
+  stack_overflow  1256/1256  [0002]         0.000000000  call_weak_fn+0x10                        ...2.36-r0/csu/../sysdeps/aarch64/crti.S   68 <source not found>
+	0000000000000698 <_init+0x10>:
+	 698:	a8c17bfd 	ldp	x29, x30, [sp], #16
+	 69c:	d50323bf 	autiasp
+	 6a0:	d65f03c0 	ret
+  stack_overflow  1256/1256  [0002]         0.000000000  _init+0x18                               ...2.36-r0/csu/../sysdeps/aarch64/crtn.S   47 <source not found>
+	0000000000000850 <frame_dummy>:
+	 850:	d503245f 	bti	c
+	 854:	17ffffdb 	b	7c0 <register_tm_clones>
+  stack_overflow  1256/1256  [0002]         0.000000000  frame_dummy+0x4                          crtstuff.c                                  0 <source not found>
+	00000000000007c0 <register_tm_clones>:
+	 7c0:	90000100 	adrp	x0, 20000 <exit@GLIBC_2.17>
+	 7c4:	91010000 	add	x0, x0, #0x40
+	 7c8:	90000101 	adrp	x1, 20000 <exit@GLIBC_2.17>
+	 7cc:	91010021 	add	x1, x1, #0x40
+	 7d0:	cb000021 	sub	x1, x1, x0
+	 7d4:	d37ffc22 	lsr	x2, x1, #63
+	 7d8:	8b810c41 	add	x1, x2, x1, asr #3
+	 7dc:	9341fc21 	asr	x1, x1, #1
+	 7e0:	b40000c1 	cbz	x1, 7f8 <register_tm_clones+0x38>
+  stack_overflow  1256/1256  [0002]         0.000000000  register_tm_clones+0x20                  
+	00000000000007f8 <register_tm_clones+0x38>:
+	 7f8:	d65f03c0 	ret
+  stack_overflow  1256/1256  [0002]         0.000000000  register_tm_clones+0x38                  
+	0000000000000898 <main>:
+	 898:	d503233f 	paciasp
+	 89c:	a9bf7bfd 	stp	x29, x30, [sp, #-16]!
+	 8a0:	910003fd 	mov	x29, sp
+	 8a4:	90000000 	adrp	x0, 0 <__abi_tag-0x30c>
+	 8a8:	9123c000 	add	x0, x0, #0x8f0
+	 8ac:	97fffff0 	bl	86c <copy_name>
+  stack_overflow  1256/1256  [0002]         0.000000000  main+0x14                                ...se/qtests/perfex/src/stack_overflow.c   15 	copy_name("Quentin");
+	000000000000086c <copy_name>:
+	 86c:	d503233f 	paciasp
+	 870:	a9bd7bfd 	stp	x29, x30, [sp, #-48]!
+	 874:	910003fd 	mov	x29, sp
+	 878:	f9000fe0 	str	x0, [sp, #24]
+	 87c:	910083e0 	add	x0, sp, #0x20
+	 880:	f9400fe1 	ldr	x1, [sp, #24]
+	 884:	97ffffa7 	bl	720 <strcpy@plt>
+  stack_overflow  1256/1256  [0002]         0.000000000  copy_name+0x18                           ...se/qtests/perfex/src/stack_overflow.c   11 	strcpy(name, who);
+	0000000000000720 <strcpy@plt>:
+	 720:	90000110 	adrp	x16, 20000 <exit@GLIBC_2.17>
+	 724:	f9401611 	ldr	x17, [x16, #40]
+	 728:	9100a210 	add	x16, x16, #0x28
+	 72c:	d61f0220 	br	x17
+  stack_overflow  1256/1256  [0002]         0.000000000  strcpy@plt+0xc                           /home/aurora/qtests/perfex/bin/stack_overflow
+	00000000000006b0 <.plt>:
+	 6b0:	d503245f 	bti	c
+	 6b4:	a9bf7bf0 	stp	x16, x30, [sp, #-16]!
+	 6b8:	f00000f0 	adrp	x16, 1f000 <__FRAME_END__+0x1e5a4>
+	 6bc:	f947fe11 	ldr	x17, [x16, #4088]
+	 6c0:	913fe210 	add	x16, x16, #0xff8
+	 6c4:	d61f0220 	br	x17
+  stack_overflow  1256/1256  [0002]         0.000000000  _init+0x3c                               
+	0000000000000888 <copy_name+0x1c>:
+	 888:	d503201f 	nop
+	 88c:	a8c37bfd 	ldp	x29, x30, [sp], #48
+	 890:	d50323bf 	autiasp
+	 894:	d65f03c0 	ret
+  stack_overflow  1256/1256  [0002]         0.000000000  copy_name+0x28                           ...se/qtests/perfex/src/stack_overflow.c   12 }
+	00000000000008b0 <main+0x18>:
+	 8b0:	90000000 	adrp	x0, 0 <__abi_tag-0x30c>
+	 8b4:	9123e000 	add	x0, x0, #0x8f8
+	 8b8:	97ffffed 	bl	86c <copy_name>
+  stack_overflow  1256/1256  [0002]         0.000000000  main+0x20                                ...se/qtests/perfex/src/stack_overflow.c   16 	copy_name("AAAAAAAAAAAAAAAAAAAAAAAA\x58\x08\xaa\xaa\xaa\xaa\0");
+	000000000000086c <copy_name>:
+	 86c:	d503233f 	paciasp
+	 870:	a9bd7bfd 	stp	x29, x30, [sp, #-48]!
+	 874:	910003fd 	mov	x29, sp
+	 878:	f9000fe0 	str	x0, [sp, #24]
+	 87c:	910083e0 	add	x0, sp, #0x20
+	 880:	f9400fe1 	ldr	x1, [sp, #24]
+	 884:	97ffffa7 	bl	720 <strcpy@plt>
+  stack_overflow  1256/1256  [0002]         0.000000000  copy_name+0x18                           ...se/qtests/perfex/src/stack_overflow.c   11 	strcpy(name, who);
+	0000000000000720 <strcpy@plt>:
+	 720:	90000110 	adrp	x16, 20000 <exit@GLIBC_2.17>
+	 724:	f9401611 	ldr	x17, [x16, #40]
+	 728:	9100a210 	add	x16, x16, #0x28
+	 72c:	d61f0220 	br	x17
+  stack_overflow  1256/1256  [0002]         0.000000000  strcpy@plt+0xc                           /home/aurora/qtests/perfex/bin/stack_overflow
+	0000000000000888 <copy_name+0x1c>:
+	 888:	d503201f 	nop
+	 88c:	a8c37bfd 	ldp	x29, x30, [sp], #48
+	 890:	d50323bf 	autiasp
+	 894:	d65f03c0 	ret
+  stack_overflow  1256/1256  [0002]         0.000000000  copy_name+0x28                           ...se/qtests/perfex/src/stack_overflow.c   12 }
+	00000000000008bc <main+0x24>:
+	 8bc:	52800020 	mov	w0, #0x1                   	// #1
+	 8c0:	a8c17bfd 	ldp	x29, x30, [sp], #16
+	 8c4:	d50323bf 	autiasp
+	 8c8:	d65f03c0 	ret
+  stack_overflow  1256/1256  [0002]         0.000000000  main+0x30                                ...se/qtests/perfex/src/stack_overflow.c   18 }
+	0000000000000858 <secure_function>:
+	 858:	d503233f 	paciasp
+	 85c:	a9bf7bfd 	stp	x29, x30, [sp, #-16]!
+	 860:	910003fd 	mov	x29, sp
+	 864:	52800000 	mov	w0, #0x0                   	// #0
+	 868:	97ffff9a 	bl	6d0 <exit@plt>
+  stack_overflow  1256/1256  [0002]         0.000000000  secure_function+0x10                     ...se/qtests/perfex/src/stack_overflow.c    6 	exit(0);
+	00000000000006d0 <exit@plt>:
+	 6d0:	90000110 	adrp	x16, 20000 <exit@GLIBC_2.17>
+	 6d4:	f9400211 	ldr	x17, [x16]
+	 6d8:	91000210 	add	x16, x16, #0x0
+	 6dc:	d61f0220 	br	x17
+  stack_overflow  1256/1256  [0002]         0.000000000  _init+0x54                               /home/aurora/qtests/perfex/bin/stack_overflow
+	00000000000006b0 <.plt>:
+	 6b0:	d503245f 	bti	c
+	 6b4:	a9bf7bf0 	stp	x16, x30, [sp, #-16]!
+	 6b8:	f00000f0 	adrp	x16, 1f000 <__FRAME_END__+0x1e5a4>
+	 6bc:	f947fe11 	ldr	x17, [x16, #4088]
+	 6c0:	913fe210 	add	x16, x16, #0xff8
+	 6c4:	d61f0220 	br	x17
+  stack_overflow  1256/1256  [0002]         0.000000000  _init+0x3c                               
+	0000000000000800 <__do_global_dtors_aux>:
+	 800:	d503233f 	paciasp
+	 804:	a9be7bfd 	stp	x29, x30, [sp, #-32]!
+	 808:	910003fd 	mov	x29, sp
+	 80c:	f9000bf3 	str	x19, [sp, #16]
+	 810:	90000113 	adrp	x19, 20000 <exit@GLIBC_2.17>
+	 814:	39410260 	ldrb	w0, [x19, #64]
+	 818:	35000140 	cbnz	w0, 840 <__do_global_dtors_aux+0x40>
+	 81c:	f00000e0 	adrp	x0, 1f000 <__FRAME_END__+0x1e5a4>
+	 820:	f947e400 	ldr	x0, [x0, #4040]
+	 824:	b4000080 	cbz	x0, 834 <__do_global_dtors_aux+0x34>
+	 828:	90000100 	adrp	x0, 20000 <exit@GLIBC_2.17>
+	 82c:	f9401c00 	ldr	x0, [x0, #56]
+	 830:	97ffffb0 	bl	6f0 <__cxa_finalize@plt>
+  stack_overflow  1256/1256  [0002]         0.000000000  __do_global_dtors_aux+0x30               crtstuff.c                                  0 <source not found>
+	00000000000006f0 <__cxa_finalize@plt>:
+	 6f0:	90000110 	adrp	x16, 20000 <exit@GLIBC_2.17>
+	 6f4:	f9400a11 	ldr	x17, [x16, #16]
+	 6f8:	91004210 	add	x16, x16, #0x10
+	 6fc:	d61f0220 	br	x17
+  stack_overflow  1256/1256  [0002]         0.000000000  __cxa_finalize@plt+0xc                   /home/aurora/qtests/perfex/bin/stack_overflow
+	00000000000006b0 <.plt>:
+	 6b0:	d503245f 	bti	c
+	 6b4:	a9bf7bf0 	stp	x16, x30, [sp, #-16]!
+	 6b8:	f00000f0 	adrp	x16, 1f000 <__FRAME_END__+0x1e5a4>
+	 6bc:	f947fe11 	ldr	x17, [x16, #4088]
+	 6c0:	913fe210 	add	x16, x16, #0xff8
+	 6c4:	d61f0220 	br	x17
+  stack_overflow  1256/1256  [0002]         0.000000000  _init+0x3c                               
+	0000000000000834 <__do_global_dtors_aux+0x34>:
+	 834:	97ffffd7 	bl	790 <deregister_tm_clones>
+  stack_overflow  1256/1256  [0002]         0.000000000  __do_global_dtors_aux+0x34               crtstuff.c                                  0 <source not found>
+	0000000000000790 <deregister_tm_clones>:
+	 790:	90000100 	adrp	x0, 20000 <exit@GLIBC_2.17>
+	 794:	91010000 	add	x0, x0, #0x40
+	 798:	90000101 	adrp	x1, 20000 <exit@GLIBC_2.17>
+	 79c:	91010021 	add	x1, x1, #0x40
+	 7a0:	eb00003f 	cmp	x1, x0
+	 7a4:	540000c0 	b.eq	7bc <deregister_tm_clones+0x2c>  // b.none
+  stack_overflow  1256/1256  [0002]         0.000000000  deregister_tm_clones+0x14                
+	00000000000007bc <deregister_tm_clones+0x2c>:
+	 7bc:	d65f03c0 	ret
+  stack_overflow  1256/1256  [0002]         0.000000000  deregister_tm_clones+0x2c                
+	0000000000000838 <__do_global_dtors_aux+0x38>:
+	 838:	52800020 	mov	w0, #0x1                   	// #1
+	 83c:	39010260 	strb	w0, [x19, #64]
+	 840:	f9400bf3 	ldr	x19, [sp, #16]
+	 844:	a8c27bfd 	ldp	x29, x30, [sp], #32
+	 848:	d50323bf 	autiasp
+	 84c:	d65f03c0 	ret
+  stack_overflow  1256/1256  [0002]         0.000000000  __do_global_dtors_aux+0x4c               
+End

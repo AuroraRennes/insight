@@ -84,7 +84,9 @@ class PerfReportParser(Parser):
     # to extract the rest of the information. The syntax **dict.fromkeys(keys_list, value) maps multiple
     # keys to the same value in a more concise way.
     PACKETS_INFO: ClassVar[dict[str, ParseInfo]] = {
-        **dict.fromkeys(["I_ADDR_L_64IS0", "I_ADDR_S_IS0"], ParseInfo("parse_addr", ADDR_REGEX)),
+        **dict.fromkeys(
+            ["I_ADDR_L_64IS0", "I_ADDR_S_IS0", "I_ADDR_MATCH"], ParseInfo("parse_addr", ADDR_REGEX)
+        ),
         "I_ADDR_CTXT_L_64IS0": ParseInfo("parse_addr_ctxt", ADDR_REGEX + "; " + CTXT_REGEX),
         "I_TRACE_INFO": ParseInfo("parse_trace_info", INFO_REGEX),
         **dict.fromkeys([f"I_ATOM_F{i}" for i in range(7)], ParseInfo("parse_atom", ELTS_REGEX)),
