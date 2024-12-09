@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any, NamedTuple
 
 from onsight.basic_block import BasicBlock
@@ -16,6 +18,10 @@ class AddressTrace(NamedTuple):
             "address": self.address,
             "taken": self.taken,
         }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> AddressTrace:
+        return cls(address=data["address"], taken=data["taken"])
 
 
 class ExecutionTrace:
@@ -67,3 +73,13 @@ class ExecutionTrace:
             "trace": [t.to_dict() for t in self.trace],
             "basic_blocks": {k: v.to_dict() for k, v in self.basic_blocks.items()},
         }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> ExecutionTrace:
+        trace = [AddressTrace.from_dict(item) for item in data["trace"]]
+        basic_blocks = {
+            int(addr): BasicBlock.from_dict(bb_data) for addr, bb_data in data["basic_blocks"].items()
+        }
+        instance = cls(address_trace=[], basic_blocks=basic_blocks)
+        instance.trace = trace  # Set trace explicitly
+        return instance

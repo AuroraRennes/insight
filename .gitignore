@@ -1,5 +1,8 @@
 # logs
 log/
+# serialization
+data/json
+data/tessla
 
 *.py[cod]
 __pycache__

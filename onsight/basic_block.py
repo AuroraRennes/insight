@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any
 
 
@@ -25,3 +27,14 @@ class BasicBlock:
             "ending_instruction": self.ending_instruction.hex(),
             "size": self.size,
         }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> BasicBlock:
+        # Decode instructions from hex strings to bytes
+        instructions = [bytes.fromhex(instr) for instr in data["instructions"]]
+        return cls(
+            address=data["address"],
+            function_address=data["function_address"],
+            function_name=data["function_name"],
+            instructions=instructions,
+        )

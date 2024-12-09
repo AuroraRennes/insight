@@ -2,6 +2,9 @@
 # \______________
 
 
+DATA_TESSLA: str = "data/tessla/"
+DATA_JSON: str = "data/json/"
+
 # libc set up and teardown
 AVOIDED_FUNC_NAMES: tuple[str, ...] = (
     "_start",
