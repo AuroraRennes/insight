@@ -8,6 +8,10 @@ from onsight.verifiers.verifier import Verifier
 if TYPE_CHECKING:
     from onsight.basic_block import BasicBlock
 
+import logging
+
+logger = logging.getLogger("onsight")
+
 
 class ShadowStackVerifier(Verifier):
     INITIAL_VALUE: int = 0xDEADBEEF
@@ -16,6 +20,7 @@ class ShadowStackVerifier(Verifier):
         self.shadow_stack: list[int] = []
 
     def verify_trace(self, exec_trace: ExecutionTrace) -> bool:
+        logger.info("[+] Verifying backward edges using a shadow stack.")
         # As the tracing starts when a function is already called,
         # a dummy address is added to the stack
         self.shadow_stack.append(ShadowStackVerifier.INITIAL_VALUE)

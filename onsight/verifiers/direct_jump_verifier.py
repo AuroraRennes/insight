@@ -1,3 +1,4 @@
+import logging
 from typing import TYPE_CHECKING
 
 from onsight.disassembler import Disassembler
@@ -9,8 +10,12 @@ if TYPE_CHECKING:
     from onsight.basic_block import BasicBlock
 
 
+logger = logging.getLogger("onsight")
+
+
 class DirectJumpVerifier(Verifier):
     def verify_trace(self, exec_trace: ExecutionTrace) -> bool:
+        logger.info("[+] Verifying direct jumps.")
         validated = True
         for i, address_info in enumerate(exec_trace.trace):
             basic_block: BasicBlock = exec_trace.basic_blocks[address_info.address]

@@ -27,7 +27,13 @@ class Parser(ABC):
             raise WrongExtensionError(expected_extension=self.extension, extension=extension)
 
     @staticmethod
-    def for_perf_disasm_log() -> Parser:
+    def for_perf_script() -> Parser:
         from onsight.parsers.perf_script_parser import PerfScriptParser
 
         return PerfScriptParser()
+
+    @staticmethod
+    def for_perf_report() -> Parser:
+        from onsight.parsers.perf_report_parser import PerfReportParser
+
+        return PerfReportParser()

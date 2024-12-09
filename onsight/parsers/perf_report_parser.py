@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from onsight.basic_block import BasicBlock
+from onsight.constants import AVOIDED_FUNC_NAMES
 from onsight.disassembler import Disassembler
 from onsight.exceptions import (
     NoMatchingAddressContextError,
@@ -100,26 +101,15 @@ class PerfReportParser(Parser):
     #                                v         v        v          v
     PACKET_BASE_REGEX: str = r"Idx:(\d+); ID:(\d+);\s(\w*)\s: ([\s\w,&]*)."
 
-    # libc set up and teardown
-    AVOIDED_FUNC_NAMES: tuple[str, ...] = (
-        "_start",
-        "__libc_start_main",
-        ".plt",
-        "call_weak_fn",
-        "_init",
-        "frame_dummy",
-        "register_tm_clones",
-        "deregister_tm_clones",
-        "__cxa_finalize",
-        "__do_global_dtors_aux",
-        "_fini",
-    )
-
     def __init__(self) -> None:
         super().__init__(extension=".perf.report")
 
     def parse(self, file_name: str, *args: str, **kwargs: str) -> ExecutionTrace:
-        dump_file_name: str = kwargs["dump_file_name"]
+        try:
+            dump_file_name: str = kwargs["dump_file_name"]
+        except KeyError:
+            logger.exception("[-] Missing file dump.")
+            raise
 
         # Check extension
         self.check_extension(file_name)
@@ -248,10 +238,15 @@ class PerfReportParser(Parser):
     # Packet processing
     # \_________________
 
+    # TODO: both methods should be extracted elsewhere!
+    # TODO: refactor and simplify the methods
+
     def process_packets(self, packets: list[list[Packet]], dump_file_name: str) -> ExecutionTrace:
+        logger.info("[+] Extracting function info from dump.")
         # Extract function info from the dump file
         func_dict: FunctionDict = ObjdumpParser.parse_dump(dump_file_name)
 
+        logger.info("[+] Processing parsed packets.")
         # Only pick the cpu with the largest trace
         # TODO: should be a cli argument?
         packet_trace: list[Packet] = max(packets, key=len)
@@ -281,7 +276,7 @@ class PerfReportParser(Parser):
 
                 # Check if it is one of the libc setup/teardown functions
                 func_info: FunctionInfo = optional_func_info
-                if func_info.name in PerfReportParser.AVOIDED_FUNC_NAMES:
+                if func_info.name in AVOIDED_FUNC_NAMES:
                     continue
 
                 # Offset in the function

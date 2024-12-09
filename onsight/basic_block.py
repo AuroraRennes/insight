@@ -1,3 +1,6 @@
+from typing import Any
+
+
 class BasicBlock:
     def __init__(
         self, address: int, function_address: int, function_name: str, instructions: list[bytes]
@@ -12,3 +15,13 @@ class BasicBlock:
 
     def __repr__(self) -> str:
         return f"BB({hex(self.address)} - size {hex(self.size)})"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "address": self.address,
+            "function_address": self.function_address,
+            "function_name": self.function_name,
+            "instructions": [inst.hex() for inst in self.instructions],
+            "ending_instruction": self.ending_instruction.hex(),
+            "size": self.size,
+        }
