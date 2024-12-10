@@ -5,9 +5,6 @@ from io import TextIOWrapper
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from onsight.basic_block import BasicBlock
-from onsight.constants import AVOIDED_FUNC_NAMES
-from onsight.disassembler import Disassembler
 from onsight.exceptions import (
     NoMatchingAddressContextError,
     NoMatchingAddressError,
@@ -19,6 +16,7 @@ from onsight.exceptions import (
 )
 from onsight.execution_trace import ExecutionTrace
 from onsight.helpers import string_to_int
+from onsight.packet_processor import PacketProcessor
 from onsight.packets import (
     AddressContextPacket,
     AddressPacket,
@@ -30,7 +28,7 @@ from onsight.packets import (
     PacketInfo,
     SynchronizationPacket,
 )
-from onsight.parsers.objdump_parser import FunctionDict, FunctionInfo, ObjdumpParser
+from onsight.parsers.objdump_parser import FunctionDict, ObjdumpParser
 from onsight.parsers.parser import Parser
 
 if TYPE_CHECKING:
@@ -134,7 +132,19 @@ class PerfReportParser(Parser):
             logger.exception("[-] Parsing Failed.")
             raise
 
-        return self.process_packets(cpu_packets, dump_file_name)
+        # Extract the function dict from the dump
+        func_dict: FunctionDict = ObjdumpParser.parse_dump(dump_file_name)
+
+        # Choose the packet trace to use (TODO: cli argument?)
+        # then process it
+        packet_trace: list[Packet] = max(cpu_packets, key=len)
+        packet_processor: PacketProcessor = PacketProcessor(func_dict=func_dict)
+
+        return packet_processor.process_packets(
+            packet_trace=packet_trace,
+            func_dict=func_dict,
+            start_address=PerfReportParser.PROGRAM_START_ADDRESS,
+        )
 
     def parse_cpu_trace(self, perf_dump_file: TextIOWrapper, cpu_nb: int, trace_size: int) -> list[Packet]:
         packets: list[Packet] = []
@@ -234,107 +244,3 @@ class PerfReportParser(Parser):
 
     def parse_async(self, packet_info: PacketInfo, **kwargs: dict[str, Any]) -> SynchronizationPacket:
         return SynchronizationPacket.asynch(packet_info=packet_info)
-
-    # Packet processing
-    # \_________________
-
-    # TODO: both methods should be extracted elsewhere!
-    # TODO: refactor and simplify the methods
-
-    def process_packets(self, packets: list[list[Packet]], dump_file_name: str) -> ExecutionTrace:
-        logger.info("[+] Extracting function info from dump.")
-        # Extract function info from the dump file
-        func_dict: FunctionDict = ObjdumpParser.parse_dump(dump_file_name)
-
-        logger.info("[+] Processing parsed packets.")
-        # Only pick the cpu with the largest trace
-        # TODO: should be a cli argument?
-        packet_trace: list[Packet] = max(packets, key=len)
-
-        # PIE address is in reference of Position Independent Executable
-        # It is the address relative to the start of the object file
-        pie_address: int = 0
-        current_offset: int = 0
-        basic_blocks: list[BasicBlock] = []
-
-        for packet in packet_trace:
-            # Extracting address from address packet
-            if isinstance(packet, AddressPacket):
-                address_packet: AddressPacket = packet
-                pie_address = address_packet.address - PerfReportParser.PROGRAM_START_ADDRESS
-
-            # Extracting basic block(s) from atom packet
-            if isinstance(packet, AtomPacket):
-                atom_packet: AtomPacket = packet
-
-                # Search the function the address in the function dict
-                optional_func_info: FunctionInfo | None = func_dict.find_function_by_address(pie_address)
-
-                # If None, this means the  obtained address is outside the traced binary
-                if optional_func_info is None:
-                    continue
-
-                # Check if it is one of the libc setup/teardown functions
-                func_info: FunctionInfo = optional_func_info
-                if func_info.name in AVOIDED_FUNC_NAMES:
-                    continue
-
-                # Offset in the function
-                current_offset = pie_address - func_info.address
-
-                for atom_element in atom_packet.elements:
-                    # Extract instructions
-                    basic_block: BasicBlock
-                    basic_block = self.process_basic_block(
-                        func_info=func_info, current_offset=current_offset, pie_address=pie_address
-                    )
-                    # Publish the basic block and address info
-                    basic_blocks.append(basic_block)
-
-                    # Update offset
-                    current_offset += basic_block.size - 4
-                    current_instruction: bytes = func_info.instructions[current_offset // 4]
-
-                    # Process the address of the next basic block
-                    # - Branch taken
-                    if atom_element == "E" and (
-                        Disassembler.is_direct_branch(current_instruction)
-                        or Disassembler.is_call(current_instruction)
-                    ):
-                        pie_address = (
-                            func_info.address
-                            + current_offset
-                            + Disassembler.extract_branch_target(current_instruction)
-                        )
-                        optional_func_info = func_dict.find_function_by_address(pie_address)
-                        if optional_func_info:
-                            func_info = optional_func_info
-                            current_offset = pie_address - func_info.address
-                        # TODO: add else exception
-                    # - Branch not taken
-                    elif atom_element == "N":
-                        current_offset += 4
-                        pie_address = func_info.address + current_offset
-
-        return ExecutionTrace(
-            address_trace=[bb.address for bb in basic_blocks],
-            basic_blocks={bb.address: bb for bb in basic_blocks},
-        )
-
-    def process_basic_block(
-        self, func_info: FunctionInfo, current_offset: int, pie_address: int
-    ) -> BasicBlock:
-        current_instruction: bytes = func_info.instructions[current_offset // 4]
-        instructions: list[bytes] = []
-        while not Disassembler.is_branch(current_instruction):
-            instructions.append(current_instruction)
-            current_offset += 4
-            current_instruction = func_info.instructions[current_offset // 4]
-        # Add the branch!
-        instructions.append(current_instruction)
-        return BasicBlock(
-            function_address=func_info.address,
-            function_name=func_info.name,
-            address=pie_address,
-            instructions=instructions,
-        )

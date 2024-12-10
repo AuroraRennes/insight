@@ -1,10 +1,15 @@
+from __future__ import annotations
+
 import logging
 import re
 from dataclasses import dataclass
-from io import TextIOWrapper
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from onsight.helpers import reverse_endianness32, string_to_bytes, string_to_int
+
+if TYPE_CHECKING:
+    from io import TextIOWrapper
 
 logger = logging.getLogger("onsight")
 
@@ -14,6 +19,10 @@ class FunctionInfo:
     name: str
     address: int
     instructions: list[bytes]
+
+    @classmethod
+    def default(cls) -> FunctionInfo:
+        return FunctionInfo(name="default", address=0, instructions=[])
 
 
 class FunctionDict(dict[int, FunctionInfo]):
@@ -35,6 +44,7 @@ class ObjdumpParser:
 
     @staticmethod
     def parse_dump(dump_file_name: str) -> FunctionDict:
+        logger.info("[+] Extracting function info from dump.")
         function_dict: FunctionDict = FunctionDict()
         try:
             with Path(dump_file_name).open() as objdump_file:
