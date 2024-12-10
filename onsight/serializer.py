@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from onsight.constants import DATA_JSON
+from onsight.constants import DATA_JSON, DATA_TESSLA
 from onsight.execution_trace import ExecutionTrace
 
 logger = logging.getLogger("onsight")
@@ -27,4 +27,14 @@ class Serializer:
                 execution_trace: ExecutionTrace = ExecutionTrace.from_dict(json_data)
         except OSError:
             logger.exception("[-] Failed to deserialize execution trace")
+            raise
         return execution_trace
+
+    @staticmethod
+    def store_tessla_trace(exec_trace: ExecutionTrace, tessla_file_name: str) -> None:
+        try:
+            with (Path(DATA_TESSLA) / tessla_file_name).open(mode="w") as file:
+                file.write(exec_trace.to_tessla_trace())
+        except OSError:
+            logger.exception("[-] Failed to output TeSSLa trace.")
+            raise

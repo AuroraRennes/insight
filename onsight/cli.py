@@ -3,7 +3,6 @@ import logging
 import sys
 from pathlib import Path
 
-from onsight.constants import DATA_TESSLA
 from onsight.exceptions import VerifierError
 from onsight.execution_trace import ExecutionTrace
 from onsight.parsers.parser import Parser
@@ -104,15 +103,11 @@ class ArgParser(argparse.ArgumentParser):
             except KeyError:
                 logger.exception(f"Verifier '{verifier_name}' not defined.")
             except VerifierError as err:
+                logger.info("[-] \tVerification failed!")
                 logger.info(f"[-] \tOriginal exception: {err}")
 
     def output_to_tessla_file(self, output_file: str, trace: ExecutionTrace) -> None:
-        try:
-            with (Path(DATA_TESSLA) / output_file).open(mode="w") as file:
-                file.write(trace.to_tessla_trace())
-        except OSError:
-            logger.exception("[-] Failed to output TeSSLa trace.")
-            raise
+        Serializer.store_tessla_trace(exec_trace=trace, tessla_file_name=output_file)
 
 
 def main(argv: list[str] | None = None) -> int:
