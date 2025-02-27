@@ -1,9 +1,3 @@
-# logs
-log/
-# serialization
-data/json
-data/tessla
-
 *.py[cod]
 __pycache__
 
@@ -81,3 +75,14 @@ docs/_build
 
 # Ruff Cache
 .ruff_cache/
+
+# Project-related
+# ________________
+
+# logs
+log/
+!data/bin
+
+# serialization
+data/json
+data/tessla
