@@ -1,6 +1,0 @@
-virtualenv
-pip
-setuptools
-six
-pipenv
-tox

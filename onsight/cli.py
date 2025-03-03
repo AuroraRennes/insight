@@ -48,7 +48,7 @@ class ArgParser(argparse.ArgumentParser):
             "-d",
             "--dump-file",
             type=str,
-            help="Path to the disassembled traced program, obtained with: " "objdump -d -z <binary>.",
+            help="Path to the disassembled traced program, obtained with: objdump -d -z <binary>.",
         )
 
         self.add_argument(
@@ -78,11 +78,11 @@ class ArgParser(argparse.ArgumentParser):
 
     def get_parser_from_extension(self, extension: str) -> Parser:
         try:
-            method_name: str = f"for{extension.replace(".", "_")}"
+            method_name: str = f"for{extension.replace('.', '_')}"
             parser: Parser = getattr(Parser, method_name)()
         except AttributeError:
             logger.exception(
-                f"Parser not defined for extension '{extension}'" "(or not propagated in the 'Parser' class)"
+                f"Parser not defined for extension '{extension}'(or not propagated in the 'Parser' class)"
             )
             sys.exit(1)
         return parser

@@ -57,7 +57,7 @@ class NoMatchingInfoError(ParserError):
 class NoMatchingElementsError(ParserError):
     def __init__(self) -> None:
         super().__init__(
-            "Atom packets are expected to have elements:" "'I_ATOM_F3 : Atom format 3.; NNE' (NNE here)"
+            "Atom packets are expected to have elements:'I_ATOM_F3 : Atom format 3.; NNE' (NNE here)"
         )
 
 

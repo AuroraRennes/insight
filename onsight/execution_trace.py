@@ -55,15 +55,15 @@ class ExecutionTrace:
         # 2: ret = false
         # 2: call = true
         file_content: list[str] = []
-        file_content.append("0: addr = 0xdeadbeef\n" "0: size = 0x0\n" "0: ret = false\n" "0: call = true\n")
+        file_content.append("0: addr = 0xdeadbeef\n0: size = 0x0\n0: ret = false\n0: call = true\n")
         for i, address_trace in enumerate(self.trace):
             addr: int = address_trace.address
             bb: BasicBlock = self.basic_blocks[addr]
             file_content.append(
-                f"{i+1}: addr = {hex(addr)}\n"
-                f"{i+1}: size = {hex(bb.size)}\n"
-                f"{i+1}: ret = {str(Disassembler.is_ret(bb.ending_instruction)).lower()}\n"
-                f"{i+1}: call = {str(Disassembler.is_call(bb.ending_instruction)).lower()}\n"
+                f"{i + 1}: addr = {hex(addr)}\n"
+                f"{i + 1}: size = {hex(bb.size)}\n"
+                f"{i + 1}: ret = {str(Disassembler.is_ret(bb.ending_instruction)).lower()}\n"
+                f"{i + 1}: call = {str(Disassembler.is_call(bb.ending_instruction)).lower()}\n"
             )
         contents: str = "".join(file_content)
         return contents

@@ -11,7 +11,7 @@ requires = [
 name = "onsight"
 description = "CoreSight/OpenOCD trace handler"
 version = "0.0.0"
-requires-python = ">= 3.12"
+requires-python = ">= 3.13"
 
 # ===================================================
 # Setuptools
@@ -99,42 +99,6 @@ flake8-unused-arguments.ignore-variadic-names = true
     "ARG", # Unused function args -> fixtures nevertheless are functionally relevant
     "FBT", # Don't care about booleans as positional arguments in tests, e.g. via @pytest.mark.parametrize()
 ]
-
-# ===================================================
-# Tox - ci
-# ===================================================
-
-# Unsupported for the moment, but can be passed through legacy_tox_ini
-# FIXME: update when released
-[tool.tox]
-legacy_tox_ini = """
-[tox]
-envlist = check, py312
-
-; Base tests
-[testenv]
-passenv = *
-deps = pipenv
-commands =
-    pipenv install --dev
-    pytest -s
-
-; Linting and import tests with flake, black and isort
-[testenv:check]
-passenv = *
-basepython = python3.12
-deps =
-    pipenv
-    ruff
-    mypy
-commands =
-    pipenv install --dev
-    ruff check --fix
-    ruff format
-    mypy .
-"""
-
-
 
 # ===================================================
 # Pytest - testing
