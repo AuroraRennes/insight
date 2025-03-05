@@ -28,6 +28,9 @@ class ProcessingInfo:
 
 
 class PacketProcessor:
+    # The packet processor is responsible for taking a a packet trace and function
+    # dictionary and extracting the execution trace (basic block dictionary and
+    # address trace)
     def __init__(self, func_dict: FunctionDict) -> None:
         self.func_dict: FunctionDict = func_dict
         self.basic_blocks: list[BasicBlock] = []

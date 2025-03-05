@@ -100,3 +100,21 @@ class DirectJumpError(VerifierError):
         super().__init__(
             f"Direct jumps should stay in the same function. Got '{function}', expected '{expected_function}'"
         )
+
+
+# Annotation exceptions
+# \___________________
+
+
+class AnnotationError(Exception):
+    pass
+
+
+class MissingSectionError(AnnotationError):
+    def __init__(self) -> None:
+        super().__init__("Missing ELF section.")
+
+
+class EmptySectionError(AnnotationError):
+    def __init__(self) -> None:
+        super().__init__("Empty ELF section.")

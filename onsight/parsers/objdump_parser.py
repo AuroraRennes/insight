@@ -36,6 +36,10 @@ class FunctionDict(dict[int, FunctionInfo]):
 
 
 class ObjdumpParser:
+    # The objdump parser is responsible for extracting a function dictionary from
+    # a dump file. It extracts a FunctionDict object that uses function addresses
+    # as keys and FunctionInfo as values.
+
     # Alternative with offset from function symbol
     START_FUNCTION_REGEX: str = r"([\w\._]*) <([\w\._]+)>:"
     # Regex line   828:  b9801fe0  ldrsw  x0, [sp, #28]
