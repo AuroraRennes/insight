@@ -102,9 +102,11 @@ class ArgParser(argparse.ArgumentParser):
                     logger.info(f"[+] {verifier.message()}")
             except KeyError:
                 logger.exception(f"Verifier '{verifier_name}' not defined.")
+                sys.exit(1)
             except VerifierError as err:
                 logger.info("[-] \tVerification failed!")
                 logger.info(f"[-] \tOriginal exception: {err}")
+                sys.exit(1)
 
     def output_to_tessla_file(self, output_file: str, trace: ExecutionTrace) -> None:
         Serializer.store_tessla_trace(exec_trace=trace, tessla_file_name=output_file)
