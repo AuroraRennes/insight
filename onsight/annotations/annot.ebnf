@@ -1,0 +1,18 @@
+(* Grammar of the textual annotations embedded in the traced binaries *)
+Program = {Assignment | End};
+End = "END";
+Assignment = Tagged '<-' Tagged { TagOperator, Tagged};
+Tagged = Memory | Register | Immediate | Unknown;
+TagOperator = "ari" | "sto" | "loa" | bra";
+Unknown = "UOp";
+Memory = '[', RegisterValue, ('+', (Scale '*') Offset) (ShiftOperator, ShiftValue) ']', '_', Number;
+Offset = Immediate | RegisterValue
+RegisterValue = '<', Register, '>'
+ShiftOperator = "uxtx" | "uxtw" | "sxtx" | "sxtw";
+Immediate = 'Imm(', Number, ')';
+AccessSize = "2" | "4" | "8" | "16" | "32" | "64" | "128";
+ShiftValue = "2" | "4" | "8"
+Scale = "2" | "4" | "8";
+Number = [ "-" ], Digit, { Digit } ;
+Digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+Register = "X0" | ... | "X31" | "WZR" | "PC" | "SP" | "NZCV" | "N" | "Z" | "C" | "V";

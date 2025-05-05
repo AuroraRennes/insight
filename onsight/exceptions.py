@@ -106,15 +106,44 @@ class DirectJumpError(VerifierError):
 # \___________________
 
 
-class AnnotationError(Exception):
+class ELFError(Exception):
     pass
 
 
-class MissingSectionError(AnnotationError):
+class MissingSectionError(ELFError):
     def __init__(self) -> None:
         super().__init__("Missing ELF section.")
 
 
-class EmptySectionError(AnnotationError):
+class EmptySectionError(ELFError):
     def __init__(self) -> None:
         super().__init__("Empty ELF section.")
+
+
+class AnnotationParsingError(Exception):
+    pass
+
+
+class MissingENDBlockError(AnnotationParsingError):
+    def __init__(self) -> None:
+        super().__init__("Missing END block.")
+
+
+class MissingOperatorError(AnnotationParsingError):
+    def __init__(self, rhs: str) -> None:
+        super().__init__(f"No operator found in RHS with multiple operands: {rhs}")
+
+
+class NoMatchDestinationError(AnnotationParsingError):
+    def __init__(self, lhs: str) -> None:
+        super().__init__(f"No match for destination in LHS: {lhs}")
+
+
+class NoMatchOperandError(AnnotationParsingError):
+    def __init__(self, operand: str) -> None:
+        super().__init__(f"No match for operand {operand}")
+
+
+class WrongOffsetValueError(AnnotationParsingError):
+    def __init__(self) -> None:
+        super().__init__("Incorrect offset value, should be register or immediate")
