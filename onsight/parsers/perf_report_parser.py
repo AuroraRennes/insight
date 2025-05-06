@@ -3,37 +3,21 @@ import re
 from dataclasses import dataclass
 from io import TextIOWrapper
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar
 
 from onsight.exceptions import (
-    NoMatchingAddressContextError,
-    NoMatchingAddressError,
-    NoMatchingElementsError,
-    NoMatchingInfoError,
-    ParserError,
+    PacketParserError,
+    PerfParserError,
     TraceSizeError,
-    WrongSizeAtomPacketError,
 )
 from onsight.execution_trace import ExecutionTrace
 from onsight.helpers import string_to_int
 from onsight.packet_processor import PacketProcessor
 from onsight.packets import (
-    AddressContextPacket,
-    AddressPacket,
-    AtomPacket,
-    Context,
-    InfoFields,
-    InfoPacket,
     Packet,
-    PacketInfo,
-    SynchronizationPacket,
 )
 from onsight.parsers.objdump_parser import FunctionDict, ObjdumpParser
+from onsight.parsers.packet_parser import PacketParser
 from onsight.parsers.parser import Parser
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
-
 
 logger = logging.getLogger("onsight")
 
@@ -71,33 +55,7 @@ class PerfReportParser(Parser):
     # Starting address
     PROGRAM_START_ADDRESS: int = 0x0000AAAAAAAA0000
     PROGRAM_MEM_SIZE: int = 0x10000
-
-    # REGEXES
-    TRACE_START_LINE_REGEX: str = r"\. \.\.\. CoreSight ETMV4I Trace data: size (0x\w+) bytes"
-    ADDR_REGEX: str = r"Addr=(0x\w+)"  # Address, in address    ...; Addr=0xFFFF800008AA4BE0;
-    CTXT_REGEX: str = r"Ctxt: ([,\s\w]*)"  # Context, in address    ...; Ctxt: AArch64,EL0, NS;
-    ELTS_REGEX: str = r"([EN]+)"  # Basic blocks, in atoms ...;  Atom format 3.; ENE
-    INFO_REGEX: str = r"INFO=(0x\w+) \{[\s\w.]*\}"  # Info, in trace info    ...; INFO=0x0 { CC.0 };
-
-    # This dictionary takes the name as key and outputs the corresponding regexes needed
-    # to extract the rest of the information. The syntax **dict.fromkeys(keys_list, value) maps multiple
-    # keys to the same value in a more concise way.
-    PACKETS_INFO: ClassVar[dict[str, ParseInfo]] = {
-        **dict.fromkeys(
-            ["I_ADDR_L_64IS0", "I_ADDR_S_IS0", "I_ADDR_MATCH"], ParseInfo("parse_addr", ADDR_REGEX)
-        ),
-        "I_ADDR_CTXT_L_64IS0": ParseInfo("parse_addr_ctxt", ADDR_REGEX + "; " + CTXT_REGEX),
-        "I_TRACE_INFO": ParseInfo("parse_trace_info", INFO_REGEX),
-        **dict.fromkeys([f"I_ATOM_F{i}" for i in range(7)], ParseInfo("parse_atom", ELTS_REGEX)),
-        # These don't need additional parameters
-        "I_TRACE_ON": ParseInfo("parse_trace_on", ""),
-        "I_ASYNC": ParseInfo("parse_async", ""),
-    }
-
-    # Base regex, then composed:
-    # Holds                        index      id      name     description
-    #                                v         v        v          v
-    PACKET_BASE_REGEX: str = r"Idx:(\d+); ID:(\d+);\s(\w*)\s: ([\s\w,&]*)."
+    TRACE_START_LINE_REGEX: str = r"\. \.\.\. CoreSight ETMV4I Trace data: size (?P<trace_size>0x\w+) bytes"
 
     def __init__(self) -> None:
         super().__init__(extension=".perf.report")
@@ -122,14 +80,15 @@ class PerfReportParser(Parser):
                         PerfReportParser.TRACE_START_LINE_REGEX, line
                     )
                     if match_start:
-                        trace_size: int = string_to_int(match_start.group(1))
+                        group: dict[str, str] = match_start.groupdict()
+                        trace_size: int = string_to_int(group["trace_size"])
                         packets: list[Packet] = self.parse_cpu_trace(
-                            perf_dump_file=perf_report_file, cpu_nb=cpu_nb, trace_size=trace_size
+                            perf_report_file=perf_report_file, cpu_nb=cpu_nb, trace_size=trace_size
                         )
                         cpu_packets.append(packets)
                         cpu_nb += 1
-        except (OSError, ParserError):
-            logger.exception("[-] Parsing Failed.")
+        except (OSError, PerfParserError):
+            logger.exception("[-] Perf report parsing Failed.")
             raise
 
         # Extract the function dict from the dump
@@ -146,101 +105,24 @@ class PerfReportParser(Parser):
             start_address=PerfReportParser.PROGRAM_START_ADDRESS,
         )
 
-    def parse_cpu_trace(self, perf_dump_file: TextIOWrapper, cpu_nb: int, trace_size: int) -> list[Packet]:
+    def parse_cpu_trace(self, perf_report_file: TextIOWrapper, cpu_nb: int, trace_size: int) -> list[Packet]:
         packets: list[Packet] = []
+        packet_parser: PacketParser = PacketParser()
 
         # Matching the base info of a packet
-        line: str = next(perf_dump_file)
-        match_line: re.Match[str] | None = re.search(PerfReportParser.PACKET_BASE_REGEX, line)
+        line: str = next(perf_report_file)
+        match_line: re.Match[str] | None = re.search(PacketParser.PACKET_BASE_REGEX, line)
         while match_line:
-            packet_info: PacketInfo = PacketInfo(
-                index=int(match_line.group(1)),
-                vmid=int(match_line.group(2)),
-                header=0x0,  # No header as it is already disassembled by perf
-                cpu_nb=cpu_nb,
-            )
+            try:
+                packets.append(packet_parser.parse_packet(line, cpu_nb))
+            except PacketParserError:
+                logging.exception("[-] Packet parsing failed.")
+                raise
 
-            packet_name: str = match_line.group(3)
-            parse_info: ParseInfo = PerfReportParser.PACKETS_INFO[packet_name]
+            line = next(perf_report_file)
+            match_line = re.search(PacketParser.PACKET_BASE_REGEX, line)
 
-            parse_method: Callable[..., Packet] = getattr(self, parse_info.parse_method)
-            packet: Packet = parse_method(
-                packet_info=packet_info, packet_name=packet_name, line=line, regex=parse_info.regex
-            )
-
-            packets.append(packet)
-
-            # Next one!
-            line = next(perf_dump_file)
-            match_line = re.search(PerfReportParser.PACKET_BASE_REGEX, line)
-
-        # FIXME: Once packets are parsed
-        # parsed_size: int = len(packets) * 8
         parsed_size: int = trace_size
         if parsed_size != trace_size:
             raise TraceSizeError(expected_size=trace_size, size=parsed_size, cpu_nb=cpu_nb)
         return packets
-
-    # Packet parsing
-    # \_______________
-
-    def parse_addr(self, packet_name: str, packet_info: PacketInfo, line: str, regex: str) -> AddressPacket:
-        match_address: re.Match[str] | None = re.search(regex, line)
-        if match_address:
-            address: int = string_to_int(match_address.group(1))
-        else:
-            raise NoMatchingAddressError
-
-        constr_method: Callable[..., AddressPacket] = getattr(AddressPacket, packet_name[2:].lower())
-        return constr_method(packet_info=packet_info, address=address)
-
-    def parse_addr_ctxt(
-        self, packet_name: str, packet_info: PacketInfo, line: str, regex: str
-    ) -> AddressContextPacket:
-        match_addr_ctxt: re.Match[str] | None = re.search(regex, line)
-        if match_addr_ctxt:
-            address: int = string_to_int(match_addr_ctxt.group(1))
-            context_str: list[str] = match_addr_ctxt.group(2).split(",")
-            context: Context = Context(
-                architecture=context_str[0].strip(),
-                exception_level=context_str[1].strip(),
-                security_state=context_str[2].strip(),
-            )
-        else:
-            raise NoMatchingAddressContextError
-
-        constr_method: Callable[..., AddressContextPacket] = getattr(
-            AddressContextPacket, packet_name[2:].lower()
-        )
-        return constr_method(packet_info=packet_info, address=address, context=context)
-
-    def parse_trace_info(
-        self, packet_info: PacketInfo, line: str, regex: str, **kwargs: dict[str, Any]
-    ) -> InfoPacket:
-        match_info: re.Match[str] | None = re.search(regex, line)
-        if match_info:
-            info_bits: int = string_to_int(match_info.group(1))
-            info_fields: InfoFields = InfoFields(info_bits=info_bits)
-        else:
-            raise NoMatchingInfoError
-
-        return InfoPacket.trace_info(packet_info=packet_info, info_fields=info_fields)
-
-    def parse_atom(self, packet_info: PacketInfo, packet_name: str, line: str, regex: str) -> AtomPacket:
-        match_elements: re.Match[str] | None = re.search(regex, line)
-        if match_elements:
-            elements: list[str] = list(match_elements.group(1))
-        else:
-            raise NoMatchingElementsError
-
-        # I_ATOM_F1 > [I, ATOM, F1] > 1, but atom format 6 can have more elements!
-        format_extracted: str = packet_name.split("_")[-1][-1]
-        if not AtomPacket.check_format_size(format=int(format_extracted), elements_nb=len(elements)):
-            raise WrongSizeAtomPacketError(expected_size=int(format_extracted), size=len(elements))
-        return AtomPacket.atom_format(packet_info=packet_info, elements=elements)
-
-    def parse_trace_on(self, packet_info: PacketInfo, **kwargs: dict[str, Any]) -> SynchronizationPacket:
-        return SynchronizationPacket.trace_on(packet_info=packet_info)
-
-    def parse_async(self, packet_info: PacketInfo, **kwargs: dict[str, Any]) -> SynchronizationPacket:
-        return SynchronizationPacket.asynch(packet_info=packet_info)

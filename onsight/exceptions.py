@@ -1,33 +1,23 @@
-# Parsing exceptions
-# \___________________
+# Packet parsing errors
 
 
-class ParserError(Exception):
+class PacketParserError(Exception):
     pass
 
 
-# Perf report
-# ---
-
-
-class NoDumpFileError(ParserError):
-    def __init__(self) -> None:
-        super().__init__("The dump file of the traced binary is required to extract execution information.")
-
-
-class TraceSizeError(ParserError):
-    def __init__(self, expected_size: int, size: int, cpu_nb: int) -> None:
+class NoPacketMatchError(PacketParserError):
+    def __init__(self, line: str) -> None:
         super().__init__(
-            f"Trace of CPU n{cpu_nb} is expected to be {hex(expected_size)} long, was {hex(size)} long."
+            f"No packet matched the one in line: {line}. Is this packet supported by the parser?"
         )
 
 
-class WrongSizeAtomPacketError(ParserError):
+class WrongSizeAtomPacketError(PacketParserError):
     def __init__(self, expected_size: int, size: int) -> None:
         super().__init__(f"Expected {expected_size} elements, got {size} for atom packet.")
 
 
-class NoMatchingAddressError(ParserError):
+class NoMatchingAddressError(PacketParserError):
     def __init__(self) -> None:
         super().__init__(
             "Address packets are expected to have an address:"
@@ -36,7 +26,7 @@ class NoMatchingAddressError(ParserError):
         )
 
 
-class NoMatchingAddressContextError(ParserError):
+class NoMatchingAddressContextError(PacketParserError):
     def __init__(self) -> None:
         super().__init__(
             "Address context packets are expected to have an address and a context:"
@@ -46,7 +36,7 @@ class NoMatchingAddressContextError(ParserError):
         )
 
 
-class NoMatchingInfoError(ParserError):
+class NoMatchingInfoError(PacketParserError):
     def __init__(self) -> None:
         super().__init__(
             "Trace info packets are expected to have information:"
@@ -54,10 +44,34 @@ class NoMatchingInfoError(ParserError):
         )
 
 
-class NoMatchingElementsError(ParserError):
+class NoMatchingElementsError(PacketParserError):
     def __init__(self) -> None:
         super().__init__(
             "Atom packets are expected to have elements:'I_ATOM_F3 : Atom format 3.; NNE' (NNE here)"
+        )
+
+
+# Parsing exceptions
+# \___________________
+
+
+class PerfParserError(Exception):
+    pass
+
+
+# Perf report
+# ---
+
+
+class NoDumpFileError(PerfParserError):
+    def __init__(self) -> None:
+        super().__init__("The dump file of the traced binary is required to extract execution information.")
+
+
+class TraceSizeError(PerfParserError):
+    def __init__(self, expected_size: int, size: int, cpu_nb: int) -> None:
+        super().__init__(
+            f"Trace of CPU n{cpu_nb} is expected to be {hex(expected_size)} long, was {hex(size)} long."
         )
 
 
@@ -65,17 +79,17 @@ class NoMatchingElementsError(ParserError):
 # ---
 
 
-class WrongExtensionError(ParserError):
+class WrongExtensionError(PerfParserError):
     def __init__(self, expected_extension: str, extension: str) -> None:
         super().__init__(f"This parser expects files with '{expected_extension}', got '{extension}'")
 
 
-class WrongStartLineError(ParserError):
+class WrongStartLineError(PerfParserError):
     def __init__(self) -> None:
         super().__init__("perf script trace should start with 'ARM CoreSight Trace Data Assembler Dump'.")
 
 
-class NoEndLineError(ParserError):
+class NoEndLineError(PerfParserError):
     def __init__(self) -> None:
         super().__init__("perf script trace should end with 'End'.")
 
