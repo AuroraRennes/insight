@@ -105,6 +105,8 @@ class DirectJumpError(VerifierError):
 # Annotation exceptions
 # \___________________
 
+# ELF /
+
 
 class ELFError(Exception):
     pass
@@ -118,6 +120,9 @@ class MissingSectionError(ELFError):
 class EmptySectionError(ELFError):
     def __init__(self) -> None:
         super().__init__("Empty ELF section.")
+
+
+# Parsing /
 
 
 class AnnotationParsingError(Exception):
@@ -147,3 +152,29 @@ class NoMatchOperandError(AnnotationParsingError):
 class WrongOffsetValueError(AnnotationParsingError):
     def __init__(self) -> None:
         super().__init__("Incorrect offset value, should be register or immediate")
+
+
+# Interpretation /
+
+
+class AnnotationInterpretationError(Exception):
+    pass
+
+
+class OperatorNotDefinedError(AnnotationInterpretationError):
+    def __init__(self, operator: str) -> None:
+        super().__init__(f"Unknown operator {operator}")
+
+
+class STMFIFOEmptyError(AnnotationInterpretationError):
+    def __init__(self) -> None:
+        super().__init__("STM FIFO empty while trying to pop.")
+
+
+class StateError(AnnotationInterpretationError):
+    pass
+
+
+class UndefinedRegisterError(StateError):
+    def __init__(self, reg: str) -> None:
+        super().__init__(f"Register unknown {reg}")

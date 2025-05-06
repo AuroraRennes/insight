@@ -1,0 +1,33 @@
+from onsight.exceptions import UndefinedRegisterError
+
+
+class ARM64State:
+    def __init__(self) -> None:
+        self.registers: dict[str, int] = {
+            reg: 0
+            for reg in [f"X{i}" for i in range(31)]  # general registers
+            + ["XZR", "SP", "PC", "N", "Z", "C", "V"]  # stack, pc, flag registers
+        }
+        self.memory: dict[int, int] = {}
+
+    def write_register(self, register_name: str, tag: int) -> None:
+        if register_name.startswith("W"):
+            register_name = "X" + register_name[1:]
+        if register_name not in self.registers:
+            raise UndefinedRegisterError(register_name)
+        self.registers[register_name] = tag
+
+    def read_register(self, register_name: str) -> int:
+        if register_name.startswith("W"):
+            register_name = "X" + register_name[1:]
+        return self.registers[register_name]
+
+    def memory_write(self, address: int, size: int, tag: int) -> None:
+        for i in range(address, address + size, 4):
+            self.memory[i] = tag
+
+    def memory_read(self, address: int, size: int) -> int:
+        result: int = 0
+        for i in range(address, address + size, 4):
+            result = result << i | self.memory[i]
+        return result
