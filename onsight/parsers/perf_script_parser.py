@@ -39,10 +39,12 @@ class PerfScriptParser(Parser):
     TRACE_END_LINE: str = "End"
     # Regex line   00000000000007f8 <main+0x20>:
     #  matches     00000000000007f8  main and 0x20
-    START_FUNCTION_REGEX: str = r"([\w\._]*) <([\w\._]+)(\+0x\w+)?>:"
+    START_FUNCTION_REGEX: str = (
+        r"(?P<address_base>[\w\._]*) <(?P<name>[\w\._]+)(?P<address_offset>\+0x\w+)?>:"
+    )
     # Regex line   828:  b9801fe0  ldrsw  x0, [sp, #28]
     #  matches     828   b9801fe0  ldrsw
-    DISASM_LINE_REGEX: str = r"(\w+):\s+(\w+)\s+(\w+[\.\w*]*)"
+    DISASM_LINE_REGEX: str = r"(?P<instr_address>\w+):\s+(?P<instr_raw>\w+)\s+(?P<instr_mnemonic>\w+[\.\w*]*)"
 
     # libc set up and teardown
     AVOIDED_FUNC_NAMES: tuple[str, ...] = (
@@ -82,13 +84,14 @@ class PerfScriptParser(Parser):
                 # Iterate over the file to extract basic blocks
                 for line in perf_script_file:
                     trace_end: bool = line.strip() == PerfScriptParser.TRACE_END_LINE
-                    match_start: re.Match[str] | None = re.search(PerfScriptParser.START_FUNCTION_REGEX, line)
 
-                    if match_start:
-                        function_address: int = string_to_int(match_start.group(1))
-                        function_name: str = match_start.group(2)
-                        if match_start.group(3):
-                            function_address = function_address - string_to_int(match_start.group(3))
+                    match_start: re.Match[str] | None
+                    if match_start := re.search(PerfScriptParser.START_FUNCTION_REGEX, line):
+                        group: dict[str, str] = match_start.groupdict()
+                        function_address: int = string_to_int(group["address_base"])
+                        function_name: str = group["name"]
+                        if group["address_offset"]:
+                            function_address = function_address - string_to_int(group["address_offset"])
 
                         if function_name in PerfScriptParser.AVOIDED_FUNC_NAMES:
                             continue
@@ -121,14 +124,15 @@ class PerfScriptParser(Parser):
 
         line: str = next(perf_script_file)
         match_line: re.Match[str] | None = re.search(PerfScriptParser.DISASM_LINE_REGEX, line)
-        bb_address: int = string_to_int(match_line.group(1)) if match_line else 0
+        bb_address: int = string_to_int(match_line.groupdict()["instr_address"]) if match_line else 0
         instructions: list[bytes] = []
         while match_line:
+            group: dict[str, str] = match_line.groupdict()
             # Instruction information
-            instr_address: int = string_to_int(match_line.group(1))
+            instr_address: int = string_to_int(group["instr_address"])
             bb_address = instr_address if (bb_address == -1) else bb_address
-            instr_bytes: bytes = reverse_endianness32(string_to_bytes(match_line.group(2)))
-            instr_mnemonic: str = match_line.group(3)
+            instr_bytes: bytes = reverse_endianness32(string_to_bytes(group["instr_raw"]))
+            instr_mnemonic: str = group["instr_mnemonic"]
             # Add bytes to the instruction
             instructions.append(instr_bytes)
 
