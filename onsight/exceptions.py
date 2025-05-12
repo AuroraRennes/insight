@@ -12,6 +12,11 @@ class NoPacketMatchError(PacketParserError):
         )
 
 
+class MatchNoParseError(PacketParserError):
+    def __init__(self, name: str) -> None:
+        super().__init__(f"Packet {name} matched but no corresponding parsing method was found.")
+
+
 class WrongSizeAtomPacketError(PacketParserError):
     def __init__(self, expected_size: int, size: int) -> None:
         super().__init__(f"Expected {expected_size} elements, got {size} for atom packet.")
@@ -48,6 +53,37 @@ class NoMatchingElementsError(PacketParserError):
     def __init__(self) -> None:
         super().__init__(
             "Atom packets are expected to have elements:'I_ATOM_F3 : Atom format 3.; NNE' (NNE here)"
+        )
+
+
+class NoMatchingDescriptionError(PacketParserError):
+    def __init__(self) -> None:
+        super().__init__(
+            "Exception packets are expected to have a description: 'I_EXCEPT : Exception.; Data Fault;"
+            " ...' (Data fault here)"
+        )
+
+
+class NoMatchingVersionError(PacketParserError):
+    def __init__(self) -> None:
+        super().__init__(
+            "Version packets are expected to have a version number: 'VERSION:Version packet; Ver=3' (3 here)"
+        )
+
+
+class NoMatchingChannelError(PacketParserError):
+    def __init__(self) -> None:
+        super().__init__(
+            "M8 Master packets are expected to have a channel: 'M8:Set current master; Master=0x48'"
+            " (0x48 here)"
+        )
+
+
+class NoMatchingDataError(PacketParserError):
+    def __init__(self) -> None:
+        super().__init__(
+            "Data packets are expected to have a size and hold data: 'D64M:64 bit data + marker; "
+            "Data=0x0000fffffa3617b0' (64 size and  =0x0000fffffa3617b0 value here)"
         )
 
 

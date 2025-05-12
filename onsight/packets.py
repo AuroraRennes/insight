@@ -38,6 +38,17 @@ class SynchronizationPacket(Packet):
     def asynch(cls, packet_info: PacketInfo) -> SynchronizationPacket:
         return cls(name="Async", packet_info=packet_info)
 
+    @classmethod
+    def notsync(cls, packet_info: PacketInfo) -> SynchronizationPacket:
+        return cls(name="Not Sync", packet_info=packet_info)
+
+    @classmethod
+    def end(cls, packet_info: PacketInfo) -> SynchronizationPacket:
+        return cls(name="End Trace", packet_info=packet_info)
+
+
+# Info/Version/
+
 
 # Info fields in the TraceInfo packet:
 # > Extracted from ARM ETMv4 spec 2023, p.6-260
@@ -52,6 +63,7 @@ class SynchronizationPacket(Packet):
 # [4]  p0_load         load instructions traced explicitely (0 disabled, 1 enabled)
 # [5]  p0_store        store instructions traced explicitely (0 disabled, 1 enabled)
 # > Note: for the last two, this means stores/loads result in P0 elements.
+@dataclass
 class InfoFields:
     def __init__(self, info_bits: int) -> None:
         self.cc_enabled: int = format_to(info_bits, 1)
@@ -60,7 +72,7 @@ class InfoFields:
         self.p0_store: int = format_to(info_bits >> 5, 1)
 
 
-class InfoPacket(SynchronizationPacket):
+class InfoPacket(Packet):
     def __init__(self, name: str, packet_info: PacketInfo, info_fields: InfoFields) -> None:
         super().__init__(name=name, packet_info=packet_info)
         self.info_fields: InfoFields = info_fields
@@ -68,6 +80,35 @@ class InfoPacket(SynchronizationPacket):
     @classmethod
     def trace_info(cls, packet_info: PacketInfo, info_fields: InfoFields) -> InfoPacket:
         return cls(name="Trace Info", packet_info=packet_info, info_fields=info_fields)
+
+
+# Version packets
+# \_______________
+
+
+class VersionPacket(Packet):
+    def __init__(self, name: str, packet_info: PacketInfo, version_number: str) -> None:
+        super().__init__(name=name, packet_info=packet_info)
+        self.version_number: str = version_number
+
+    # avoid shadowing base version() method
+    @classmethod
+    def version_nb(cls, packet_info: PacketInfo, version_number: str) -> VersionPacket:
+        return cls(name="Version", packet_info=packet_info, version_number=version_number)
+
+
+# Exception packets
+# \_________________
+
+
+class ExceptionPacket(Packet):
+    def __init__(self, name: str, packet_info: PacketInfo, description: str) -> None:
+        super().__init__(name=name, packet_info=packet_info)
+        self.description: str = description
+
+    @classmethod
+    def exception(cls, packet_info: PacketInfo, description: str) -> ExceptionPacket:
+        return cls(name="Exception", packet_info=packet_info, description=description)
 
 
 # Address Packets
@@ -136,10 +177,9 @@ class AtomPacket(Packet):
         self.format: int = format
         self.elements: list[str] = elements
 
-        # TODO: Check number of elements == format
-
     @classmethod
     def atom_format(cls, packet_info: PacketInfo, elements: list[str]) -> AtomPacket:
+        # FIXME: F6 atoms can have 4-24 elements
         atom_format: int = min(6, len(elements))
         return cls(
             name=f"Atom F{atom_format}",
@@ -155,3 +195,40 @@ class AtomPacket(Packet):
         if format == atom_format_6:
             return elements_nb in range(4, 24)
         return format == elements_nb
+
+
+# STM Packets
+# \____________
+
+
+class STMPacket(Packet):
+    def __init__(self, name: str, packet_info: PacketInfo) -> None:
+        super().__init__(name="STM - " + name, packet_info=packet_info)
+
+    @classmethod
+    def null(cls, packet_info: PacketInfo) -> STMPacket:
+        return cls(name="Null", packet_info=packet_info)
+
+
+class MasterPacket(STMPacket):
+    def __init__(self, name: str, packet_info: PacketInfo, master_channel: int) -> None:
+        super().__init__(name=name, packet_info=packet_info)
+        self.master_channel = master_channel
+
+    @classmethod
+    def master(cls, packet_info: PacketInfo, master_channel: int) -> MasterPacket:
+        return cls(name="Master", packet_info=packet_info, master_channel=master_channel)
+
+
+# FIXME: We handle all data packets (plain, timestamp, marker, or combined) as plain data packets
+class DataPacket(STMPacket):
+    def __init__(self, name: str, packet_info: PacketInfo, data_size: int, data_value: int) -> None:
+        super().__init__(name=name, packet_info=packet_info)
+        self.data_size: int = data_size
+        self.data_value: int = data_value
+
+    @classmethod
+    def data(cls, packet_info: PacketInfo, data_size: int, data_value: int) -> DataPacket:
+        return DataPacket(
+            name=f"Data {data_size}", packet_info=packet_info, data_size=data_size, data_value=data_value
+        )
