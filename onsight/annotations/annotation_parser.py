@@ -77,7 +77,7 @@ class AnnotationParser:
         \[                          # Opening bracket
         <(?P<base>[A-Z0-9]+)>       # Base register
         \s*\+\s*                    # +
-        (?P<scale>[248])\*          # Scale (2, 4, 8)
+        ((?P<scale>[248])\*)?          # Scale (2, 4, 8)
         (?P<offset><[A-Z0-9]+>|Imm\(-?\d+\))  # Offset register or immediate
         (?:\s+(?P<shiftop>uxtx|uxtw|sxtx|sxtw)\s+(?P<shiftval>2|4|8))?  # Optional shift
         \]_
