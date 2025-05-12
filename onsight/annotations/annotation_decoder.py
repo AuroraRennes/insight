@@ -5,6 +5,7 @@ from pathlib import Path
 
 from elftools.elf.elffile import ELFFile
 
+from onsight.annotations.annotation_parser import AnnotationParser, Assignment
 from onsight.exceptions import EmptySectionError, MissingSectionError
 
 logger = logging.getLogger("onsight")
@@ -15,6 +16,7 @@ class AnnotationInfo:
     bb_offset: int
     annotation_offset: int
     annotations: list[str]
+    assignments: list[Assignment]
 
 
 class AnnotationDict(dict[int, AnnotationInfo]):
@@ -40,6 +42,9 @@ def split_list_on_sep(lst: list[str], sep: str) -> list[list[str]]:
 class AnnotationDecoder:
     ANNOTATION_SECTION = ".hbngannot"
     BBT_SECTION = ".hbngbbt"
+
+    def __init__(self) -> None:
+        self.annotation_parser: AnnotationParser = AnnotationParser()
 
     def get_section_data(self, elf_file: ELFFile, section_name: str) -> bytes:
         section = elf_file.get_section_by_name(section_name)
@@ -68,16 +73,22 @@ class AnnotationDecoder:
         # Format results
         bbt: list[tuple[int, int]] = bbt_section
         bb_annotations: list[list[str]] = split_list_on_sep(annotations_section.split("\n"), "END")
+        bb_assignments: list[list[Assignment]] = [
+            self.annotation_parser.parse_annotations(bb_annotation) for bb_annotation in bb_annotations
+        ]
 
         if len(bbt) != len(bb_annotations):
             logger.exception("[-] BBT and annotation sections size mismatch.")
             sys.exit(1)
 
         annotation_dict: AnnotationDict = AnnotationDict()
-        for annotations, bbt_entry in zip(bb_annotations, bbt, strict=False):
+        for annotations, assignments, bbt_entry in zip(bb_annotations, bb_assignments, bbt, strict=False):
             bb_offset, annotation_offset = bbt_entry
             annotation_dict[bb_offset] = AnnotationInfo(
-                bb_offset=bb_offset, annotation_offset=annotation_offset, annotations=annotations
+                bb_offset=bb_offset,
+                annotation_offset=annotation_offset,
+                annotations=annotations,
+                assignments=assignments,
             )
         return annotation_dict
 
