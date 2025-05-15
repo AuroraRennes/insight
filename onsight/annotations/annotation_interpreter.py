@@ -1,3 +1,4 @@
+import logging
 from collections import deque
 from collections.abc import Callable
 from functools import reduce
@@ -17,6 +18,9 @@ from onsight.exceptions import OperatorNotDefinedError, STMFIFOEmptyError, Unkno
 from onsight.packets import AddressPacket, AtomPacket, DataPacket, Packet
 
 # Data classes to represent a minimal AST
+
+
+logger = logging.getLogger("onsight")
 
 
 class STMFIFO:
@@ -69,17 +73,27 @@ class AnnotationInterpreter:
                 current_address = packet.address
                 current_offset = current_address - start_address
 
-            if isinstance(packet, AtomPacket):
+            elif isinstance(packet, AtomPacket):
                 bb_offset = current_offset
 
                 for atom_element in packet.elements:
-                    bb_annotations: list[str] = annotation_dict[bb_offset].annotations
-                    assignments: list[Assignment] = self.annot_parser.parse_annotations(bb_annotations)
-                    self.interpret_block(assignments)
+                    # If the address is not present in the annotation dictionary, the info
+                    # should come from a fucntion outside of the annotated binary (libraries, etc.)
+                    if bb_offset not in annotation_dict:
+                        logger.warning(
+                            "Atom element reached but no corresponding annotations "
+                            f"were found for address {hex(bb_offset)}"
+                        )
+                        continue
+                    bb_assignments: list[Assignment] = annotation_dict[bb_offset].assignments
+                    self.interpret_block(bb_assignments)
                     # If the atom element is E, branch broadcasting SHOULD be enabled and
                     # produce another address packet
                     if atom_element == "N":
                         bb_offset = annotation_dict.next_key(bb_offset)
+
+            elif isinstance(packet, DataPacket):
+                self.stm_addresses.enqueue(packet.data_value)
 
     def interpret_block(self, assignments: list[Assignment]) -> None:
         assignment: Assignment
