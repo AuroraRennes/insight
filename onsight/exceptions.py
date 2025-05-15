@@ -233,3 +233,8 @@ class StateError(AnnotationInterpretationError):
 class UndefinedRegisterError(StateError):
     def __init__(self, reg: str) -> None:
         super().__init__(f"Register unknown {reg}")
+
+
+class ReadingFromUnwrittenMemoryError(StateError):
+    def __init__(self, address: int) -> None:
+        super().__init__(f"Reading from address {hex(address)} that was not written to beforehand")

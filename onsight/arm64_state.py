@@ -1,4 +1,4 @@
-from onsight.exceptions import UndefinedRegisterError
+from onsight.exceptions import ReadingFromUnwrittenMemoryError, UndefinedRegisterError
 
 
 class ARM64State:
@@ -37,6 +37,8 @@ class ARM64State:
 
     def memory_read(self, address: int, size: int) -> int:
         result: int = 0
-        for i in range(address, address + size, 4):
-            result = result << i | self.memory[i]
+        for aligned_addr in range(address, address + size, 4):
+            if aligned_addr in self.memory:
+                result = result << aligned_addr | self.memory[aligned_addr]
+            raise ReadingFromUnwrittenMemoryError(aligned_addr)
         return result
