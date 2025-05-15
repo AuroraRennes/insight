@@ -86,14 +86,14 @@ class AnnotationInterpreter:
                             symbol_dict.function_for_address(bb_offset) if symbol_dict else "no symbol"
                         )
                         logger.warning(
-                            "[~] Atom element reached but no annotations were found at "
-                            f"address {hex(bb_offset)} ({function_name})"
+                            f"[~] Packet {packet.packet_info.index} - Atom element reached but no "
+                            f"annotations were found at address {hex(bb_offset)} ({function_name})"
                         )
                         continue
                     bb_assignments: list[Assignment] = annotation_dict[bb_offset].assignments
                     logger.info(
-                        f"[+] Atom element reached and annotations found at "
-                        f"address {hex(bb_offset)} ({annotation_dict[bb_offset].function_name})"
+                        f"[+] Packet {packet.packet_info.index} - Atom element reached and annotations "
+                        f"found at address {hex(bb_offset)} ({annotation_dict[bb_offset].function_name})"
                     )
                     self.interpret_block(bb_assignments)
                     # If the atom element is E, branch broadcasting SHOULD be enabled and
