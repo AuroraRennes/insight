@@ -221,6 +221,11 @@ class STMFIFOEmptyError(AnnotationInterpretationError):
         super().__init__("STM FIFO empty while trying to pop.")
 
 
+class UnknownSPUpdateError(AnnotationInterpretationError):
+    def __init__(self, annotation: str) -> None:
+        super().__init__(f"Unexpected SP update. Expecting 'SP <- SP add/sub Imm(val)' but got {annotation}")
+
+
 class StateError(AnnotationInterpretationError):
     pass
 

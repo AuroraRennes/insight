@@ -45,6 +45,9 @@ class Register(Tagged):
     def accept_eval(self, interpreter: AnnotationInterpreter) -> int:
         return interpreter.get_register_tag(self)
 
+    def is_sp(self) -> bool:
+        return self.name == "SP"
+
 
 @dataclass
 class MemoryAccess(Tagged):
@@ -69,7 +72,7 @@ class Assignment:
 
 class AnnotationParser:
     # Note: ?P<value> lets us define named value to be extracted from the matched group
-    OPE_RE = re.compile(r"(?P<op>ari|sto|loa|bra)")
+    OPE_RE = re.compile(r"(?P<op>ari|add|sub|sto|loa|bra)")
     IMM_RE = re.compile(r"Imm\((?P<value>-?\d+)\)")
     REG_RE = re.compile(r"(?P<name>[A-Z0-9]+)")
     MEM_RE = re.compile(

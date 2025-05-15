@@ -13,8 +13,8 @@ from onsight.annotations.annotation_parser import (
     UOp,
 )
 from onsight.arm64_state import ARM64State
-from onsight.exceptions import OperatorNotDefinedError, STMFIFOEmptyError
-from onsight.packets import AddressPacket, AtomPacket, Packet
+from onsight.exceptions import OperatorNotDefinedError, STMFIFOEmptyError, UnknownSPUpdateError
+from onsight.packets import AddressPacket, AtomPacket, DataPacket, Packet
 
 # Data classes to represent a minimal AST
 
@@ -45,7 +45,14 @@ class AnnotationInterpreter:
 
     def __init__(self) -> None:
         self.state: ARM64State = ARM64State()
-        self.config: dict[str, str] = {"ari": "or", "sto": "or", "loa": "or", "bra": "or"}
+        self.config: dict[str, str] = {
+            "ari": "or",
+            "add": "or",
+            "sub": "or",
+            "sto": "or",
+            "loa": "or",
+            "bra": "or",
+        }
 
         self.stm_addresses: STMFIFO = STMFIFO()
         self.annot_parser: AnnotationParser = AnnotationParser()
@@ -83,7 +90,6 @@ class AnnotationInterpreter:
                 tag_value = assignment.sources[0].accept_eval(self)
             else:
                 if operator not in self.config:
-                    # TODO: define exception
                     raise OperatorNotDefinedError(operator)
                 tag_value = reduce(
                     AnnotationInterpreter.OPERATORS[self.config[operator]],
@@ -94,12 +100,34 @@ class AnnotationInterpreter:
             if isinstance(destination, Register):
                 reg_destination: Register = destination
                 self.state.write_register(register_name=reg_destination.name, tag=tag_value)
+                # Check if the destination register is the SP, in which case it should
+                # be computed and stored as the new stack value
+                self.update_sp(assignment, reg_destination)
+
             if isinstance(destination, MemoryAccess):
                 mem_destination: MemoryAccess = destination
                 access_address: int = self.compute_memory_access_address(memory_access=mem_destination)
                 self.state.memory_write(
                     address=access_address, size=mem_destination.access_size, tag=tag_value
                 )
+
+    def update_sp(self, assignment: Assignment, reg_destination: Register) -> None:
+        if not reg_destination.is_sp():
+            return
+        # RHS should be in the form SP op Imm
+        if isinstance(assignment.sources[0], Register) and isinstance(assignment.sources[1], Immediate):
+            reg_source: Register = assignment.sources[0]
+            if not reg_source.is_sp():
+                raise UnknownSPUpdateError(assignment.raw_annot)
+
+            imm_source: Immediate = assignment.sources[1]
+            match assignment.operator:
+                case "add":
+                    self.state.stack_value += imm_source.value
+                case "sub":
+                    self.state.stack_value -= imm_source.value
+        else:
+            raise UnknownSPUpdateError(assignment.raw_annot)
 
     def get_register_tag(self, register: Register) -> int:
         return self.state.read_register(register.name)

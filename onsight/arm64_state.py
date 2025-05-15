@@ -9,10 +9,19 @@ class ARM64State:
             + ["XZR", "SP", "PC", "N", "Z", "C", "V"]  # stack, pc, flag registers
         }
         self.memory: dict[int, int] = {}
+        # The stack value is passed through the STM ONE TIME at the start of the program
+        # and its value should be maintained by the interpreter
+        self.stack_value = 0
 
     def write_register(self, register_name: str, tag: int) -> None:
         if register_name.startswith("W"):
             register_name = "X" + register_name[1:]
+        if register_name == "NZCV":
+            self.registers["N"] = tag
+            self.registers["Z"] = tag
+            self.registers["C"] = tag
+            self.registers["V"] = tag
+            return
         if register_name not in self.registers:
             raise UndefinedRegisterError(register_name)
         self.registers[register_name] = tag
