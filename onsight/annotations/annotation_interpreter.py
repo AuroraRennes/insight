@@ -157,29 +157,38 @@ class AnnotationInterpreter:
         return self.state.memory_read(address=memory_access_address, size=memory_access.access_size)
 
     def compute_memory_access_address(self, memory_access: MemoryAccess) -> int:
-        # Base register
-        base_value: int = self.stm_addresses.dequeue()
+        # Base register, check if it is SP and get its value from the execution state,
+        # otherwise get it from the STM fifo
+        base_value: int = (
+            self.state.stack_value if memory_access.base.is_sp() else self.stm_addresses.dequeue()
+        )
         # Offset
         offset: Immediate | Register = memory_access.offset
         offset_value: int
+        address_value: int
         if isinstance(offset, Immediate):
             imm_offset: Immediate = offset
             offset_value = imm_offset.value
+            # Scale offset
+            scale_value: int = memory_access.scale
+            offset_value = offset_value * scale_value
         if isinstance(offset, Register):
             offset_value = self.stm_addresses.dequeue()
-        # Scale offset
-        scale_value: int = memory_access.scale
+
+            # Optional shift
+            shift_op: str | None = memory_access.shift_op
+            shift_val: int = memory_access.shift_val
+            if shift_op:
+                # FIXME: Check those shifts
+                match shift_op:
+                    case "uxtx":
+                        offset_value = offset_value << shift_val
+                    case "uxtw":
+                        offset_value = offset_value << shift_val
+                    case "sxtx":
+                        offset_value = offset_value << shift_val
+                    case "sxtw":
+                        offset_value = offset_value << shift_val
         # Compute address
-        address_value: int = base_value + scale_value * offset_value
-        # Optional shift
-        shift_op: str | None = memory_access.shift_op
-        shift_val: int = memory_access.shift_val
-        if shift_op:
-            match shift_op:
-                case "uxtx":
-                    address_value = address_value << shift_val
-                case "uxtw":
-                    address_value = address_value << shift_val
-                case "sxtx":
-                    address_value = address_value << shift_val
+        address_value = base_value + offset_value
         return address_value
