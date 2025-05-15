@@ -5,8 +5,8 @@ from pathlib import Path
 
 from elftools.elf.elffile import ELFFile
 
-from onsight.annotations.annotation_parser import AnnotationParser, Assignment
 from onsight.exceptions import EmptySectionError, MissingSectionError
+from onsight.parsers.annotation_parser import AnnotationParser, Assignment
 
 logger = logging.getLogger("onsight")
 
@@ -17,12 +17,25 @@ class AnnotationInfo:
     annotation_offset: int
     annotations: list[str]
     assignments: list[Assignment]
+    function_name: str | None
 
 
 class AnnotationDict(dict[int, AnnotationInfo]):
     def next_key(self, current_key: int) -> int:
         sorted_keys = sorted(self.keys())
         return sorted_keys[sorted_keys.index(current_key) + 1]
+
+
+class SymbolDict(dict[int, str]):
+    def function_for_address(self, address: int) -> str:
+        func_address: int = max((addr for addr in self if addr <= address), default=0)
+        return self[func_address]
+
+
+@dataclass
+class ELFInfo:
+    annotation_dict: AnnotationDict
+    symbol_dict: SymbolDict | None
 
 
 # Similar to str.split(char) but for lists
@@ -39,7 +52,7 @@ def split_list_on_sep(lst: list[str], sep: str) -> list[list[str]]:
     return result
 
 
-class AnnotationDecoder:
+class ELFDecoder:
     ANNOTATION_SECTION = ".hbngannot"
     BBT_SECTION = ".hbngbbt"
 
@@ -57,17 +70,18 @@ class AnnotationDecoder:
 
         return section_data
 
-    def decode_elf_file(self, elf_file_name: str) -> AnnotationDict:
+    def decode_elf_file(self, elf_file_name: str) -> ELFInfo:
         try:
             with Path(elf_file_name).open("rb") as raw_file:
-                elf_file = ELFFile(raw_file)
-                bbt_section = self.decode_bbt_section(elf_file)
-                annotations_section = self.decode_annotation_section(elf_file)
+                elf_file: ELFFile = ELFFile(raw_file)
+                bbt_section: list[tuple[int, int]] = self.decode_bbt_section(elf_file)
+                annotations_section: str = self.decode_annotation_section(elf_file)
+                symbol_dict: SymbolDict | None = self.decode_func_symbols(elf_file)
         except OSError:
             logger.exception("[-] ELF file opening failed.")
             sys.exit(1)
         except (MissingSectionError, EmptySectionError):
-            logger.exception("[-] Empty of missing section.")
+            logger.exception("[-] Empty or missing section.")
             sys.exit(1)
 
         # Format results
@@ -84,21 +98,25 @@ class AnnotationDecoder:
         annotation_dict: AnnotationDict = AnnotationDict()
         for annotations, assignments, bbt_entry in zip(bb_annotations, bb_assignments, bbt, strict=False):
             bb_offset, annotation_offset = bbt_entry
+            if symbol_dict:
+                function_name: str = symbol_dict.function_for_address(bb_offset)
             annotation_dict[bb_offset] = AnnotationInfo(
                 bb_offset=bb_offset,
                 annotation_offset=annotation_offset,
                 annotations=annotations,
                 assignments=assignments,
+                function_name=function_name,
             )
-        return annotation_dict
+
+        return ELFInfo(annotation_dict=annotation_dict, symbol_dict=symbol_dict)
 
     def decode_annotation_section(self, elf_file: ELFFile) -> str:
-        annotation_data = self.get_section_data(elf_file, AnnotationDecoder.ANNOTATION_SECTION)
+        annotation_data = self.get_section_data(elf_file, ELFDecoder.ANNOTATION_SECTION)
         return annotation_data.decode("utf-8")
 
     def decode_bbt_section(self, elf_file: ELFFile) -> list[tuple[int, int]]:
         # Extract the section
-        bbt_section = self.get_section_data(elf_file, AnnotationDecoder.BBT_SECTION)
+        bbt_section = self.get_section_data(elf_file, ELFDecoder.BBT_SECTION)
         bbt = []
         # The bbt section is composed of a succession of double words pairs:
         # (address of the basic block, offset of the annotations linked to it)
@@ -107,3 +125,16 @@ class AnnotationDecoder:
             annot_offset = int.from_bytes(bbt_section[idx + 8 : idx + 16], byteorder="little")
             bbt.append((bb_addr, annot_offset))
         return bbt
+
+    def decode_func_symbols(self, elf_file: ELFFile) -> SymbolDict | None:
+        symtab_data = elf_file.get_section_by_name(".symtab")
+        if not symtab_data:
+            logger.warning("[-] symtab section missing, the binary might be stripped.")
+            return None
+
+        symbol_dict: SymbolDict = SymbolDict()
+        for symbol in symtab_data.iter_symbols():
+            # Only keep symbols
+            if symbol["st_info"]["type"] == "STT_FUNC":
+                symbol_dict[symbol["st_value"]] = symbol.name
+        return symbol_dict

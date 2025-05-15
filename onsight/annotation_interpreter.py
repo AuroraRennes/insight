@@ -4,8 +4,11 @@ from collections.abc import Callable
 from functools import reduce
 from typing import ClassVar
 
-from onsight.annotations.annotation_decoder import AnnotationDict
-from onsight.annotations.annotation_parser import (
+from onsight.arm64_state import ARM64State
+from onsight.elf_decoder import AnnotationDict, ELFInfo, SymbolDict
+from onsight.exceptions import OperatorNotDefinedError, STMFIFOEmptyError, UnknownSPUpdateError
+from onsight.packets import AddressPacket, AtomPacket, DataPacket, Packet
+from onsight.parsers.annotation_parser import (
     AnnotationParser,
     Assignment,
     Immediate,
@@ -13,9 +16,6 @@ from onsight.annotations.annotation_parser import (
     Register,
     UOp,
 )
-from onsight.arm64_state import ARM64State
-from onsight.exceptions import OperatorNotDefinedError, STMFIFOEmptyError, UnknownSPUpdateError
-from onsight.packets import AddressPacket, AtomPacket, DataPacket, Packet
 
 # Data classes to represent a minimal AST
 
@@ -62,8 +62,10 @@ class AnnotationInterpreter:
         self.annot_parser: AnnotationParser = AnnotationParser()
 
     def interpret_packet_trace(
-        self, packet_trace: list[Packet], annotation_dict: AnnotationDict, start_address: int
+        self, packet_trace: list[Packet], elf_info: ELFInfo, start_address: int
     ) -> None:
+        annotation_dict: AnnotationDict = elf_info.annotation_dict
+        symbol_dict: SymbolDict | None = elf_info.symbol_dict
         current_address: int = start_address
         current_offset: int = 0
 
@@ -80,12 +82,19 @@ class AnnotationInterpreter:
                     # If the address is not present in the annotation dictionary, the info
                     # should come from a fucntion outside of the annotated binary (libraries, etc.)
                     if bb_offset not in annotation_dict:
+                        function_name: str = (
+                            symbol_dict.function_for_address(bb_offset) if symbol_dict else "no symbol"
+                        )
                         logger.warning(
-                            "Atom element reached but no corresponding annotations "
-                            f"were found for address {hex(bb_offset)}"
+                            "[~] Atom element reached but no annotations were found at "
+                            f"address {hex(bb_offset)} ({function_name})"
                         )
                         continue
                     bb_assignments: list[Assignment] = annotation_dict[bb_offset].assignments
+                    logger.info(
+                        f"[+] Atom element reached and annotations found at "
+                        f"address {hex(bb_offset)} ({annotation_dict[bb_offset].function_name})"
+                    )
                     self.interpret_block(bb_assignments)
                     # If the atom element is E, branch broadcasting SHOULD be enabled and
                     # produce another address packet
