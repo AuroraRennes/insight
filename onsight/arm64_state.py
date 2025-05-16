@@ -38,7 +38,7 @@ class ARM64State:
     def memory_read(self, address: int, size: int) -> int:
         result: int = 0
         for aligned_addr in range(address, address + size, 4):
-            if aligned_addr in self.memory:
-                result = result << aligned_addr | self.memory[aligned_addr]
-            raise ReadingFromUnwrittenMemoryError(aligned_addr)
+            if aligned_addr not in self.memory:
+                raise ReadingFromUnwrittenMemoryError(aligned_addr)
+            result = result << aligned_addr | self.memory[aligned_addr]
         return result
