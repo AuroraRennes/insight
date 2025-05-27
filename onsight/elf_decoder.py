@@ -79,7 +79,9 @@ class ELFDecoder:
             bb_offset, annotation_offset = bbt_entry
             if symbol_dict:
                 function_name: str = symbol_dict.function_for_address(bb_offset)
-            bb_annotations: list[str] = self.separate_annotations_from_offset(annotations_section, bb_offset)
+            bb_annotations: list[str] = self.separate_annotations_from_offset(
+                annotations_section, annotation_offset
+            )
             bb_assignments: list[Assignment] = self.annotation_parser.parse_annotations(bb_annotations)
 
             annotation_dict[bb_offset] = AnnotationInfo(
