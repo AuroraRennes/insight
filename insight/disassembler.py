@@ -1,6 +1,6 @@
 from capstone import CS_ARCH_ARM64, CS_MODE_ARM, Cs
 
-from onsight.helpers import string_to_int, to_signed
+from insight.helpers import string_to_int, to_signed
 
 CALLS: list[str] = ["bl", "bx", "blx"]
 

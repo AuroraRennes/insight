@@ -1,8 +1,10 @@
-from elftools.elf.elffile import ELFFile
 import sys
 
+from elftools.elf.elffile import ELFFile
+
+
 def extract_section(file_path, section_name):
-    with open(file_path, 'rb') as f:
+    with open(file_path, "rb") as f:
         elf = ELFFile(f)
         section = elf.get_section_by_name(section_name)
         if not section:
@@ -10,6 +12,7 @@ def extract_section(file_path, section_name):
             return None
 
         return section.data()
+
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:

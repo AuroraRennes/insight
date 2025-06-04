@@ -1,6 +1,6 @@
 import pytest
 
-from onsight.parsers.perf_report_parser import PerfReportParser
+from insight.parsers.perf_report_parser import PerfReportParser
 from tests.conftest import DUMP_FILES, PERF_BASE_REPORT_FILES, PERF_BB_REPORT_FILES
 
 

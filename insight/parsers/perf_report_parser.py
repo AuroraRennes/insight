@@ -4,22 +4,22 @@ from dataclasses import dataclass
 from io import TextIOWrapper
 from pathlib import Path
 
-from onsight.exceptions import (
+from insight.exceptions import (
     PacketParserError,
     PerfParserError,
     TraceSizeError,
 )
-from onsight.execution_trace import ExecutionTrace
-from onsight.helpers import string_to_int
-from onsight.packet_processor import PacketProcessor
-from onsight.packets import (
+from insight.execution_trace import ExecutionTrace
+from insight.helpers import string_to_int
+from insight.packet_processor import PacketProcessor
+from insight.packets import (
     Packet,
 )
-from onsight.parsers.objdump_parser import FunctionDict, ObjdumpParser
-from onsight.parsers.packet_parser import PacketParser
-from onsight.parsers.parser import Parser
+from insight.parsers.objdump_parser import FunctionDict, ObjdumpParser
+from insight.parsers.packet_parser import PacketParser
+from insight.parsers.parser import Parser
 
-logger = logging.getLogger("onsight")
+logger = logging.getLogger("insight")
 
 
 @dataclass

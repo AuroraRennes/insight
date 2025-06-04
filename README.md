@@ -1,10 +1,10 @@
-# Onsight: Multi-level CoreSight decoder and verifier
+# Insight: Multi-level CoreSight decoder and verifier
 
-[![GithubActions](https://github.com/qducasse/onsight/actions/workflows/github-actions.yml/badge.svg)](https://github.com/QDucasse/onsight/actions)
+[![GithubActions](https://github.com/qducasse/insight/actions/workflows/github-actions.yml/badge.svg)](https://github.com/QDucasse/insight/actions)
 
 ---
 
-**Onsight** is a multi-level decoder and verifier for ARM CoreSight. It parses raw CoreSigth packets, or the different results of `perf` outputs (that use [OpenCSD](https://github.com/Linaro/OpenCSD)). A set of verifiers are applied on the execution trace offline, such as a shadow stack or direct jump checker. The objective of this project is for it to serve as a blueprint for hardware decoding and verification later on.
+**Insight** is a multi-level decoder and verifier for ARM CoreSight. It parses raw CoreSigth packets, or the different results of `perf` outputs (that use [OpenCSD](https://github.com/Linaro/OpenCSD)). A set of verifiers are applied on the execution trace offline, such as a shadow stack or direct jump checker. The objective of this project is for it to serve as a blueprint for hardware decoding and verification later on.
 
 
 ## Installation
@@ -39,10 +39,10 @@ export PIPENV_BIN="$HOME/.local/bin"
 command -v pipenv >/dev/null || export PATH="$PIPENV_BIN:$PATH"
 ```
 
-- *`onsight` installation:*
+- *`insight` installation:*
 ```bash
 # Install gigue and its pipenv environment
-git clone git@github.com:QDucasse/onsight.git
+git clone git@github.com:QDucasse/insight.git
 pipenv install
 pipenv shell
 ```

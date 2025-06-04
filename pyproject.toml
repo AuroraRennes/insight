@@ -8,8 +8,8 @@ requires = [
 ]
 
 [project]
-name = "onsight"
-description = "CoreSight/OpenOCD trace handler"
+name = "insight"
+description = "CoreSight/OpenCSD Trace parser and annotation interpreter"
 version = "0.0.0"
 requires-python = ">= 3.13"
 
@@ -18,7 +18,7 @@ requires-python = ">= 3.13"
 # ===================================================
 
 [tool.setuptools]
-py-modules = ["onsight"]
+py-modules = ["insight"]
 
 # ===================================================
 # Mypy - type hints
@@ -35,7 +35,7 @@ check_untyped_defs = true
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
 exclude = [
-    "onsight/playground.py",
+    "helpers/section_reader.py",
     ".bzr",
     ".direnv",
     ".eggs",

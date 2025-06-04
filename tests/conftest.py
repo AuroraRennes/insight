@@ -10,7 +10,7 @@ from typing import Any
 import pytest
 from capstone import CS_ARCH_ARM64, CS_MODE_ARM, Cs
 
-from onsight.helpers import bytes_to_int
+from insight.helpers import bytes_to_int
 
 # Logging setup
 # \______________
@@ -24,7 +24,7 @@ if not Path(TEST_LOG_DIR).exists():
 SEED = bytes_to_int(os.urandom(16))
 random.seed(SEED)
 
-logger = logging.getLogger("onsight")
+logger = logging.getLogger("insight")
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -39,7 +39,7 @@ def move_log_file(request: pytest.FixtureRequest) -> None:
         # Set up name format  for test logfiles
         timestamp = datetime.datetime.now(tz=datetime.UTC).strftime("%Y-%m-%d_%H-%M-%S")
         test_log = f"{TEST_LOG_DIR}test_run_{timestamp}.log"
-        shutil.copy("log/onsight.log", test_log)
+        shutil.copy("log/insight.log", test_log)
         # Keep only 10 newest files
         log_files = [file for file in os.listdir(TEST_LOG_DIR) if "test_run" in file]
         full_paths = [Path(TEST_LOG_DIR) / file for file in log_files]
@@ -53,18 +53,18 @@ def move_log_file(request: pytest.FixtureRequest) -> None:
 # Base logging disabled
 @pytest.fixture(autouse=True)
 def disable_logger(caplog):
-    caplog.set_level(logging.CRITICAL, logger="onsight")
+    caplog.set_level(logging.CRITICAL, logger="insight")
 
 
 # Can be reactivated on a given test by passing the 'log_test' argument
 @pytest.fixture
 def log_test(request, caplog):
-    caplog.set_level(logging.DEBUG, logger="onsight")
+    caplog.set_level(logging.DEBUG, logger="insight")
     logger.info(f"Tracing test '{request.node.name}'  🚀")
 
     def fin() -> None:
         logger.info(f"Trace complete for test '{request.node.name}' 🏁")
-        caplog.set_level(logging.CRITICAL, logger="onsight")
+        caplog.set_level(logging.CRITICAL, logger="insight")
 
     request.addfinalizer(fin)
 

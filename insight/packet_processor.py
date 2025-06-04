@@ -3,14 +3,14 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
-from onsight.basic_block import BasicBlock
-from onsight.constants import AVOIDED_FUNC_NAMES
-from onsight.disassembler import Disassembler
-from onsight.execution_trace import ExecutionTrace
-from onsight.packets import AddressPacket, AtomPacket, Packet
-from onsight.parsers.objdump_parser import FunctionDict, FunctionInfo
+from insight.basic_block import BasicBlock
+from insight.constants import AVOIDED_FUNC_NAMES
+from insight.disassembler import Disassembler
+from insight.execution_trace import ExecutionTrace
+from insight.packets import AddressPacket, AtomPacket, Packet
+from insight.parsers.objdump_parser import FunctionDict, FunctionInfo
 
-logger = logging.getLogger("onsight")
+logger = logging.getLogger("insight")
 
 
 @dataclass

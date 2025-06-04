@@ -86,3 +86,6 @@ log/
 # serialization
 data/json
 data/tessla
+
+# annotations
+!data/annotations/bin

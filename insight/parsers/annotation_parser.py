@@ -7,10 +7,10 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from onsight.annotation_interpreter import AnnotationInterpreter
+    from insight.annotation_interpreter import AnnotationInterpreter
 
 
-from onsight.exceptions import (
+from insight.exceptions import (
     MissingENDBlockError,
     MissingOperatorError,
     NoMatchDestinationError,
@@ -18,7 +18,8 @@ from onsight.exceptions import (
     WrongOffsetValueError,
 )
 
-logger = logging.getLogger("onsight")
+logger = logging.getLogger("insight")
+
 
 @dataclass
 class Tagged:
@@ -99,7 +100,7 @@ class AnnotationParser:
             if line == "END":
                 return assignments
             if line.startswith("Unsupported:"):
-                logger.warning(f"Toolchain does not support instruction: {line.split(":")[1]}")
+                logger.warning(f"Toolchain does not support instruction: {line.split(':')[1]}")
                 continue
             lhs: str
             rhs: str

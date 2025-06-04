@@ -1,4 +1,4 @@
-from onsight.exceptions import ReadingFromUnwrittenMemoryError, UndefinedRegisterError
+from insight.exceptions import ReadingFromUnwrittenMemoryError, UndefinedRegisterError
 
 
 class ARM64State:

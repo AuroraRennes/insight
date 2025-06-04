@@ -6,12 +6,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from onsight.helpers import reverse_endianness32, string_to_bytes, string_to_int
+from insight.helpers import reverse_endianness32, string_to_bytes, string_to_int
 
 if TYPE_CHECKING:
     from io import TextIOWrapper
 
-logger = logging.getLogger("onsight")
+logger = logging.getLogger("insight")
 
 
 @dataclass

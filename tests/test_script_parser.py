@@ -2,14 +2,14 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from onsight.disassembler import Disassembler
-from onsight.exceptions import NoEndLineError, WrongStartLineError
-from onsight.parsers.perf_script_parser import PerfScriptParser
+from insight.disassembler import Disassembler
+from insight.exceptions import NoEndLineError, WrongStartLineError
+from insight.parsers.perf_script_parser import PerfScriptParser
 from tests.conftest import PERF_BASE_SCRIPT_FILES, PERF_BB_SCRIPT_FILES
 
 if TYPE_CHECKING:
-    from onsight.basic_block import BasicBlock
-    from onsight.execution_trace import AddressTrace, ExecutionTrace
+    from insight.basic_block import BasicBlock
+    from insight.execution_trace import AddressTrace, ExecutionTrace
 
 # Note: The mock_file function is in conftest.py and parametrized for each fake file
 #       using pytest parametrization along with the 'indirect' argument

@@ -3,10 +3,10 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from onsight.constants import DATA_JSON, DATA_TESSLA
-from onsight.execution_trace import ExecutionTrace
+from insight.constants import DATA_JSON, DATA_TESSLA
+from insight.execution_trace import ExecutionTrace
 
-logger = logging.getLogger("onsight")
+logger = logging.getLogger("insight")
 
 
 class Serializer:

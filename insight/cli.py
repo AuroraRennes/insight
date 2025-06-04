@@ -3,15 +3,15 @@ import logging
 import sys
 from pathlib import Path
 
-from onsight.exceptions import VerifierError
-from onsight.execution_trace import ExecutionTrace
-from onsight.parsers.parser import Parser
-from onsight.serializer import Serializer
-from onsight.verifiers.direct_jump_verifier import DirectJumpVerifier
-from onsight.verifiers.shadow_stack_verifier import ShadowStackVerifier
-from onsight.verifiers.verifier import Verifier
+from insight.exceptions import VerifierError
+from insight.execution_trace import ExecutionTrace
+from insight.parsers.parser import Parser
+from insight.serializer import Serializer
+from insight.verifiers.direct_jump_verifier import DirectJumpVerifier
+from insight.verifiers.shadow_stack_verifier import ShadowStackVerifier
+from insight.verifiers.verifier import Verifier
 
-logger = logging.getLogger("onsight")
+logger = logging.getLogger("insight")
 
 VERIFIERS: dict[str, type[Verifier]] = {
     "shadow-stack": ShadowStackVerifier,
@@ -21,7 +21,7 @@ VERIFIERS: dict[str, type[Verifier]] = {
 
 class ArgParser(argparse.ArgumentParser):
     def __init__(self) -> None:
-        super().__init__(description="Onsight, perf/CoreSight parser and verifier")
+        super().__init__(description="Insight, perf/CoreSight traces parser and interpreter")
         self.add_parse_arguments()
 
     def add_parse_arguments(self) -> None:

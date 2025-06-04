@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from onsight.helpers import format_to
+from insight.helpers import format_to
 
 
 @dataclass

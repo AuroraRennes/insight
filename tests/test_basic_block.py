@@ -1,6 +1,6 @@
 import pytest
 
-from onsight.basic_block import BasicBlock
+from insight.basic_block import BasicBlock
 
 # Basic block used for the fixture:
 # 00000000000007f8 <main+0x20>:

@@ -1,6 +1,6 @@
 import sys
 
-from onsight.cli import main
+from insight.cli import main
 
 if __name__ == "__main__":
     sys.exit(main())

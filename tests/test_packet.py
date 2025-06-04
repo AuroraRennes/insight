@@ -1,6 +1,6 @@
 import pytest
 
-from onsight.packets import AtomPacket, PacketInfo
+from insight.packets import AtomPacket, PacketInfo
 
 
 @pytest.fixture

@@ -2,7 +2,7 @@ import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from onsight.exceptions import (
+from insight.exceptions import (
     MatchNoParseError,
     NoMatchingAddressContextError,
     NoMatchingAddressError,
@@ -15,8 +15,8 @@ from onsight.exceptions import (
     NoPacketMatchError,
     WrongSizeAtomPacketError,
 )
-from onsight.helpers import string_to_int
-from onsight.packets import (
+from insight.helpers import string_to_int
+from insight.packets import (
     AddressContextPacket,
     AddressPacket,
     AtomPacket,

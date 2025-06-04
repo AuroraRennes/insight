@@ -1,16 +1,16 @@
 from typing import TYPE_CHECKING
 
-from onsight.disassembler import Disassembler
-from onsight.exceptions import ShadowStackError
-from onsight.execution_trace import ExecutionTrace
-from onsight.verifiers.verifier import Verifier
+from insight.disassembler import Disassembler
+from insight.exceptions import ShadowStackError
+from insight.execution_trace import ExecutionTrace
+from insight.verifiers.verifier import Verifier
 
 if TYPE_CHECKING:
-    from onsight.basic_block import BasicBlock
+    from insight.basic_block import BasicBlock
 
 import logging
 
-logger = logging.getLogger("onsight")
+logger = logging.getLogger("insight")
 
 
 class ShadowStackVerifier(Verifier):

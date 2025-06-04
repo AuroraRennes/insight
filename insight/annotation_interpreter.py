@@ -4,11 +4,11 @@ from collections.abc import Callable
 from functools import reduce
 from typing import ClassVar
 
-from onsight.arm64_state import ARM64State
-from onsight.elf_decoder import AnnotationDict, ELFInfo, SymbolDict
-from onsight.exceptions import OperatorNotDefinedError, STMFIFOEmptyError, UnknownSPUpdateError
-from onsight.packets import AddressPacket, AtomPacket, DataPacket, Packet
-from onsight.parsers.annotation_parser import (
+from insight.arm64_state import ARM64State
+from insight.elf_decoder import AnnotationDict, ELFInfo, SymbolDict
+from insight.exceptions import OperatorNotDefinedError, STMFIFOEmptyError, UnknownSPUpdateError
+from insight.packets import AddressPacket, AtomPacket, DataPacket, Packet
+from insight.parsers.annotation_parser import (
     AnnotationParser,
     Assignment,
     Immediate,
@@ -20,7 +20,7 @@ from onsight.parsers.annotation_parser import (
 # Data classes to represent a minimal AST
 
 
-logger = logging.getLogger("onsight")
+logger = logging.getLogger("insight")
 
 
 class STMFIFO:
@@ -172,7 +172,7 @@ class AnnotationInterpreter:
             self.state.stack_value if memory_access.base.is_sp() else self.stm_addresses.dequeue()
         )
         # Offset
-        offset: Immediate | Register = memory_access.offset
+        offset: Immediate | Register | UOp = memory_access.offset
         offset_value: int
         address_value: int
         if isinstance(offset, Immediate):

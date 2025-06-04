@@ -3,14 +3,14 @@ import re
 from io import TextIOWrapper
 from pathlib import Path
 
-from onsight.basic_block import BasicBlock
-from onsight.disassembler import Disassembler
-from onsight.exceptions import NoEndLineError, WrongStartLineError
-from onsight.execution_trace import ExecutionTrace
-from onsight.helpers import reverse_endianness32, string_to_bytes, string_to_int
-from onsight.parsers.parser import Parser
+from insight.basic_block import BasicBlock
+from insight.disassembler import Disassembler
+from insight.exceptions import NoEndLineError, WrongStartLineError
+from insight.execution_trace import ExecutionTrace
+from insight.helpers import reverse_endianness32, string_to_bytes, string_to_int
+from insight.parsers.parser import Parser
 
-logger = logging.getLogger("onsight")
+logger = logging.getLogger("insight")
 
 
 class PerfScriptParser(Parser):

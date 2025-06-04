@@ -5,12 +5,12 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from onsight.exceptions import WrongExtensionError
+from insight.exceptions import WrongExtensionError
 
 if TYPE_CHECKING:
-    from onsight.execution_trace import ExecutionTrace
+    from insight.execution_trace import ExecutionTrace
 
-logger = logging.getLogger("onsight")
+logger = logging.getLogger("insight")
 
 
 class Parser(ABC):
@@ -28,12 +28,12 @@ class Parser(ABC):
 
     @staticmethod
     def for_perf_script() -> Parser:
-        from onsight.parsers.perf_script_parser import PerfScriptParser
+        from insight.parsers.perf_script_parser import PerfScriptParser
 
         return PerfScriptParser()
 
     @staticmethod
     def for_perf_report() -> Parser:
-        from onsight.parsers.perf_report_parser import PerfReportParser
+        from insight.parsers.perf_report_parser import PerfReportParser
 
         return PerfReportParser()

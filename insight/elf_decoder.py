@@ -5,10 +5,10 @@ from pathlib import Path
 
 from elftools.elf.elffile import ELFFile
 
-from onsight.exceptions import EmptySectionError, MissingSectionError
-from onsight.parsers.annotation_parser import AnnotationParser, Assignment
+from insight.exceptions import EmptySectionError, MissingSectionError
+from insight.parsers.annotation_parser import AnnotationParser, Assignment
 
-logger = logging.getLogger("onsight")
+logger = logging.getLogger("insight")
 
 
 @dataclass

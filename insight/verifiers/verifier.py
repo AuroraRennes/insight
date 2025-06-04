@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from onsight.execution_trace import ExecutionTrace
+from insight.execution_trace import ExecutionTrace
 
 
 class Verifier(ABC):
