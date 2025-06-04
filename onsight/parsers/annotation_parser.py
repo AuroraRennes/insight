@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+import logging
 import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -17,6 +18,7 @@ from onsight.exceptions import (
     WrongOffsetValueError,
 )
 
+logger = logging.getLogger("onsight")
 
 @dataclass
 class Tagged:
@@ -52,7 +54,7 @@ class Register(Tagged):
 @dataclass
 class MemoryAccess(Tagged):
     base: Register
-    offset: Immediate | Register
+    offset: Immediate | Register | UOp
     scale: int
     shift_op: str | None
     shift_val: int
@@ -81,7 +83,7 @@ class AnnotationParser:
         <(?P<base>[A-Z0-9]+)>       # Base register
         \s*\+\s*                    # +
         ((?P<scale>[248])\*)?       # Scale (2, 4, 8)
-        (?P<offset><[A-Z0-9]+>|Imm\(-?\d+\))  # Offset register or immediate
+        (?P<offset><[A-Z0-9]+>|Imm\(-?\d+\)|UOp)  # Offset register or immediate (or uop)
         (?:\s+(?P<shiftop>uxtx|uxtw|sxtx|sxtw)\s+(?P<shiftval>2|4|8))?  # Optional shift
         (\s*\+\s*((?P<pairoffset>[0-9]*)))? # Optional pair offset
         \]_                         # Closing bracket
@@ -96,6 +98,9 @@ class AnnotationParser:
         for line in annotations:
             if line == "END":
                 return assignments
+            if line.startswith("Unsupported:"):
+                logger.warning(f"Toolchain does not support instruction: {line.split(":")[1]}")
+                continue
             lhs: str
             rhs: str
             lhs, rhs = line.split("<-")
@@ -134,6 +139,7 @@ class AnnotationParser:
     def parse_operand(self, operand: str) -> Tagged:
         operand = operand.strip()
         if operand == "UOp":
+            logger.debug("Unknown operand.")
             return UOp()
         if match := AnnotationParser.IMM_RE.match(operand):
             groups = match.groupdict()
@@ -155,11 +161,14 @@ class AnnotationParser:
         access_size = int(groups["accesssize"])
 
         # Interpret offset
-        offset: Immediate | Register
+        offset: Immediate | Register | UOp
         if offset_raw.startswith("<") and offset_raw.endswith(">"):
             offset = Register(offset_raw[1:-1])
         elif offset_raw.startswith("Imm("):
             offset = Immediate(int(offset_raw[4:-1]))
+        elif offset_raw == "UOp":
+            offset = UOp()
+            logger.debug("Unknown operand used as offset for annotation.")
         else:
             raise WrongOffsetValueError
 
