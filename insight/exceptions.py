@@ -163,13 +163,13 @@ class ELFError(Exception):
 
 
 class MissingSectionError(ELFError):
-    def __init__(self) -> None:
-        super().__init__("Missing ELF section.")
+    def __init__(self, name: str) -> None:
+        super().__init__(f"Missing ELF section {name}.")
 
 
 class EmptySectionError(ELFError):
-    def __init__(self) -> None:
-        super().__init__("Empty ELF section.")
+    def __init__(self, name: str) -> None:
+        super().__init__(f"Empty ELF section {name}.")
 
 
 # Parsing /

@@ -48,11 +48,11 @@ class ELFDecoder:
     def get_section_data(self, elf_file: ELFFile, section_name: str) -> bytes:
         section = elf_file.get_section_by_name(section_name)
         if section is None:
-            raise MissingSectionError
+            raise MissingSectionError(section_name)
 
         section_data = section.data()
         if len(section_data) == 0:
-            raise EmptySectionError
+            raise EmptySectionError(section_name)
 
         return section_data
 
@@ -60,14 +60,16 @@ class ELFDecoder:
         try:
             with Path(elf_file_name).open("rb") as raw_file:
                 elf_file: ELFFile = ELFFile(raw_file)
-                bbt: list[tuple[int, int]] = self.decode_bbt_section(elf_file)
-                annotations_section: str = self.decode_annotation_section(elf_file)
                 symbol_dict: SymbolDict | None = self.decode_func_symbols(elf_file)
+                try:
+                    bbt: list[tuple[int, int]] = self.decode_bbt_section(elf_file)
+                    annotations_section: str = self.decode_annotation_section(elf_file)
+                except (MissingSectionError, EmptySectionError):
+                    logger.warning("[-] Empty or missing section.")
+                    annotations_section = ""
+                    bbt = []
         except OSError:
             logger.exception("[-] ELF file opening failed.")
-            sys.exit(1)
-        except (MissingSectionError, EmptySectionError):
-            logger.exception("[-] Empty or missing section.")
             sys.exit(1)
 
         annotation_dict: AnnotationDict = AnnotationDict()

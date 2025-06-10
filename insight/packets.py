@@ -132,6 +132,10 @@ class AddressPacket(Packet):
     def addr_match(cls, packet_info: PacketInfo, address: int) -> AddressPacket:
         return cls(name="Exact Address Match", packet_info=packet_info, address=address)
 
+    @classmethod
+    def addr_l_32is0(cls, packet_info: PacketInfo, address: int) -> AddressPacket:
+        return cls(name="Long Address 32bit IS0", packet_info=packet_info, address=address)
+
 
 # Address with Context Packets
 # \______________________________

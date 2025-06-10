@@ -1,5 +1,8 @@
+import logging
 import re
+import sys
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from insight.exceptions import (
@@ -35,6 +38,9 @@ from insight.packets import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+
+logger = logging.getLogger("insight")
 
 
 @dataclass
@@ -78,7 +84,8 @@ class PacketParser:
     PACKETS_INFO: ClassVar[dict[str, ParseInfo]] = {
         # Address packets
         **dict.fromkeys(
-            ["I_ADDR_L_64IS0", "I_ADDR_S_IS0", "I_ADDR_MATCH"], ParseInfo("parse_addr", ADDR_REGEX)
+            ["I_ADDR_L_64IS0", "I_ADDR_L_32IS0", "I_ADDR_S_IS0", "I_ADDR_MATCH"],
+            ParseInfo("parse_addr", ADDR_REGEX),
         ),
         "I_ADDR_CTXT_L_64IS0": ParseInfo("parse_addr_ctxt", ADDR_REGEX + "; " + CTXT_REGEX),
         # Atom packets
@@ -103,6 +110,19 @@ class PacketParser:
             ParseInfo("parse_data", DATA_REGEX),
         ),
     }
+
+    # Main parsing
+    # \_______________
+
+    def parse_opencsd_file(self, trace_file_name: str) -> list[Packet]:
+        packets: list[Packet] = []
+        try:
+            with Path(trace_file_name).open("r") as trace_file:
+                packets = [self.parse_packet(line) for line in trace_file]
+        except OSError:
+            logger.exception("[-] Trace file opening failed.")
+            sys.exit(1)
+        return packets
 
     def parse_packet(self, line: str, cpu_nb: int | None = None) -> Packet:
         match_line: re.Match[str] | None = re.search(PacketParser.PACKET_BASE_REGEX, line)

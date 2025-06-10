@@ -35,7 +35,7 @@ check_untyped_defs = true
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
 exclude = [
-    "helpers/section_reader.py",
+    "helpers/",
     ".bzr",
     ".direnv",
     ".eggs",
