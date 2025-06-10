@@ -41,10 +41,9 @@ def move_log_file(request: pytest.FixtureRequest) -> None:
         test_log = f"{TEST_LOG_DIR}test_run_{timestamp}.log"
         shutil.copy("log/insight.log", test_log)
         # Keep only 10 newest files
-        log_files = [file for file in os.listdir(TEST_LOG_DIR) if "test_run" in file]
-        full_paths = [Path(TEST_LOG_DIR) / file for file in log_files]
-        full_paths.sort(key=os.path.getmtime, reverse=True)
-        for file in full_paths[9:]:
+        log_files = [file for file in Path(TEST_LOG_DIR).iterdir() if "test_run" in file.name]
+        log_files.sort(key=os.path.getmtime, reverse=True)
+        for file in log_files[9:]:
             Path.unlink(file)
 
     request.addfinalizer(fin)

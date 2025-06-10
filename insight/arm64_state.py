@@ -3,11 +3,9 @@ from insight.exceptions import ReadingFromUnwrittenMemoryError, UndefinedRegiste
 
 class ARM64State:
     def __init__(self) -> None:
-        self.registers: dict[str, int] = {
-            reg: 0
-            for reg in [f"X{i}" for i in range(31)]  # general registers
-            + ["XZR", "SP", "PC", "N", "Z", "C", "V"]  # stack, pc, flag registers
-        }
+        self.registers: dict[str, int] = dict.fromkeys(
+            [f"X{i}" for i in range(31)] + ["XZR", "SP", "PC", "N", "Z", "C", "V"], 0
+        )
         self.memory: dict[int, int] = {}
         # The stack value is passed through the STM ONE TIME at the start of the program
         # and its value should be maintained by the interpreter

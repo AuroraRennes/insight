@@ -5,13 +5,13 @@ name = "pypi"
 
 [packages]
 capstone = "*"
+pyelftools = "*"
 
 [dev-packages]
 pytest = "*"
 mypy = "*"
 ruff = "*"
 tox = "*"
-pre-commit = "*"
 pytest-mock = "*"
 
 [requires]

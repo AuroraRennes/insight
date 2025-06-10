@@ -116,7 +116,7 @@ class PerfReportParser(Parser):
             try:
                 packets.append(packet_parser.parse_packet(line, cpu_nb))
             except PacketParserError:
-                logging.exception("[-] Packet parsing failed.")
+                logger.exception("[-] Packet parsing failed.")
                 raise
 
             line = next(perf_report_file)
