@@ -20,7 +20,8 @@ class SymbolDict(dict[int, str]):
             function = self[func_address]
         except KeyError:
             function = "?"
-        return function
+        offset: int = address - func_address
+        return f"{function} + 0x{offset:x}" if offset > 0 else function
 
 
 def extract_symbol_dict(elf_file_name: str) -> SymbolDict:
