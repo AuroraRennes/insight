@@ -38,7 +38,7 @@ class PacketProcessor:
     def process_packets(
         self, packet_trace: list[Packet], func_dict: FunctionDict, start_address: int
     ) -> ExecutionTrace:
-        logger.info("[+] Processing parsed packets.")
+        logger.info("{COLOG['success']} Processing parsed packets.")
         # PIE address is in reference of Position Independent Executable
         # It is the address relative to the start of the object file
         process_info: ProcessingInfo = ProcessingInfo.default()

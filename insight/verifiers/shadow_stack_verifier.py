@@ -20,7 +20,7 @@ class ShadowStackVerifier(Verifier):
         self.shadow_stack: list[int] = []
 
     def verify_trace(self, exec_trace: ExecutionTrace) -> bool:
-        logger.info("[+] Verifying backward edges using a shadow stack.")
+        logger.info("{COLOG['success']} Verifying backward edges using a shadow stack.")
         # As the tracing starts when a function is already called,
         # a dummy address is added to the stack
         self.shadow_stack.append(ShadowStackVerifier.INITIAL_VALUE)

@@ -48,7 +48,7 @@ class ObjdumpParser:
 
     @staticmethod
     def parse_dump(dump_file_name: str) -> FunctionDict:
-        logger.info("[+] Extracting function info from dump.")
+        logger.info("{COLOG['success']} Extracting function info from dump.")
         function_dict: FunctionDict = FunctionDict()
         try:
             with Path(dump_file_name).open() as objdump_file:

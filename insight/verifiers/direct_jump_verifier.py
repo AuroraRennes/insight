@@ -15,7 +15,7 @@ logger = logging.getLogger("insight")
 
 class DirectJumpVerifier(Verifier):
     def verify_trace(self, exec_trace: ExecutionTrace) -> bool:
-        logger.info("[+] Verifying direct jumps.")
+        logger.info("{COLOG['success']} Verifying direct jumps.")
         validated = True
         for i, address_info in enumerate(exec_trace.trace):
             basic_block: BasicBlock = exec_trace.basic_blocks[address_info.address]

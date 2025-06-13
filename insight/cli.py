@@ -5,6 +5,7 @@ from pathlib import Path
 
 from insight.exceptions import VerifierError
 from insight.execution_trace import ExecutionTrace
+from insight.helpers import COLOG
 from insight.parsers.parser import Parser
 from insight.serializer import Serializer
 from insight.verifiers.direct_jump_verifier import DirectJumpVerifier
@@ -99,7 +100,7 @@ class ArgParser(argparse.ArgumentParser):
                 verifier: Verifier = VERIFIERS[verifier_name]()
                 # Launch verification
                 if verifier.verify_trace(trace):
-                    logger.info(f"[+] {verifier.message()}")
+                    logger.info(f"{COLOG['success']} {verifier.message()}")
             except KeyError:
                 logger.exception(f"Verifier '{verifier_name}' not defined.")
                 sys.exit(1)
@@ -123,7 +124,7 @@ def main(argv: list[str] | None = None) -> int:
         arg_parser.print_help()
         return 0
 
-    logger.info("[+] Finding parser.")
+    logger.info("{COLOG['success']} Finding parser.")
     input_file_path: Path = Path(args.input_file)
     extension: str = "".join(input_file_path.suffixes)
 
@@ -132,12 +133,12 @@ def main(argv: list[str] | None = None) -> int:
 
     # Check if the input file is a serialized execution trace
     if extension == ".json":
-        logger.info("[+] Deserializing json file.")
+        logger.info("{COLOG['success']} Deserializing json file.")
         execution_trace: ExecutionTrace = arg_parser.deserialize_execution_trace(input_file=args.input_file)
     else:
         # Get parser from extension
         parser: Parser = arg_parser.get_parser_from_extension(extension=extension)
-        logger.info(f"[+] Parsing input file {args.input_file}.")
+        logger.info(f"{COLOG['success']} Parsing input file {args.input_file}.")
         execution_trace = parser.parse(file_name=args.input_file, dump_file_name=args.dump_file)
 
     # Apply verifications
