@@ -13,7 +13,6 @@ if TYPE_CHECKING:
 
 
 from insight.exceptions import (
-    MissingENDBlockError,
     MissingOperatorError,
     NoMatchDestinationError,
     NoMatchOperandError,

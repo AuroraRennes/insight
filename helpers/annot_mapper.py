@@ -10,8 +10,8 @@ def count_registers(annotation_block):
     matches = REGISTER_PATTERN.findall(annotation_block)
     return sum(1 for r in matches if r != "SP")
 
-def get_function_map(elf):
-    func_map = {}
+def get_function_map(elf) -> dict[int, str]:
+    func_map: dict[int, str] = {}
     symtab = elf.get_section_by_name('.symtab')
     if not isinstance(symtab, SymbolTableSection):
         return func_map
