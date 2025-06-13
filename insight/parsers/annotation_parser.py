@@ -6,6 +6,8 @@ import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from insight.helpers import COLOG
+
 if TYPE_CHECKING:
     from insight.annotation_interpreter import AnnotationInterpreter
 
@@ -15,6 +17,7 @@ from insight.exceptions import (
     MissingOperatorError,
     NoMatchDestinationError,
     NoMatchOperandError,
+    WrongAssignmentError,
     WrongOffsetValueError,
 )
 
@@ -73,6 +76,12 @@ class Assignment:
     raw_annot: str
 
 
+@dataclass
+class AnnotationParseInfo:
+    assignments: list[Assignment]
+    ends_with_end: bool
+
+
 class AnnotationParser:
     # Note: ?P<value> lets us define named value to be extracted from the matched group
     OPE_RE = re.compile(r"(?P<op>ari|add|sub|sto|loa|bra)")
@@ -83,7 +92,7 @@ class AnnotationParser:
         \[                          # Opening bracket
         <(?P<base>[A-Z0-9]+)>       # Base register
         \s*\+\s*                    # +
-        ((?P<scale>[248])\*)?       # Scale (2, 4, 8)
+        ((?P<scale>\d+)\*)?       # Scale (2, 4, 8)
         (?P<offset><[A-Z0-9]+>|Imm\(-?\d+\)|UOp)  # Offset register or immediate (or uop)
         (?:\s+(?P<shiftop>uxtx|uxtw|sxtx|sxtw)\s+(?P<shiftval>2|4|8))?  # Optional shift
         (\s*\+\s*((?P<pairoffset>[0-9]*)))? # Optional pair offset
@@ -94,17 +103,23 @@ class AnnotationParser:
     )
 
     # LHS is either a register or a memory access
-    def parse_annotations(self, annotations: list[str]) -> list[Assignment]:
+    def parse_annotations(self, annotations: list[str]) -> AnnotationParseInfo:
+        ends_with_end: bool = False
         assignments: list[Assignment] = []
         for line in annotations:
             if line == "END":
-                return assignments
-            if line.startswith("Unsupported:"):
-                logger.warning(f"Toolchain does not support instruction: {line.split(':')[1]}")
+                ends_with_end = True
                 continue
-            lhs: str
-            rhs: str
-            lhs, rhs = line.split("<-")
+            if line.startswith("Unsupported:"):
+                logger.warning(
+                    f"{COLOG['failure']} Toolchain does not support instruction: {line.split(':')[1]}"
+                )
+                continue
+            split_sides: list[str] = line.split("<-")
+            if len(split_sides) > 2:
+                raise WrongAssignmentError(line)
+            lhs: str = split_sides[0]
+            rhs: str = split_sides[1]
             # Compute destination
             destination: Register | MemoryAccess = self.parse_lhs(lhs)
             # Get operator
@@ -117,7 +132,7 @@ class AnnotationParser:
             assignments.append(
                 Assignment(destination=destination, operator=operator, sources=sources, raw_annot=line)
             )
-        raise MissingENDBlockError
+        return AnnotationParseInfo(assignments, ends_with_end)
 
     # Extract the operator from the RHS
     def parse_operator(self, rhs: str) -> str:

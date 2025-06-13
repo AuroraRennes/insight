@@ -179,11 +179,6 @@ class AnnotationParsingError(Exception):
     pass
 
 
-class MissingENDBlockError(AnnotationParsingError):
-    def __init__(self) -> None:
-        super().__init__("Missing END block.")
-
-
 class MissingOperatorError(AnnotationParsingError):
     def __init__(self, rhs: str) -> None:
         super().__init__(f"No operator found in RHS with multiple operands: {rhs}")
@@ -202,6 +197,11 @@ class NoMatchOperandError(AnnotationParsingError):
 class WrongOffsetValueError(AnnotationParsingError):
     def __init__(self) -> None:
         super().__init__("Incorrect offset value, should be register or immediate")
+
+
+class WrongAssignmentError(AnnotationParsingError):
+    def __init__(self, line: str) -> None:
+        super().__init__(f"Multiple '<-' found, are the annotations correctly formatted? {line}")
 
 
 # Interpretation /
