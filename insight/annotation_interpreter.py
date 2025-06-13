@@ -7,6 +7,7 @@ from typing import ClassVar
 from insight.arm64_state import ARM64State
 from insight.elf_decoder import AnnotationDict, ELFInfo, SymbolDict
 from insight.exceptions import OperatorNotDefinedError, STMFIFOEmptyError, UnknownSPUpdateError
+from insight.helpers import COLOG
 from insight.packets import AddressPacket, AtomPacket, DataPacket, Packet
 from insight.parsers.annotation_parser import (
     AnnotationParser,
@@ -16,9 +17,6 @@ from insight.parsers.annotation_parser import (
     Register,
     UOp,
 )
-
-# Data classes to represent a minimal AST
-
 
 logger = logging.getLogger("insight")
 
@@ -32,7 +30,8 @@ class STMFIFO:
 
     def dequeue(self) -> int:
         if self.queue:
-            return self.queue.popleft()
+            value: int = self.queue.popleft()
+            return value
         raise STMFIFOEmptyError
 
     def __len__(self) -> int:
@@ -60,6 +59,7 @@ class AnnotationInterpreter:
 
         self.stm_addresses: STMFIFO = STMFIFO()
         self.annot_parser: AnnotationParser = AnnotationParser()
+        self.first_stm_packet: bool = True
 
     def interpret_packet_trace(
         self, packet_trace: list[Packet], elf_info: ELFInfo, start_address: int
@@ -81,28 +81,68 @@ class AnnotationInterpreter:
                 for atom_element in packet.elements:
                     # If the address is not present in the annotation dictionary, the info
                     # should come from a fucntion outside of the annotated binary (libraries, etc.)
+                    function_name: str = (
+                        symbol_dict.function_for_address(bb_offset) if symbol_dict else "no symbol"
+                    )
                     if bb_offset not in annotation_dict:
-                        function_name: str = (
-                            symbol_dict.function_for_address(bb_offset) if symbol_dict else "no symbol"
-                        )
                         logger.warning(
-                            f"[~] Packet {packet.packet_info.index} - Atom element reached but no "
-                            f"annotations were found at address {hex(bb_offset)} ({function_name})"
+                            f"{COLOG['warning']} Packet {packet.packet_info.index} - "
+                            f"Atom element reached but no annotations were found at address "
+                            f"{hex(bb_offset)} ({function_name})"
                         )
                         continue
+
+                    # FIXME: For now, the attribute hbng_no_instrument still produces the annotations as
+                    # if they were deactivated, most labels would not be emitted...
+                    if function_name == "_start_c":
+                        logger.warning(
+                            f"{COLOG['warning']} Packet {packet.packet_info.index} - "
+                            "_start_c function ignored"
+                        )
+                        continue
+
+                    # Executing current block assignments
                     bb_assignments: list[Assignment] = annotation_dict[bb_offset].assignments
                     logger.info(
-                        f"[+] Packet {packet.packet_info.index} - Atom element reached and annotations "
-                        f"found at address {hex(bb_offset)} ({annotation_dict[bb_offset].function_name})"
+                        f"{COLOG['success']} Packet {packet.packet_info.index} - "
+                        "Atom element reached and annotations found at address "
+                        f"{hex(bb_offset)} ({annotation_dict[bb_offset].function_name})"
                     )
                     self.interpret_block(bb_assignments)
+
+                    # If it is not ending with an END annotation, fall through the next annotations
+                    while not annotation_dict[bb_offset].ends_with_end:
+                        bb_offset = annotation_dict.next_key(bb_offset)
+                        bb_assignments = annotation_dict[bb_offset].assignments
+                        logger.info(
+                            f"{COLOG['success']} Packet {packet.packet_info.index} - "
+                            "Atom element reached and annotations found at address "
+                            f"{hex(bb_offset)} ({annotation_dict[bb_offset].function_name})"
+                        )
+                        self.interpret_block(bb_assignments)
+
                     # If the atom element is E, branch broadcasting SHOULD be enabled and
                     # produce another address packet
                     if atom_element == "N":
                         bb_offset = annotation_dict.next_key(bb_offset)
 
             elif isinstance(packet, DataPacket):
-                self.stm_addresses.enqueue(packet.data_value)
+                self.process_data_packet(packet)
+
+    def process_data_packet(self, packet: DataPacket) -> None:
+        if self.first_stm_packet:
+            self.state.stack_value = packet.data_value
+            logger.info(
+                f"{COLOG['success']} Packet {packet.packet_info.index} - "
+                f"STM data packet, initial stack value {hex(packet.data_value)}"
+            )
+            self.first_stm_packet = False
+        else:
+            self.stm_addresses.enqueue(packet.data_value)
+            logger.info(
+                f"{COLOG['success']} Packet {packet.packet_info.index} - "
+                f"STM data packet, pushing value {hex(packet.data_value)}"
+            )
 
     def interpret_block(self, assignments: list[Assignment]) -> None:
         assignment: Assignment
@@ -168,9 +208,16 @@ class AnnotationInterpreter:
     def compute_memory_access_address(self, memory_access: MemoryAccess) -> int:
         # Base register, check if it is SP and get its value from the execution state,
         # otherwise get it from the STM fifo
-        base_value: int = (
-            self.state.stack_value if memory_access.base.is_sp() else self.stm_addresses.dequeue()
-        )
+        base_value: int
+        if memory_access.base.is_sp():
+            base_value = self.state.stack_value
+            logger.info(f"{COLOG['success']} \t├ 📚 SP State - Register value of SP")
+        else:
+            base_value = self.stm_addresses.dequeue()
+            logger.info(
+                f"{COLOG['success']} \t├ 💬 STM ({hex(base_value)}) - "
+                f"Register value of {memory_access.base.name} needed"
+            )
         # Offset
         offset: Immediate | Register | UOp = memory_access.offset
         offset_value: int
@@ -181,23 +228,50 @@ class AnnotationInterpreter:
             # Scale offset
             scale_value: int = memory_access.scale
             offset_value = offset_value * scale_value
-        if isinstance(offset, Register):
+        elif isinstance(offset, Register):
             offset_value = self.stm_addresses.dequeue()
+            logger.info(
+                f"{COLOG['success']} \t├ 💬 STM ({hex(offset_value)}) - "
+                f"Register value of {offset.name} needed"
+            )
 
             # Optional shift
             shift_op: str | None = memory_access.shift_op
             shift_val: int = memory_access.shift_val
             if shift_op:
-                # FIXME: Check those shifts
-                match shift_op:
-                    case "uxtx":
-                        offset_value = offset_value << shift_val
-                    case "uxtw":
-                        offset_value = offset_value << shift_val
-                    case "sxtx":
-                        offset_value = offset_value << shift_val
-                    case "sxtw":
-                        offset_value = offset_value << shift_val
+                offset_value = self.process_shift_operator(
+                    offset_value=offset_value, shift_value=shift_val, shift_op=shift_op
+                )
+        elif isinstance(offset, UOp):
+            offset_value = 0
         # Compute address
         address_value = base_value + offset_value
         return address_value
+
+    def process_shift_operator(self, offset_value: int, shift_value: int, shift_op: str) -> int:
+        match shift_op:
+            case "uxtx":
+                # Zero-extend 64-bit value, then shift
+                offset_value = (offset_value & 0xFFFFFFFFFFFFFFFF) << shift_value
+                offset_value &= 0xFFFFFFFFFFFFFFFF  # Ensure 64-bit masking
+
+            case "uxtw":
+                # Zero-extend 32-bit value, then shift
+                offset_value = (offset_value & 0xFFFFFFFF) << shift_value
+                offset_value &= 0xFFFFFFFFFFFFFFFF  # Still constrained to 64-bit
+
+            case "sxtx":
+                # Sign-extend from 64 bits (already 64-bit), then shift
+                offset_value = (
+                    offset_value if offset_value < (1 << 63) else offset_value - (1 << 64)
+                ) << shift_value
+                offset_value &= 0xFFFFFFFFFFFFFFFF  # Truncate to 64-bit
+
+            case "sxtw":
+                # Sign-extend from 32 bits, then shift
+                offset_value = offset_value & 0xFFFFFFFF
+                if offset_value & 0x80000000:
+                    offset_value |= ~0xFFFFFFFF  # Sign-extend
+                offset_value = offset_value << shift_value
+                offset_value &= 0xFFFFFFFFFFFFFFFF  # Final 64-bit mask
+        return offset_value
