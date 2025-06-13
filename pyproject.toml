@@ -81,7 +81,8 @@ ignore = [
     "PLR0913", # too many arguments
     "G004",    # f-string in logging messages
     "COM812",  # check for trailing commas
-    "ISC001"   # implicit concatenate strings
+    "ISC001",   # implicit concatenate strings
+    "PLR2004", # Magic values
 ]
 
 # Allow fix for all enabled rules (when `--fix`) is provided.
