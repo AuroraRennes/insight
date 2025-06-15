@@ -84,29 +84,29 @@ class ELFDecoder:
             logger.exception("[-] ELF file opening failed.")
             sys.exit(1)
 
+        annot_section_start_addr: int = self.section_infos[".hbngannot"].address
         annotation_dict: AnnotationDict = AnnotationDict()
         bbt_entry: tuple[int, int]
         for i, bbt_entry in enumerate(bbt):
             # Extract the annotation offset and basic block address
             bb_address: int
-            next_bb_address: int
             annotation_address: int
             next_annotation_address: int
             bb_address, annotation_address = bbt_entry
 
             if i == len(bbt) - 1:
-                next_bb_address = -1
-                next_annotation_address = len(annotations_section)
+                # Mitigate the address
+                next_annotation_address = len(annotations_section) + annot_section_start_addr
             else:
-                next_bb_address, next_annotation_address = bbt[i + 1]
+                _, next_annotation_address = bbt[i + 1]
 
             if symbol_dict:
                 function_name: str = symbol_dict.function_for_address(bb_address)
             # Annotations are split from an offset to the next one
             bb_annotations: list[str] = self.separate_annotations_from_offset(
                 annotations_section,
-                annotation_address - self.section_infos[".hbngannot"].address,
-                next_annotation_address - self.section_infos[".hbngannot"].address,
+                annotation_address - annot_section_start_addr,
+                next_annotation_address - annot_section_start_addr,
             )
 
             bb_assignments_parse_info: AnnotationParseInfo = self.annotation_parser.parse_annotations(
