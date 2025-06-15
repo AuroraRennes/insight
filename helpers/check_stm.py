@@ -112,7 +112,7 @@ def patch_dump_results(results):
 def process_dump_file(dump_file_path: str):
     with Path(dump_file_path).open("r") as dump_file:
         dump = dump_file.readlines()
-        return patch_dump_results(extract_dump_data(dump))
+        return extract_dump_data(dump)
 
 
 

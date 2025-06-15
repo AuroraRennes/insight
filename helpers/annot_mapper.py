@@ -66,23 +66,32 @@ if __name__ == "__main__":
 
         print("Combined BBT and Annotation Info:\n")
 
+        bbt = []
+
         for idx in range(0, len(bbt_data), 16):
-            bb_addr = int.from_bytes(bbt_data[idx:idx+8], byteorder="little")
-            annot_offset = int.from_bytes(bbt_data[idx+8:idx+16], byteorder="little") - annot_start_address
+            bb_addr = int.from_bytes(bbt_data[idx : idx + 8], byteorder="little")
+            annot_offset = int.from_bytes(bbt_data[idx + 8 : idx + 16], byteorder="little")
+            bbt.append((bb_addr, annot_offset))
+
+        for i, bbt_entry in enumerate(bbt):
+            bb_addr, annot_addr = bbt_entry
 
             func_name = get_function_name(bb_addr, func_map)
-            try:
-                bb_raw_annotation: str = annotations[annot_offset:].split("END")[0] + "END"
 
-            except IndexError:
-                bb_raw_annotation = "INVALID_OFFSET"
+            if i == len(bbt) - 1:
+                next_annot_addr = len(annotations) + annot_start_address
+            else:
+                _, next_annot_addr = bbt[i + 1]
+
+            bb_raw_annotations = annotations[
+                annot_addr - annot_start_address : next_annot_addr - annot_start_address
+            ]
 
             print(f"└ {hex(bb_addr)} ({func_name})", end='')
 
-            bb_annotations = bb_raw_annotation.split("\n")
-            all_lines = "\n".join(bb_annotations)
-            reg_count = count_registers(all_lines)
+            reg_count = count_registers(bb_raw_annotations)
             print(f" [{reg_count} registers]")
 
+            bb_annotations = bb_raw_annotations.split("\n")[:-1]
             for line_annot in bb_annotations:
                 print(f"  ├ {line_annot}")
