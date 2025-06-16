@@ -68,6 +68,7 @@ class AnnotationInterpreter:
         symbol_dict: SymbolDict | None = elf_info.symbol_dict
         current_address: int = start_address
         current_offset: int = 0
+        falled_through_msg: str = "(falling through, N atom)"
 
         # Execute annotations one by one
         for packet in packet_trace:
@@ -77,6 +78,7 @@ class AnnotationInterpreter:
 
             elif isinstance(packet, AtomPacket):
                 bb_offset = current_offset
+                falled_through: bool = False
 
                 for atom_element in packet.elements:
                     # If the address is not present in the annotation dictionary, the info
@@ -103,28 +105,26 @@ class AnnotationInterpreter:
 
                     # Executing current block assignments
                     bb_assignments: list[Assignment] = annotation_dict[bb_offset].assignments
+
                     logger.info(
-                        f"{COLOG['success']} Packet {packet.packet_info.index} - "
-                        "Atom element reached and annotations found at address "
+                        f"{COLOG['success']} Packet {packet.packet_info.index} "
+                        f"{falled_through_msg if falled_through else ''}"
+                        " - Atom element reached and annotations found at address "
                         f"{hex(bb_offset)} ({annotation_dict[bb_offset].function_name})"
                     )
                     self.interpret_block(bb_assignments)
+                    falled_through = False
 
                     # If it is not ending with an END annotation, fall through the next annotations
-                    while not annotation_dict[bb_offset].ends_with_end:
-                        bb_offset = annotation_dict.next_key(bb_offset)
-                        bb_assignments = annotation_dict[bb_offset].assignments
-                        logger.info(
-                            f"{COLOG['success']} Packet {packet.packet_info.index} - "
-                            "Atom element reached and annotations found at address "
-                            f"{hex(bb_offset)} ({annotation_dict[bb_offset].function_name})"
-                        )
-                        self.interpret_block(bb_assignments)
+                    bb_offset = self.interpret_blocks_until_end(bb_offset, annotation_dict)
 
                     # If the atom element is E, branch broadcasting SHOULD be enabled and
                     # produce another address packet
                     if atom_element == "N":
+                        falled_through = True
                         bb_offset = annotation_dict.next_key(bb_offset)
+                        # If it is not ending with an END annotation, fall through the next annotations
+                        bb_offset = self.interpret_blocks_until_end(bb_offset, annotation_dict)
 
             elif isinstance(packet, DataPacket):
                 self.process_data_packet(packet)
@@ -143,6 +143,18 @@ class AnnotationInterpreter:
                 f"{COLOG['success']} Packet {packet.packet_info.index} - "
                 f"STM data packet, pushing value {hex(packet.data_value)}"
             )
+
+    def interpret_blocks_until_end(self, bb_offset: int, annotation_dict: AnnotationDict) -> int:
+        while not annotation_dict[bb_offset].ends_with_end:
+            bb_offset = annotation_dict.next_key(bb_offset)
+            bb_assignments = annotation_dict[bb_offset].assignments
+            logger.info(
+                f"{COLOG['success']} Packet {packet.packet_info.index} (falling through, no end)"
+                " - Atom element reached and annotations found at address "
+                f"{hex(bb_offset)} ({annotation_dict[bb_offset].function_name})"
+            )
+            self.interpret_block(bb_assignments)
+        return bb_offset
 
     def interpret_block(self, assignments: list[Assignment]) -> None:
         assignment: Assignment

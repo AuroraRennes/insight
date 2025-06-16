@@ -99,7 +99,7 @@ class ARM64State:
         for aligned_addr in range(address, address + size, 4):
             if aligned_addr not in self.memory:
                 logger.warning(
-                    f"{COLOG['warning']} \t├ Reading from unwritten memory at "
+                    f"{COLOG['warning']} \t├ ✍️  Reading from unwritten memory at "
                     f"{hex(aligned_addr)}, setting tag 0"
                 )
                 self.memory_write(aligned_addr, size, 0)
