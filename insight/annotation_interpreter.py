@@ -116,7 +116,9 @@ class AnnotationInterpreter:
                     falled_through = False
 
                     # If it is not ending with an END annotation, fall through the next annotations
-                    bb_offset = self.interpret_blocks_until_end(bb_offset, annotation_dict)
+                    bb_offset = self.interpret_blocks_until_end(
+                        bb_offset, annotation_dict, packet.packet_info.index
+                    )
 
                     # If the atom element is E, branch broadcasting SHOULD be enabled and
                     # produce another address packet
@@ -124,7 +126,9 @@ class AnnotationInterpreter:
                         falled_through = True
                         bb_offset = annotation_dict.next_key(bb_offset)
                         # If it is not ending with an END annotation, fall through the next annotations
-                        bb_offset = self.interpret_blocks_until_end(bb_offset, annotation_dict)
+                        bb_offset = self.interpret_blocks_until_end(
+                            bb_offset, annotation_dict, packet.packet_info.index
+                        )
 
             elif isinstance(packet, DataPacket):
                 self.process_data_packet(packet)
@@ -144,12 +148,14 @@ class AnnotationInterpreter:
                 f"STM data packet, pushing value {hex(packet.data_value)}"
             )
 
-    def interpret_blocks_until_end(self, bb_offset: int, annotation_dict: AnnotationDict) -> int:
+    def interpret_blocks_until_end(
+        self, bb_offset: int, annotation_dict: AnnotationDict, packet_index: int
+    ) -> int:
         while not annotation_dict[bb_offset].ends_with_end:
             bb_offset = annotation_dict.next_key(bb_offset)
             bb_assignments = annotation_dict[bb_offset].assignments
             logger.info(
-                f"{COLOG['success']} Packet {packet.packet_info.index} (falling through, no end)"
+                f"{COLOG['success']} Packet {packet_index} (falling through, no end)"
                 " - Atom element reached and annotations found at address "
                 f"{hex(bb_offset)} ({annotation_dict[bb_offset].function_name})"
             )
