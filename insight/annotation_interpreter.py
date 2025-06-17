@@ -6,7 +6,7 @@ from typing import ClassVar
 
 from insight.arm64_state import ARM64State
 from insight.elf_decoder import AnnotationDict, ELFInfo, SymbolDict
-from insight.exceptions import OperatorNotDefinedError, STMFIFOEmptyError, UnknownSPUpdateError
+from insight.exceptions import OperatorNotDefinedError, StateError, STMFIFOEmptyError, UnknownSPUpdateError
 from insight.helpers import COLOG
 from insight.packets import AddressPacket, AtomPacket, DataPacket, Packet
 from insight.parsers.annotation_parser import (
@@ -60,6 +60,9 @@ class AnnotationInterpreter:
         self.stm_addresses: STMFIFO = STMFIFO()
         self.annot_parser: AnnotationParser = AnnotationParser()
         self.first_stm_packet: bool = True
+
+    # Packet processing
+    # \____________________
 
     def interpret_packet_trace(
         self, packet_trace: list[Packet], elf_info: ELFInfo, start_address: int
@@ -148,6 +151,9 @@ class AnnotationInterpreter:
                 f"STM data packet, pushing value {hex(packet.data_value)}"
             )
 
+    # Annotation Interpretation
+    # \___________________________
+
     def interpret_blocks_until_end(
         self, bb_offset: int, annotation_dict: AnnotationDict, packet_index: int
     ) -> int:
@@ -192,6 +198,16 @@ class AnnotationInterpreter:
                     address=access_address, size=mem_destination.access_size, tag=tag_value
                 )
 
+            # Check if tag rules have not been broken
+            self.check_tag_rules()
+
+    def check_tag_rules(self) -> None:
+        try:
+            self.state.check_tag_rules()
+        except StateError:
+            logger.exception(f"{COLOG['error']} Rule broken, stopping execution")
+            raise
+
     def update_sp(self, assignment: Assignment, reg_destination: Register) -> None:
         if not reg_destination.is_sp():
             return
@@ -209,6 +225,9 @@ class AnnotationInterpreter:
                     self.state.stack_value -= imm_source.value
         else:
             raise UnknownSPUpdateError(assignment.raw_annot)
+
+    # Tag Access
+    # \___________
 
     def get_register_tag(self, register: Register) -> int:
         return self.state.read_register(register.name)

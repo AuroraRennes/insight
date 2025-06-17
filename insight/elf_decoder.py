@@ -19,6 +19,7 @@ class BBAnnotationsInfo:
     assignments: list[Assignment]
     function_name: str | None
     ends_with_end: bool
+    contains_svc: bool
 
 
 @dataclass
@@ -120,6 +121,7 @@ class ELFDecoder:
                 assignments=bb_assignments_parse_info.assignments,
                 function_name=function_name,
                 ends_with_end=bb_assignments_parse_info.ends_with_end,
+                contains_svc=bb_assignments_parse_info.contains_svc
             )
 
         return ELFInfo(annotation_dict=annotation_dict, symbol_dict=symbol_dict)

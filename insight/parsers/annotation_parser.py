@@ -79,6 +79,7 @@ class Assignment:
 class AnnotationParseInfo:
     assignments: list[Assignment]
     ends_with_end: bool
+    contains_svc: bool
 
 
 class AnnotationParser:
@@ -104,10 +105,14 @@ class AnnotationParser:
     # LHS is either a register or a memory access
     def parse_annotations(self, annotations: list[str]) -> AnnotationParseInfo:
         ends_with_end: bool = False
+        contains_svc: bool = False
         assignments: list[Assignment] = []
         for line in annotations:
             if line == "END":
                 ends_with_end = True
+                continue
+            if line == "SVC":
+                contains_svc = True
                 continue
             if line.startswith("Unsupported:"):
                 logger.warning(
@@ -131,7 +136,9 @@ class AnnotationParser:
             assignments.append(
                 Assignment(destination=destination, operator=operator, sources=sources, raw_annot=line)
             )
-        return AnnotationParseInfo(assignments, ends_with_end)
+        return AnnotationParseInfo(
+            assignments=assignments, ends_with_end=ends_with_end, contains_svc=contains_svc
+        )
 
     # Extract the operator from the RHS
     def parse_operator(self, rhs: str) -> str:

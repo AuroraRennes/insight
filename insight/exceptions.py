@@ -226,6 +226,9 @@ class UnknownSPUpdateError(AnnotationInterpretationError):
         super().__init__(f"Unexpected SP update. Expecting 'SP <- SP add/sub Imm(val)' but got {annotation}")
 
 
+# State /
+
+
 class StateError(AnnotationInterpretationError):
     pass
 
@@ -238,3 +241,13 @@ class UndefinedRegisterError(StateError):
 class ReadingFromUnwrittenMemoryError(StateError):
     def __init__(self, address: int) -> None:
         super().__init__(f"Reading from address {hex(address)} that was not written to beforehand")
+
+
+class BrokenRuleError(StateError):
+    def __init__(self) -> None:
+        super().__init__("Rule broken")
+
+
+class NegativeAddressError(StateError):
+    def __init__(self, address: int) -> None:
+        super().__init__(f"Trying to access negative address {hex(address)}")

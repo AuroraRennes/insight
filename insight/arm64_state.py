@@ -1,7 +1,7 @@
 import logging
 from typing import ClassVar
 
-from insight.exceptions import UndefinedRegisterError
+from insight.exceptions import NegativeAddressError, UndefinedRegisterError
 from insight.helpers import COLOG
 
 logger = logging.getLogger("insight")
@@ -35,6 +35,9 @@ class ARM64State:
         # The stack value is passed through the STM ONE TIME at the start of the program
         # and its value should be maintained by the interpreter
         self.stack_value = 0
+
+    # Register Access
+    # \________________
 
     def write_register(self, register_name: str, tag: int) -> None:
         # Check flag registers first
@@ -90,6 +93,9 @@ class ARM64State:
             tag = self.registers[register_name] & ARM64State.FP_SIZES[reg_size]
         return tag
 
+    # Memory Access
+    # \________________
+
     def memory_write(self, address: int, size: int, tag: int) -> None:
         for i in range(address, address + size, 4):
             self.memory[i] = tag
@@ -97,6 +103,8 @@ class ARM64State:
     def memory_read(self, address: int, size: int) -> int:
         result: int = 0
         for aligned_addr in range(address, address + size, 4):
+            if aligned_addr <= 0:
+                raise NegativeAddressError(aligned_addr)
             if aligned_addr not in self.memory:
                 logger.warning(
                     f"{COLOG['warning']} \t├ ✍️  Reading from unwritten memory at "
@@ -105,3 +113,8 @@ class ARM64State:
                 self.memory_write(aligned_addr, size, 0)
             result = result << aligned_addr | self.memory[aligned_addr]
         return result
+
+    # Rules configuration and checking
+    # \___________________________________
+
+    def check_tag_rules(self) -> None: ...
