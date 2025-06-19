@@ -6,9 +6,14 @@ from typing import ClassVar
 
 from insight.arm64_state import ARM64State
 from insight.elf_decoder import AnnotationDict, ELFInfo, SymbolDict
-from insight.exceptions import OperatorNotDefinedError, StateError, STMFIFOEmptyError, UnknownSPUpdateError
+from insight.exceptions import (
+    OperatorNotDefinedError,
+    STMFIFOEmptyError,
+    TagCheckingRuleError,
+    UnknownSPUpdateError,
+)
 from insight.helpers import COLOG
-from insight.packets import AddressPacket, AtomPacket, DataPacket, Packet
+from insight.packets import AddressPacket, AtomPacket, DataPacket, ExceptionPacket, Packet
 from insight.parsers.annotation_parser import (
     AnnotationParser,
     Assignment,
@@ -46,7 +51,7 @@ class AnnotationInterpreter:
         "rhs": lambda _, b: b,
     }
 
-    def __init__(self) -> None:
+    def __init__(self, elf_info: ELFInfo) -> None:
         self.state: ARM64State = ARM64State()
         self.config: dict[str, str] = {
             "ari": "or",
@@ -55,23 +60,23 @@ class AnnotationInterpreter:
             "sto": "or",
             "loa": "or",
             "bra": "or",
+            "ret": "or",
         }
 
         self.stm_addresses: STMFIFO = STMFIFO()
         self.annot_parser: AnnotationParser = AnnotationParser()
         self.first_stm_packet: bool = True
+        self.elf_info: ELFInfo = elf_info
+        self.annotation_dict: AnnotationDict = elf_info.annotation_dict
+        self.symbol_dict: SymbolDict | None = elf_info.symbol_dict
 
     # Packet processing
     # \____________________
 
-    def interpret_packet_trace(
-        self, packet_trace: list[Packet], elf_info: ELFInfo, start_address: int
-    ) -> None:
-        annotation_dict: AnnotationDict = elf_info.annotation_dict
-        symbol_dict: SymbolDict | None = elf_info.symbol_dict
+    def interpret_packet_trace(self, packet_trace: list[Packet], start_address: int) -> None:
         current_address: int = start_address
         current_offset: int = 0
-        falled_through_msg: str = "(falling through, N atom)"
+        bb_offset: int = 0
 
         # Execute annotations one by one
         for packet in packet_trace:
@@ -79,62 +84,83 @@ class AnnotationInterpreter:
                 current_address = packet.address
                 current_offset = current_address - start_address
 
+            elif isinstance(packet, ExceptionPacket):
+                bb_offset = current_offset
+
             elif isinstance(packet, AtomPacket):
                 bb_offset = current_offset
-                falled_through: bool = False
-
-                for atom_element in packet.elements:
-                    # If the address is not present in the annotation dictionary, the info
-                    # should come from a fucntion outside of the annotated binary (libraries, etc.)
-                    function_name: str = (
-                        symbol_dict.function_for_address(bb_offset) if symbol_dict else "no symbol"
-                    )
-                    if bb_offset not in annotation_dict:
-                        logger.warning(
-                            f"{COLOG['warning']} Packet {packet.packet_info.index} - "
-                            f"Atom element reached but no annotations were found at address "
-                            f"{hex(bb_offset)} ({function_name})"
-                        )
-                        continue
-
-                    # FIXME: For now, the attribute hbng_no_instrument still produces the annotations as
-                    # if they were deactivated, most labels would not be emitted...
-                    if function_name == "_start_c":
-                        logger.warning(
-                            f"{COLOG['warning']} Packet {packet.packet_info.index} - "
-                            "_start_c function ignored"
-                        )
-                        continue
-
-                    # Executing current block assignments
-                    bb_assignments: list[Assignment] = annotation_dict[bb_offset].assignments
-
-                    logger.info(
-                        f"{COLOG['success']} Packet {packet.packet_info.index} "
-                        f"{falled_through_msg if falled_through else ''}"
-                        " - Atom element reached and annotations found at address "
-                        f"{hex(bb_offset)} ({annotation_dict[bb_offset].function_name})"
-                    )
-                    self.interpret_block(bb_assignments)
-                    falled_through = False
-
-                    # If it is not ending with an END annotation, fall through the next annotations
-                    bb_offset = self.interpret_blocks_until_end(
-                        bb_offset, annotation_dict, packet.packet_info.index
-                    )
-
-                    # If the atom element is E, branch broadcasting SHOULD be enabled and
-                    # produce another address packet
-                    if atom_element == "N":
-                        falled_through = True
-                        bb_offset = annotation_dict.next_key(bb_offset)
-                        # If it is not ending with an END annotation, fall through the next annotations
-                        bb_offset = self.interpret_blocks_until_end(
-                            bb_offset, annotation_dict, packet.packet_info.index
-                        )
+                self.process_atom_packet(packet, bb_offset)
 
             elif isinstance(packet, DataPacket):
                 self.process_data_packet(packet)
+
+    def process_atom_packet(self, packet: AtomPacket, bb_offset: int) -> None:
+        falled_through: bool = False
+        falled_through_msg: str = "(falling through, N atom)"
+
+        for atom_element in packet.elements:
+            # If the address is not present in the annotation dictionary, the info
+            # should come from a fucntion outside of the annotated binary (libraries, etc.)
+            function_name: str = (
+                self.symbol_dict.function_for_address(bb_offset) if self.symbol_dict else "no symbol"
+            )
+            if bb_offset not in self.annotation_dict:
+                logger.warning(
+                    f"{COLOG['warning']} Packet {packet.packet_info.index} - "
+                    f"Atom element reached but no annotations were found at address "
+                    f"{hex(bb_offset)} ({function_name})"
+                )
+                continue
+
+            # FIXME: For now, the attribute hbng_no_instrument still produces the annotations as
+            # if they were deactivated, most labels would not be emitted...
+            if function_name == "_start_c":
+                logger.warning(
+                    f"{COLOG['warning']} Packet {packet.packet_info.index} - _start_c function ignored"
+                )
+                continue
+
+            # Executing current block assignments
+            bb_assignments: list[Assignment] = self.annotation_dict[bb_offset].assignments
+
+            logger.info(
+                f"{COLOG['success']} Packet {packet.packet_info.index} "
+                f"{falled_through_msg if falled_through else ''}"
+                " - Atom element reached and annotations found at address "
+                f"{hex(bb_offset)} ({function_name})"
+            )
+            self.interpret_block(bb_assignments)
+            falled_through = False
+
+            # If it is not ending with an END annotation, fall through the next annotations
+            bb_offset = self.interpret_blocks_until_end(bb_offset, packet.packet_info.index)
+
+            # If the atom element is E, branch broadcasting SHOULD be enabled and
+            # produce another address packet
+            if atom_element == "N":
+                falled_through = True
+                bb_offset = self.annotation_dict.next_key(bb_offset)
+                # If it is not ending with an END annotation, fall through the next annotations
+                bb_offset = self.interpret_blocks_until_end(bb_offset, packet.packet_info.index)
+
+    def process_exception_packet(self, packet: ExceptionPacket, bb_offset: int) -> None:
+        function_name: str = (
+            self.symbol_dict.function_for_address(bb_offset) if self.symbol_dict else "no symbol"
+        )
+
+        if function_name == "preload_stm_region":
+            logger.warning(
+                f"{COLOG['warning']} Packet {packet.packet_info.index} - preload_stm_region svc ignored"
+            )
+            return
+        bb_assignments = self.annotation_dict[bb_offset].assignments
+        logger.info(
+            f"{COLOG['success']} Packet {packet.packet_info.index} "
+            " - Exception packet reached (svc) and annotations found at address "
+            f"{hex(bb_offset)} ({function_name})"
+        )
+        self.interpret_block(bb_assignments)
+        self.check_svc(bb_offset)
 
     def process_data_packet(self, packet: DataPacket) -> None:
         if self.first_stm_packet:
@@ -154,16 +180,14 @@ class AnnotationInterpreter:
     # Annotation Interpretation
     # \___________________________
 
-    def interpret_blocks_until_end(
-        self, bb_offset: int, annotation_dict: AnnotationDict, packet_index: int
-    ) -> int:
-        while not annotation_dict[bb_offset].ends_with_end:
-            bb_offset = annotation_dict.next_key(bb_offset)
-            bb_assignments = annotation_dict[bb_offset].assignments
+    def interpret_blocks_until_end(self, bb_offset: int, packet_index: int) -> int:
+        while not self.annotation_dict[bb_offset].ends_with_end:
+            bb_offset = self.annotation_dict.next_key(bb_offset)
+            bb_assignments = self.annotation_dict[bb_offset].assignments
             logger.info(
                 f"{COLOG['success']} Packet {packet_index} (falling through, no end)"
                 " - Atom element reached and annotations found at address "
-                f"{hex(bb_offset)} ({annotation_dict[bb_offset].function_name})"
+                f"{hex(bb_offset)} ({self.annotation_dict[bb_offset].function_name})"
             )
             self.interpret_block(bb_assignments)
         return bb_offset
@@ -204,8 +228,8 @@ class AnnotationInterpreter:
     def check_tag_rules(self) -> None:
         try:
             self.state.check_tag_rules()
-        except StateError:
-            logger.exception(f"{COLOG['error']} Rule broken, stopping execution")
+        except TagCheckingRuleError as e:
+            logger.warning(f"{COLOG['failure']} Tag rule broken, stopping execution: {e}")
             raise
 
     def update_sp(self, assignment: Assignment, reg_destination: Register) -> None:
