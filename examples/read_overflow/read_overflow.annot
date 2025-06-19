@@ -1,0 +1,972 @@
+Combined BBT and Annotation Info:
+
+└ 0x215c4c (_start_c) [1 registers]
+  ├ [<SP> + 8*Imm(-32)]_64 <- LR sto SP sto Imm(-32)
+  ├ SP <- SP sto Imm(-32)
+  ├ [<SP> + 8*Imm(2)]_64 <- X20 sto SP sto Imm(2)
+  ├ [<SP> + 8*Imm(2) + 64]_64 <- X19 sto SP sto Imm(2)
+  ├ X19 <- XZR log X0
+  ├ W20 <- [<X19> + 4*Imm(8)]_32 loa X19 loa Imm(8)
+  ├ X19 <- X19 loa Imm(8)
+  ├ LR <- PC lin LR lin UOp
+  ├ PC <- PC lin UOp
+  ├ END
+└ 0x215c60 (_start_c) [3 registers]
+  ├ X0 <- PC
+  ├ X3 <- PC
+  ├ X4 <- PC
+  ├ X0 <- [<X0> + 8*UOp]_64 loa X0 loa UOp
+  ├ X3 <- [<X3> + 8*UOp]_64 loa X3 loa UOp
+  ├ X4 <- [<X4> + 8*UOp]_64 loa X4 loa UOp
+  ├ W1 <- WZR log W20
+  ├ X2 <- XZR log X19
+  ├ X5 <- Imm(0)
+  ├ X20 <- [<SP> + 8*Imm(2)]_64 loa SP loa Imm(2)
+  ├ X19 <- [<SP> + 8*Imm(2) + 64]_64 loa SP loa Imm(2)
+  ├ LR <- [<SP> + 8*Imm(32)]_64 loa SP loa Imm(32)
+  ├ SP <- SP loa Imm(32)
+  ├ Unsupported: TCRETURNdi
+  ├ END
+└ 0x216890 (_init) [0 registers]
+  ├ [<SP> + 8*Imm(-16)]_64 <- SP sto SP sto Imm(-16)
+  ├ [<SP> + 8*Imm(-16) + 64]_64 <- LR sto SP sto Imm(-16)
+  ├ X29 <- SP
+  ├ END
+└ 0x2168a0 (_fini) [0 registers]
+  ├ [<SP> + 8*Imm(-16)]_64 <- SP sto SP sto Imm(-16)
+  ├ [<SP> + 8*Imm(-16) + 64]_64 <- LR sto SP sto Imm(-16)
+  ├ X29 <- SP
+  ├ END
+└ 0x215c90 (dummy) [0 registers]
+  ├ PC <- PC ret LR
+  ├ END
+└ 0x215c94 (__init_ssp) [0 registers]
+  ├ PC <- PC ret LR
+  ├ END
+└ 0x215c98 (__init_libc) [2 registers]
+  ├ SP <- SP sub Imm(368)
+  ├ Unsupported: MOVIv2d_ns
+  ├ [<SP> + 8*Imm(44)]_64 <- FP sto SP sto Imm(44)
+  ├ [<SP> + 8*Imm(44) + 64]_64 <- LR sto SP sto Imm(44)
+  ├ X8 <- PC
+  ├ X8 <- [<X8> + 8*UOp]_64 loa X8 loa UOp
+  ├ [<X8> + 8*Imm(0)]_64 <- X0 sto X8 sto Imm(0)
+  ├ [<SP> + 16*Imm(4)]_128 <- Q0 sto SP sto Imm(4)
+  ├ [<SP> + 16*Imm(4) + 128]_128 <- Q0 sto SP sto Imm(4)
+  ├ [<SP> + 16*Imm(6)]_128 <- Q0 sto SP sto Imm(6)
+  ├ [<SP> + 16*Imm(6) + 128]_128 <- Q0 sto SP sto Imm(6)
+  ├ [<SP> + 16*Imm(8)]_128 <- Q0 sto SP sto Imm(8)
+  ├ [<SP> + 16*Imm(8) + 128]_128 <- Q0 sto SP sto Imm(8)
+  ├ [<SP> + 16*Imm(10)]_128 <- Q0 sto SP sto Imm(10)
+  ├ [<SP> + 16*Imm(10) + 128]_128 <- Q0 sto SP sto Imm(10)
+  ├ [<SP> + 16*Imm(12)]_128 <- Q0 sto SP sto Imm(12)
+  ├ [<SP> + 16*Imm(12) + 128]_128 <- Q0 sto SP sto Imm(12)
+  ├ [<SP> + 16*Imm(14)]_128 <- Q0 sto SP sto Imm(14)
+  ├ [<SP> + 16*Imm(14) + 128]_128 <- Q0 sto SP sto Imm(14)
+  ├ [<SP> + 16*Imm(16)]_128 <- Q0 sto SP sto Imm(16)
+  ├ [<SP> + 16*Imm(16) + 128]_128 <- Q0 sto SP sto Imm(16)
+  ├ [<SP> + 16*Imm(18)]_128 <- Q0 sto SP sto Imm(18)
+  ├ [<SP> + 16*Imm(18) + 128]_128 <- Q0 sto SP sto Imm(18)
+  ├ [<SP> + 16*Imm(20)]_128 <- Q0 sto SP sto Imm(20)
+  ├ [<SP> + 16*Imm(20) + 128]_128 <- Q0 sto SP sto Imm(20)
+  ├ [<SP> + 16*Imm(3)]_128 <- Q0 sto SP sto Imm(3)
+└ 0x215ce0 (__init_libc) [1 registers]
+  ├ X8 <- [<X0> + 8*Imm(8)]_64 loa X0 loa Imm(8)
+  ├ X0 <- X0 loa Imm(8)
+  ├ Unsupported: CBNZX
+  ├ END
+└ 0x215cec (__init_libc) [2 registers]
+  ├ X8 <- PC
+  ├ [<X8> + 8*UOp]_64 <- X0 sto X8 sto UOp
+  ├ X8 <- [<X0> + 8*Imm(16)]_64 loa X0 loa Imm(16)
+  ├ X0 <- X0 loa Imm(16)
+  ├ Unsupported: CBZX
+  ├ END
+└ 0x215d04 (__init_libc) [0 registers]
+  ├ X9 <- SP add Imm(48) add C
+  ├ NZCV <- SP add Imm(48) add C
+  ├ PC <- PC bra UOp
+  ├ END
+└ 0x215d0c (__init_libc) [1 registers]
+  ├ X8 <- [<X0> + 8*Imm(16)]_64 loa X0 loa Imm(16)
+  ├ X0 <- X0 loa Imm(16)
+  ├ Unsupported: CBZX
+  ├ END
+└ 0x215d18 (__init_libc) [0 registers]
+  ├ XZR <- X8 ari Imm(37)
+  ├ NZCV <- X8 ari Imm(37)
+  ├ PC <- PC bra UOp bra Z bra C
+  ├ END
+└ 0x215d20 (__init_libc) [3 registers]
+  ├ X10 <- [<X0> + Imm(-8)]_64 loa X0 loa Imm(-8)
+  ├ [<X9> + <X8> uxtx 4]_64 <- X10 sto X9 sto X8
+  ├ PC <- PC bra UOp
+  ├ END
+└ 0x215d34 (__init_libc) [1 registers]
+  ├ X9 <- [<SP> + 8*Imm(22)]_64 loa SP loa Imm(22)
+  ├ X8 <- [<SP> + 8*Imm(38)]_64 loa SP loa Imm(38)
+  ├ X10 <- PC
+  ├ [<X10> + 8*UOp]_64 <- X9 sto X10 sto UOp
+  ├ Unsupported: CBZX
+  ├ END
+└ 0x215d4c (__init_libc) [1 registers]
+  ├ X9 <- PC
+  ├ [<X9> + 8*UOp]_64 <- X8 sto X9 sto UOp
+  ├ PC <- PC bra UOp
+  ├ END
+└ 0x215d5c (__init_libc) [1 registers]
+  ├ X8 <- PC
+  ├ [<X8> + 8*UOp]_64 <- XZR sto X8 sto UOp
+└ 0x215d68 (__init_libc) [4 registers]
+  ├ X8 <- [<SP> + 8*Imm(37)]_64 loa SP loa Imm(37)
+  ├ XZR <- X1 ari Imm(0)
+  ├ NZCV <- X1 ari Imm(0)
+  ├ X10 <- [<SP> + 8*Imm(12)]_64 loa SP loa Imm(12)
+  ├ X12 <- PC
+  ├ X9 <- PC
+  ├ X11 <- PC
+  ├ X11 <- X11 add UOp add C
+  ├ NZCV <- X11 add UOp add C
+  ├ Unsupported: CSELXr
+  ├ X8 <- PC
+  ├ X12 <- [<X12> + 8*UOp]_64 loa X12 loa UOp
+  ├ X8 <- [<X8> + 8*UOp]_64 loa X8 loa UOp
+  ├ XZR <- X13 ari Imm(0)
+  ├ NZCV <- X13 ari Imm(0)
+  ├ [<X9> + 8*UOp]_64 <- X10 sto X9 sto UOp
+  ├ Unsupported: CSELXr
+  ├ [<X12> + 8*Imm(0)]_64 <- X9 sto X12 sto Imm(0)
+└ 0x215db4 (__init_libc) [1 registers]
+  ├ [<X8> + 8*Imm(0)]_64 <- X9 sto X8 sto Imm(0)
+└ 0x215dbc (__init_libc) [1 registers]
+  ├ X9 <- X9 add Imm(1) add C
+  ├ NZCV <- X9 add Imm(1) add C
+  ├ W10 <- [<X9> + Imm(-1)]_8 loa X9 loa Imm(-1)
+  ├ WZR <- W10 ari Imm(47)
+  ├ NZCV <- W10 ari Imm(47)
+  ├ PC <- PC bra UOp bra Z
+  ├ END
+└ 0x215dd0 (__init_libc) [0 registers]
+  ├ Unsupported: CBNZW
+  ├ END
+└ 0x215dd4 (__init_libc) [0 registers]
+  ├ X0 <- SP add Imm(48) add C
+  ├ NZCV <- SP add Imm(48) add C
+  ├ LR <- PC lin LR lin UOp
+  ├ PC <- PC lin UOp
+  ├ END
+└ 0x215ddc (__init_libc) [0 registers]
+  ├ X0 <- [<SP> + 8*Imm(31)]_64 loa SP loa Imm(31)
+  ├ LR <- PC lin LR lin UOp
+  ├ PC <- PC lin UOp
+  ├ END
+└ 0x215de4 (__init_libc) [0 registers]
+  ├ X8 <- [<SP> + 8*Imm(17)]_64 loa SP loa Imm(17)
+  ├ X9 <- [<SP> + 8*Imm(17) + 64]_64 loa SP loa Imm(17)
+  ├ XZR <- X8 sub X9
+  ├ NZCV <- X8 sub X9
+  ├ PC <- PC bra UOp bra Z
+  ├ END
+└ 0x215df0 (__init_libc) [0 registers]
+  ├ X8 <- [<SP> + 8*Imm(19)]_64 loa SP loa Imm(19)
+  ├ X9 <- [<SP> + 8*Imm(19) + 64]_64 loa SP loa Imm(19)
+  ├ XZR <- X8 sub X9
+  ├ NZCV <- X8 sub X9
+  ├ PC <- PC bra UOp bra Z
+  ├ END
+└ 0x215dfc (__init_libc) [0 registers]
+  ├ X8 <- [<SP> + 8*Imm(29)]_64 loa SP loa Imm(29)
+  ├ Unsupported: CBZX
+  ├ END
+└ 0x215e04 (__init_libc) [1 registers]
+  ├ X8 <- PC
+  ├ X8 <- X8 add UOp add C
+  ├ NZCV <- X8 add UOp add C
+  ├ [<SP> + 8*Imm(0)]_64 <- XZR sto SP sto Imm(0)
+  ├ [<SP> + 8*Imm(0) + 64]_64 <- XZR sto SP sto Imm(0)
+  ├ Q0 <- [<X8> + 16*Imm(0)]_128 loa X8 loa Imm(0)
+  ├ W8 <- Imm(2)
+  ├ X0 <- SP add Imm(16) add C
+  ├ NZCV <- SP add Imm(16) add C
+  ├ [<SP> + 8*Imm(4)]_64 <- X8 sto SP sto Imm(4)
+  ├ X2 <- SP add Imm(0) add C
+  ├ NZCV <- SP add Imm(0) add C
+  ├ W8 <- Imm(73)
+  ├ [<SP> + 16*Imm(1)]_128 <- Q0 sto SP sto Imm(1)
+  ├ W1 <- Imm(3)
+  ├ X3 <- Imm(0)
+  ├ W4 <- Imm(8)
+  ├ SVC
+  ├ END
+└ 0x215e40 (__init_libc) [0 registers]
+  ├ Unsupported: TBZW
+  ├ END
+└ 0x215e44 (__init_libc) [1 registers]
+  ├ X8 <- Imm(0)
+  ├ [<X8> + 1*Imm(0)]_8 <- WZR sto X8 sto Imm(0)
+└ 0x215e50 (__init_libc) [0 registers]
+  ├ W8 <- [<SP> + 2*Imm(11)]_16 loa SP loa Imm(11)
+  ├ Unsupported: TBZW
+  ├ END
+└ 0x215e58 (__init_libc) [0 registers]
+  ├ X0 <- Imm(99)
+  ├ X1 <- PC
+  ├ X1 <- X1 add UOp add C
+  ├ NZCV <- X1 add UOp add C
+  ├ W8 <- Imm(56)
+  ├ W2 <- WZR log Imm(992)
+  ├ SVC
+  ├ END
+└ 0x215e70 (__init_libc) [0 registers]
+  ├ Unsupported: TBNZX
+  ├ END
+└ 0x215e74 (__init_libc) [0 registers]
+  ├ W8 <- [<SP> + 2*Imm(15)]_16 loa SP loa Imm(15)
+  ├ Unsupported: TBZW
+  ├ END
+└ 0x215e7c (__init_libc) [0 registers]
+  ├ X0 <- Imm(99)
+  ├ X1 <- PC
+  ├ X1 <- X1 add UOp add C
+  ├ NZCV <- X1 add UOp add C
+  ├ W8 <- Imm(56)
+  ├ W2 <- WZR log Imm(992)
+  ├ SVC
+  ├ END
+└ 0x215e94 (__init_libc) [0 registers]
+  ├ Unsupported: TBZX
+  ├ END
+└ 0x215e98 (__init_libc) [1 registers]
+  ├ X8 <- Imm(0)
+  ├ [<X8> + 1*Imm(0)]_8 <- WZR sto X8 sto Imm(0)
+  ├ PC <- PC bra UOp
+  ├ END
+└ 0x215ea8 (__init_libc) [1 registers]
+  ├ X8 <- Imm(0)
+  ├ [<X8> + 1*Imm(0)]_8 <- WZR sto X8 sto Imm(0)
+  ├ W8 <- [<SP> + 2*Imm(15)]_16 loa SP loa Imm(15)
+  ├ Unsupported: TBNZW
+  ├ END
+└ 0x215ebc (__init_libc) [0 registers]
+  ├ W8 <- [<SP> + 2*Imm(19)]_16 loa SP loa Imm(19)
+  ├ Unsupported: TBZW
+  ├ END
+└ 0x215ec4 (__init_libc) [0 registers]
+  ├ X0 <- Imm(99)
+  ├ X1 <- PC
+  ├ X1 <- X1 add UOp add C
+  ├ NZCV <- X1 add UOp add C
+  ├ W8 <- Imm(56)
+  ├ W2 <- WZR log Imm(992)
+  ├ SVC
+  ├ END
+└ 0x215edc (__init_libc) [0 registers]
+  ├ Unsupported: TBZX
+  ├ END
+└ 0x215ee0 (__init_libc) [1 registers]
+  ├ X8 <- Imm(0)
+  ├ [<X8> + 1*Imm(0)]_8 <- WZR sto X8 sto Imm(0)
+└ 0x215eec (__init_libc) [1 registers]
+  ├ X8 <- PC
+  ├ W9 <- Imm(1)
+  ├ [<X8> + 1*UOp]_8 <- W9 sto X8 sto UOp
+└ 0x215efc (__init_libc) [0 registers]
+  ├ FP <- [<SP> + 8*Imm(44)]_64 loa SP loa Imm(44)
+  ├ LR <- [<SP> + 8*Imm(44) + 64]_64 loa SP loa Imm(44)
+  ├ SP <- SP add Imm(368) add C
+  ├ NZCV <- SP add Imm(368) add C
+  ├ PC <- PC ret LR
+  ├ END
+└ 0x215f08 (__libc_start_init) [0 registers]
+  ├ [<SP> + 8*Imm(-32)]_64 <- LR sto SP sto Imm(-32)
+  ├ SP <- SP sto Imm(-32)
+  ├ [<SP> + 8*Imm(2)]_64 <- X20 sto SP sto Imm(2)
+  ├ [<SP> + 8*Imm(2) + 64]_64 <- X19 sto SP sto Imm(2)
+  ├ LR <- PC lin LR lin UOp
+  ├ PC <- PC lin UOp
+  ├ END
+└ 0x215f14 (__libc_start_init) [2 registers]
+  ├ X19 <- PC
+  ├ X8 <- PC
+  ├ X19 <- [<X19> + 8*UOp]_64 loa X19 loa UOp
+  ├ X8 <- [<X8> + 8*UOp]_64 loa X8 loa UOp
+  ├ XZR <- X8 sub X19
+  ├ NZCV <- X8 sub X19
+  ├ PC <- PC bra UOp bra C
+  ├ END
+└ 0x215f34 (__libc_start_init) [1 registers]
+  ├ X20 <- PC
+  ├ X20 <- [<X20> + 8*UOp]_64 loa X20 loa UOp
+└ 0x215f40 (__libc_start_init) [1 registers]
+  ├ X8 <- [<X20> + 8*Imm(8)]_64 loa X20 loa Imm(8)
+  ├ X20 <- X20 loa Imm(8)
+  ├ LR <- PC lin LR lin X8
+  ├ PC <- PC lin X8
+  ├ END
+└ 0x215f4c (__libc_start_init) [0 registers]
+  ├ XZR <- X20 sub X19
+  ├ NZCV <- X20 sub X19
+  ├ PC <- PC bra UOp bra C
+  ├ END
+└ 0x215f54 (__libc_start_init) [0 registers]
+  ├ X20 <- [<SP> + 8*Imm(2)]_64 loa SP loa Imm(2)
+  ├ X19 <- [<SP> + 8*Imm(2) + 64]_64 loa SP loa Imm(2)
+  ├ LR <- [<SP> + 8*Imm(32)]_64 loa SP loa Imm(32)
+  ├ SP <- SP loa Imm(32)
+  ├ PC <- PC ret LR
+  ├ END
+└ 0x215f60 (__libc_start_main) [1 registers]
+  ├ [<SP> + 8*Imm(-4)]_64 <- LR sto SP sto Imm(-4)
+  ├ [<SP> + 8*Imm(-4) + 64]_64 <- X21 sto SP sto Imm(-4)
+  ├ SP <- SP sto Imm(-4)
+  ├ X8 <- X2 add W1
+  ├ [<SP> + 8*Imm(2)]_64 <- X20 sto SP sto Imm(2)
+  ├ [<SP> + 8*Imm(2) + 64]_64 <- X19 sto SP sto Imm(2)
+  ├ W20 <- WZR log W1
+  ├ X1 <- [<X2> + 8*Imm(0)]_64 loa X2 loa Imm(0)
+  ├ X21 <- XZR log X0
+  ├ X19 <- XZR log X2
+  ├ X0 <- X8 add Imm(8) add C
+  ├ NZCV <- X8 add Imm(8) add C
+  ├ LR <- PC lin LR lin UOp
+  ├ PC <- PC lin UOp
+  ├ END
+└ 0x215f88 (__libc_start_main) [0 registers]
+  ├ X3 <- PC
+  ├ X3 <- X3 add UOp add C
+  ├ NZCV <- X3 add UOp add C
+  ├ W1 <- WZR log W20
+  ├ X2 <- XZR log X19
+  ├ X0 <- XZR log X21
+  ├ X20 <- [<SP> + 8*Imm(2)]_64 loa SP loa Imm(2)
+  ├ X19 <- [<SP> + 8*Imm(2) + 64]_64 loa SP loa Imm(2)
+  ├ LR <- [<SP> + 8*Imm(4)]_64 loa SP loa Imm(4)
+  ├ X21 <- [<SP> + 8*Imm(4) + 64]_64 loa SP loa Imm(4)
+  ├ SP <- SP loa Imm(4)
+  ├ Unsupported: TCRETURNri
+  ├ END
+└ 0x215fa8 (libc_start_main_stage2) [0 registers]
+  ├ [<SP> + 8*Imm(-48)]_64 <- LR sto SP sto Imm(-48)
+  ├ SP <- SP sto Imm(-48)
+  ├ [<SP> + 8*Imm(2)]_64 <- X22 sto SP sto Imm(2)
+  ├ [<SP> + 8*Imm(2) + 64]_64 <- X21 sto SP sto Imm(2)
+  ├ X22 <- X2 add W1
+  ├ X21 <- XZR log X0
+  ├ [<SP> + 8*Imm(4)]_64 <- X20 sto SP sto Imm(4)
+  ├ [<SP> + 8*Imm(4) + 64]_64 <- X19 sto SP sto Imm(4)
+  ├ X19 <- XZR log X2
+  ├ W20 <- WZR log W1
+  ├ LR <- PC lin LR lin UOp
+  ├ PC <- PC lin UOp
+  ├ END
+└ 0x215fc8 (libc_start_main_stage2) [0 registers]
+  ├ X2 <- X22 add Imm(8) add C
+  ├ NZCV <- X22 add Imm(8) add C
+  ├ W0 <- WZR log W20
+  ├ X1 <- XZR log X19
+  ├ LR <- PC lin LR lin X21
+  ├ PC <- PC lin X21
+  ├ END
+└ 0x215fd8 (libc_start_main_stage2) [0 registers]
+  ├ LR <- PC lin LR lin UOp
+  ├ PC <- PC lin UOp
+  ├ END
+└ 0x215fdc (__init_tp) [1 registers]
+  ├ [<SP> + 8*Imm(-2)]_64 <- LR sto SP sto Imm(-2)
+  ├ [<SP> + 8*Imm(-2) + 64]_64 <- X19 sto SP sto Imm(-2)
+  ├ SP <- SP sto Imm(-2)
+  ├ X19 <- XZR log X0
+  ├ [<X0> + 8*Imm(200)]_64 <- X19 sto X0 sto Imm(200)
+  ├ X0 <- X0 sto Imm(200)
+  ├ LR <- PC lin LR lin UOp
+  ├ PC <- PC lin UOp
+  ├ END
+└ 0x215ff0 (__init_tp) [0 registers]
+  ├ Unsupported: TBNZW
+  ├ END
+└ 0x215ff4 (__init_tp) [0 registers]
+  ├ Unsupported: CBNZW
+  ├ END
+└ 0x215ff8 (__init_tp) [1 registers]
+  ├ X8 <- PC
+  ├ W9 <- Imm(1)
+  ├ [<X8> + 1*UOp]_8 <- W9 sto X8 sto UOp
+└ 0x216008 (__init_tp) [1 registers]
+  ├ W8 <- Imm(2)
+  ├ X0 <- PC
+  ├ X0 <- X0 add UOp add C
+  ├ NZCV <- X0 add UOp add C
+  ├ [<X19> + 4*Imm(10)]_32 <- W8 sto X19 sto Imm(10)
+  ├ W8 <- Imm(96)
+  ├ W9 <- Imm(0)
+  ├ SVC
+  ├ END
+└ 0x216028 (__init_tp) [7 registers]
+  ├ X8 <- PC
+  ├ X8 <- X8 add UOp add C
+  ├ NZCV <- X8 add UOp add C
+  ├ [<X19> + 8*Imm(19)]_64 <- X8 sto X19 sto Imm(19)
+  ├ X8 <- X19 add Imm(120) add C
+  ├ NZCV <- X19 add Imm(120) add C
+  ├ [<X19> + 4*Imm(8)]_32 <- W0 sto X19 sto Imm(8)
+  ├ [<X19> + 8*Imm(15)]_64 <- X8 sto X19 sto Imm(15)
+  ├ X8 <- PC
+  ├ X8 <- [<X8> + 8*UOp]_64 loa X8 loa UOp
+  ├ [<X19> + 8*Imm(1)]_64 <- X19 sto X19 sto Imm(1)
+  ├ [<X19> + 8*Imm(2)]_64 <- X19 sto X19 sto Imm(2)
+  ├ [<X19> + 8*Imm(2) + 64]_64 <- X8 sto X19 sto Imm(2)
+  ├ PC <- PC bra UOp
+  ├ END
+└ 0x21606c (__init_tp) [0 registers]
+  ├ W9 <- Imm(0)
+└ 0x216070 (__init_tp) [0 registers]
+  ├ W0 <- WZR log W9
+  ├ LR <- [<SP> + 8*Imm(2)]_64 loa SP loa Imm(2)
+  ├ X19 <- [<SP> + 8*Imm(2) + 64]_64 loa SP loa Imm(2)
+  ├ SP <- SP loa Imm(2)
+  ├ PC <- PC ret LR
+  ├ END
+└ 0x21607c (__copy_tls) [4 registers]
+  ├ [<SP> + 8*Imm(-6)]_64 <- LR sto SP sto Imm(-6)
+  ├ [<SP> + 8*Imm(-6) + 64]_64 <- X23 sto SP sto Imm(-6)
+  ├ SP <- SP sto Imm(-6)
+  ├ X10 <- PC
+  ├ X10 <- X10 add UOp add C
+  ├ NZCV <- X10 add UOp add C
+  ├ X12 <- Imm(199)
+  ├ X9 <- [<X10> + 8*Imm(1)]_64 loa X10 loa Imm(1)
+  ├ X11 <- [<X10> + 8*Imm(1) + 64]_64 loa X10 loa Imm(1)
+  ├ X8 <- [<X10> + 8*Imm(3)]_64 loa X10 loa Imm(3)
+  ├ [<SP> + 8*Imm(2)]_64 <- X22 sto SP sto Imm(2)
+  ├ [<SP> + 8*Imm(2) + 64]_64 <- X21 sto SP sto Imm(2)
+  ├ X21 <- [<X10> + 8*Imm(0)]_64 loa X10 loa Imm(0)
+  ├ X12 <- X12 sub X0
+  ├ X13 <- XZR log X8
+  ├ [<SP> + 8*Imm(4)]_64 <- X20 sto SP sto Imm(4)
+  ├ [<SP> + 8*Imm(4) + 64]_64 <- X19 sto SP sto Imm(4)
+  ├ X10 <- X0 add X9
+  ├ X11 <- X11 sub Imm(1)
+  ├ X20 <- X10 add X13
+  ├ X10 <- X11 log X12
+  ├ X19 <- X0 add X10
+  ├ Unsupported: CBZX
+  ├ END
+└ 0x2160cc (__copy_tls) [0 registers]
+  ├ X8 <- X9 sub X8
+  ├ X22 <- X19 add Imm(200) add C
+  ├ NZCV <- X19 add Imm(200) add C
+  ├ X23 <- X0 add X8
+└ 0x2160d8 (__copy_tls) [5 registers]
+  ├ X8 <- [<X21> + 8*Imm(5)]_64 loa X21 loa Imm(5)
+  ├ X8 <- X22 add X8
+  ├ [<X23> + 8*Imm(8)]_64 <- X8 sto X23 sto Imm(8)
+  ├ X23 <- X23 sto Imm(8)
+  ├ X8 <- [<X21> + 8*Imm(5)]_64 loa X21 loa Imm(5)
+  ├ X1 <- [<X21> + 8*Imm(1)]_64 loa X21 loa Imm(1)
+  ├ X2 <- [<X21> + 8*Imm(1) + 64]_64 loa X21 loa Imm(1)
+  ├ X0 <- X22 add X8
+  ├ LR <- PC lin LR lin UOp
+  ├ PC <- PC lin UOp
+  ├ END
+└ 0x216104 (__copy_tls) [1 registers]
+  ├ X21 <- [<X21> + 8*Imm(0)]_64 loa X21 loa Imm(0)
+  ├ Unsupported: CBNZX
+  ├ END
+└ 0x216110 (__copy_tls) [1 registers]
+  ├ X8 <- PC
+  ├ X8 <- [<X8> + 8*UOp]_64 loa X8 loa UOp
+└ 0x21611c (__copy_tls) [2 registers]
+  ├ [<X20> + 8*Imm(0)]_64 <- X8 sto X20 sto Imm(0)
+  ├ X0 <- XZR log X19
+  ├ [<X19> + 8*Imm(24)]_64 <- X20 sto X19 sto Imm(24)
+  ├ X20 <- [<SP> + 8*Imm(4)]_64 loa SP loa Imm(4)
+  ├ X19 <- [<SP> + 8*Imm(4) + 64]_64 loa SP loa Imm(4)
+  ├ X22 <- [<SP> + 8*Imm(2)]_64 loa SP loa Imm(2)
+  ├ X21 <- [<SP> + 8*Imm(2) + 64]_64 loa SP loa Imm(2)
+  ├ LR <- [<SP> + 8*Imm(6)]_64 loa SP loa Imm(6)
+  ├ X23 <- [<SP> + 8*Imm(6) + 64]_64 loa SP loa Imm(6)
+  ├ SP <- SP loa Imm(6)
+  ├ PC <- PC ret LR
+  ├ END
+└ 0x216140 (__init_tls) [1 registers]
+  ├ [<SP> + 8*Imm(-6)]_64 <- LR sto SP sto Imm(-6)
+  ├ [<SP> + 8*Imm(-6) + 64]_64 <- X23 sto SP sto Imm(-6)
+  ├ SP <- SP sto Imm(-6)
+  ├ X11 <- [<X0> + 8*Imm(5)]_64 loa X0 loa Imm(5)
+  ├ X9 <- PC
+  ├ X9 <- X9 add UOp add C
+  ├ NZCV <- X9 add UOp add C
+  ├ [<SP> + 8*Imm(2)]_64 <- X22 sto SP sto Imm(2)
+  ├ [<SP> + 8*Imm(2) + 64]_64 <- X21 sto SP sto Imm(2)
+  ├ [<SP> + 8*Imm(4)]_64 <- X20 sto SP sto Imm(4)
+  ├ [<SP> + 8*Imm(4) + 64]_64 <- X19 sto SP sto Imm(4)
+  ├ Unsupported: CBZX
+  ├ END
+└ 0x216160 (__init_tls) [4 registers]
+  ├ X13 <- [<X0> + 8*Imm(3)]_64 loa X0 loa Imm(3)
+  ├ X15 <- [<X0> + 8*Imm(3) + 64]_64 loa X0 loa Imm(3)
+  ├ X12 <- PC
+  ├ X16 <- PC
+  ├ W14 <- [<X12> + 4*UOp]_32 loa X12 loa UOp
+  ├ W17 <- Imm(58705)
+  ├ X16 <- [<X16> + 8*UOp]_64 loa X16 loa UOp
+  ├ X8 <- Imm(0)
+  ├ X10 <- Imm(0)
+  ├ W17 <- W17 mov W17
+  ├ W18 <- Imm(128)
+  ├ X0 <- XZR log X13
+  ├ PC <- PC bra UOp
+  ├ END
+└ 0x21619c (__init_tls) [1 registers]
+  ├ X8 <- [<X0> + 8*Imm(2)]_64 loa X0 loa Imm(2)
+  ├ X8 <- X13 sub X8
+└ 0x2161a8 (__init_tls) [0 registers]
+  ├ X11 <- X11 ari Imm(1)
+  ├ NZCV <- X11 ari Imm(1)
+  ├ X0 <- X0 add X15
+  ├ PC <- PC bra UOp bra Z
+  ├ END
+└ 0x2161b4 (__init_tls) [1 registers]
+  ├ W1 <- [<X0> + 4*Imm(0)]_32 loa X0 loa Imm(0)
+  ├ WZR <- W1 ari Imm(6)
+  ├ NZCV <- W1 ari Imm(6)
+  ├ PC <- PC bra UOp bra Z
+  ├ END
+└ 0x2161c4 (__init_tls) [0 registers]
+  ├ Unsupported: CBZX
+  ├ END
+└ 0x2161c8 (__init_tls) [0 registers]
+  ├ WZR <- W1 ari Imm(2)
+  ├ NZCV <- W1 ari Imm(2)
+  ├ PC <- PC bra UOp bra Z
+  ├ END
+└ 0x2161d0 (__init_tls) [1 registers]
+  ├ X8 <- [<X0> + 8*Imm(2)]_64 loa X0 loa Imm(2)
+  ├ X8 <- X16 sub X8
+  ├ PC <- PC bra UOp
+  ├ END
+└ 0x2161e0 (__init_tls) [0 registers]
+  ├ WZR <- W1 ari Imm(7)
+  ├ NZCV <- W1 ari Imm(7)
+  ├ Unsupported: CSELXr
+  ├ WZR <- W1 sub W17
+  ├ NZCV <- W1 sub W17
+  ├ PC <- PC bra UOp bra Z
+  ├ END
+└ 0x2161f0 (__init_tls) [1 registers]
+  ├ X1 <- [<X0> + 8*Imm(5)]_64 loa X0 loa Imm(5)
+  ├ XZR <- X1 sub X14
+  ├ NZCV <- X1 sub X14
+  ├ PC <- PC bra UOp bra Z bra C
+  ├ END
+└ 0x216200 (__init_tls) [1 registers]
+  ├ XZR <- X1 ari Imm(2048)
+  ├ NZCV <- X1 ari Imm(2048)
+  ├ Unsupported: CSELXr
+  ├ [<X12> + 4*UOp]_32 <- W14 sto X12 sto UOp
+  ├ PC <- PC bra UOp
+  ├ END
+└ 0x216214 (__init_tls) [0 registers]
+  ├ Unsupported: CBZX
+  ├ END
+└ 0x216218 (__init_tls) [9 registers]
+  ├ X12 <- [<X10> + 8*Imm(2)]_64 loa X10 loa Imm(2)
+  ├ X14 <- [<X10> + 8*Imm(4)]_64 loa X10 loa Imm(4)
+  ├ X13 <- PC
+  ├ X13 <- X13 add UOp add C
+  ├ NZCV <- X13 add UOp add C
+  ├ X10 <- [<X10> + 8*Imm(5)]_64 loa X10 loa Imm(5)
+  ├ X11 <- [<X10> + 8*Imm(5) + 64]_64 loa X10 loa Imm(5)
+  ├ W15 <- Imm(1)
+  ├ X8 <- X12 add X8
+  ├ [<X9> + 8*Imm(0)]_64 <- X13 sto X9 sto Imm(0)
+  ├ [<X9> + 8*Imm(3)]_64 <- X15 sto X9 sto Imm(3)
+  ├ [<X13> + 8*Imm(4)]_64 <- X11 sto X13 sto Imm(4)
+  ├ [<X13> + 8*Imm(1)]_64 <- X8 sto X13 sto Imm(1)
+  ├ [<X13> + 8*Imm(1) + 64]_64 <- X14 sto X13 sto Imm(1)
+  ├ PC <- PC bra UOp
+  ├ END
+└ 0x216264 (__init_tls) [3 registers]
+  ├ X8 <- PC
+  ├ X8 <- X8 add UOp add C
+  ├ NZCV <- X8 add UOp add C
+  ├ X10 <- [<X8> + 8*Imm(2)]_64 loa X8 loa Imm(2)
+  ├ X11 <- [<X8> + 8*Imm(2) + 64]_64 loa X8 loa Imm(2)
+  ├ X8 <- [<X8> + 8*Imm(0)]_64 loa X8 loa Imm(0)
+└ 0x21627c (__init_tls) [2 registers]
+  ├ X12 <- X10 add X8
+  ├ X13 <- X11 sub Imm(1)
+  ├ X8 <- X8 sub Imm(16)
+  ├ X12 <- XZR sub X12
+  ├ X8 <- X8 log X13
+  ├ X14 <- PC
+  ├ X14 <- X14 add UOp add C
+  ├ NZCV <- X14 add UOp add C
+  ├ X12 <- X13 log X12
+  ├ XZR <- X11 ari Imm(7)
+  ├ NZCV <- X11 ari Imm(7)
+  ├ X10 <- X12 add X10
+  ├ X12 <- X8 add Imm(16) add C
+  ├ NZCV <- X8 add Imm(16) add C
+  ├ [<X14> + 8*Imm(0)]_64 <- X10 sto X14 sto Imm(0)
+  ├ [<X14> + 8*Imm(2)]_64 <- X12 sto X14 sto Imm(2)
+  ├ PC <- PC bra UOp bra Z bra C
+  ├ END
+└ 0x2162bc (__init_tls) [1 registers]
+  ├ X12 <- PC
+  ├ W11 <- Imm(8)
+  ├ [<X12> + 8*UOp]_64 <- X11 sto X12 sto UOp
+└ 0x2162cc (__init_tls) [2 registers]
+  ├ X8 <- X8 add X10
+  ├ X10 <- PC
+  ├ X10 <- X10 add UOp add C
+  ├ NZCV <- X10 add UOp add C
+  ├ X8 <- X8 add X11
+  ├ X8 <- X8 add Imm(239) add C
+  ├ NZCV <- X8 add Imm(239) add C
+  ├ X1 <- X8 log Imm(8060)
+  ├ XZR <- X1 ari Imm(337)
+  ├ NZCV <- X1 ari Imm(337)
+  ├ [<X10> + 8*Imm(0)]_64 <- X1 sto X10 sto Imm(0)
+  ├ [<X10> + 8*Imm(0) + 64]_64 <- X11 sto X10 sto Imm(0)
+  ├ PC <- PC bra UOp bra C
+  ├ END
+└ 0x2162f4 (__init_tls) [0 registers]
+  ├ X0 <- Imm(0)
+  ├ X5 <- Imm(0)
+  ├ W8 <- Imm(222)
+  ├ W2 <- Imm(3)
+  ├ W3 <- Imm(34)
+  ├ X4 <- Imm(0)
+  ├ SVC
+  ├ END
+└ 0x216310 (__init_tls) [2 registers]
+  ├ X1 <- [<X10> + 8*Imm(0)]_64 loa X10 loa Imm(0)
+  ├ X11 <- [<X10> + 8*Imm(0) + 64]_64 loa X10 loa Imm(0)
+  ├ PC <- PC bra UOp
+  ├ END
+└ 0x21631c (__init_tls) [0 registers]
+  ├ X0 <- PC
+  ├ X0 <- X0 add UOp add C
+  ├ NZCV <- X0 add UOp add C
+└ 0x216324 (__init_tls) [2 registers]
+  ├ X8 <- [<X9> + 8*Imm(3)]_64 loa X9 loa Imm(3)
+  ├ X10 <- Imm(199)
+  ├ X11 <- X11 sub Imm(1)
+  ├ X10 <- X10 sub X0
+  ├ X12 <- X0 add X1
+  ├ X22 <- [<X9> + 8*Imm(0)]_64 loa X9 loa Imm(0)
+  ├ X13 <- XZR log X8
+  ├ X10 <- X11 log X10
+  ├ X21 <- X12 add X13
+  ├ X20 <- X0 add X10
+  ├ X19 <- X20 add Imm(200) add C
+  ├ NZCV <- X20 add Imm(200) add C
+  ├ Unsupported: CBZX
+  ├ END
+└ 0x21635c (__init_tls) [0 registers]
+  ├ X8 <- X1 sub X8
+  ├ X23 <- X0 add X8
+└ 0x216364 (__init_tls) [5 registers]
+  ├ X8 <- [<X22> + 8*Imm(5)]_64 loa X22 loa Imm(5)
+  ├ X8 <- X19 add X8
+  ├ [<X23> + 8*Imm(8)]_64 <- X8 sto X23 sto Imm(8)
+  ├ X23 <- X23 sto Imm(8)
+  ├ X8 <- [<X22> + 8*Imm(5)]_64 loa X22 loa Imm(5)
+  ├ X1 <- [<X22> + 8*Imm(1)]_64 loa X22 loa Imm(1)
+  ├ X2 <- [<X22> + 8*Imm(1) + 64]_64 loa X22 loa Imm(1)
+  ├ X0 <- X19 add X8
+  ├ LR <- PC lin LR lin UOp
+  ├ PC <- PC lin UOp
+  ├ END
+└ 0x216390 (__init_tls) [1 registers]
+  ├ X22 <- [<X22> + 8*Imm(0)]_64 loa X22 loa Imm(0)
+  ├ Unsupported: CBNZX
+  ├ END
+└ 0x21639c (__init_tls) [1 registers]
+  ├ X8 <- PC
+  ├ X8 <- [<X8> + 8*UOp]_64 loa X8 loa UOp
+└ 0x2163a8 (__init_tls) [3 registers]
+  ├ X0 <- XZR log X19
+  ├ [<X21> + 8*Imm(0)]_64 <- X8 sto X21 sto Imm(0)
+  ├ [<X20> + 8*Imm(24)]_64 <- X21 sto X20 sto Imm(24)
+  ├ [<X20> + 8*Imm(0)]_64 <- X20 sto X20 sto Imm(0)
+  ├ LR <- PC lin LR lin UOp
+  ├ PC <- PC lin UOp
+  ├ END
+└ 0x2163c8 (__init_tls) [0 registers]
+  ├ Unsupported: TBNZW
+  ├ END
+└ 0x2163cc (__init_tls) [0 registers]
+  ├ Unsupported: CBNZW
+  ├ END
+└ 0x2163d0 (__init_tls) [1 registers]
+  ├ X8 <- PC
+  ├ W9 <- Imm(1)
+  ├ [<X8> + 1*UOp]_8 <- W9 sto X8 sto UOp
+└ 0x2163e0 (__init_tls) [1 registers]
+  ├ W8 <- Imm(2)
+  ├ X0 <- PC
+  ├ X0 <- X0 add UOp add C
+  ├ NZCV <- X0 add UOp add C
+  ├ [<X20> + 4*Imm(10)]_32 <- W8 sto X20 sto Imm(10)
+  ├ W8 <- Imm(96)
+  ├ X9 <- PC
+  ├ X9 <- X9 add UOp add C
+  ├ NZCV <- X9 add UOp add C
+  ├ SVC
+  ├ END
+└ 0x216404 (__init_tls) [7 registers]
+  ├ X8 <- X20 add Imm(120) add C
+  ├ NZCV <- X20 add Imm(120) add C
+  ├ [<X20> + 8*Imm(19)]_64 <- X9 sto X20 sto Imm(19)
+  ├ [<X20> + 4*Imm(8)]_32 <- W0 sto X20 sto Imm(8)
+  ├ [<X20> + 8*Imm(15)]_64 <- X8 sto X20 sto Imm(15)
+  ├ X8 <- PC
+  ├ X8 <- [<X8> + 8*UOp]_64 loa X8 loa UOp
+  ├ [<X20> + 8*Imm(1)]_64 <- X20 sto X20 sto Imm(1)
+  ├ [<X20> + 8*Imm(2)]_64 <- X20 sto X20 sto Imm(2)
+  ├ [<X20> + 8*Imm(2) + 64]_64 <- X8 sto X20 sto Imm(2)
+  ├ PC <- PC bra UOp
+  ├ END
+└ 0x216440 (__init_tls) [1 registers]
+  ├ X8 <- Imm(0)
+  ├ [<X8> + 1*Imm(0)]_8 <- WZR sto X8 sto Imm(0)
+└ 0x21644c (__init_tls) [0 registers]
+  ├ X20 <- [<SP> + 8*Imm(4)]_64 loa SP loa Imm(4)
+  ├ X19 <- [<SP> + 8*Imm(4) + 64]_64 loa SP loa Imm(4)
+  ├ X22 <- [<SP> + 8*Imm(2)]_64 loa SP loa Imm(2)
+  ├ X21 <- [<SP> + 8*Imm(2) + 64]_64 loa SP loa Imm(2)
+  ├ LR <- [<SP> + 8*Imm(6)]_64 loa SP loa Imm(6)
+  ├ X23 <- [<SP> + 8*Imm(6) + 64]_64 loa SP loa Imm(6)
+  ├ SP <- SP loa Imm(6)
+  ├ PC <- PC ret LR
+  ├ END
+└ 0x21645c (__stdio_exit) [0 registers]
+  ├ PC <- PC ret LR
+  ├ END
+└ 0x216460 (__libc_exit_fini) [2 registers]
+  ├ [<SP> + 8*Imm(-32)]_64 <- LR sto SP sto Imm(-32)
+  ├ SP <- SP sto Imm(-32)
+  ├ [<SP> + 8*Imm(2)]_64 <- X20 sto SP sto Imm(2)
+  ├ [<SP> + 8*Imm(2) + 64]_64 <- X19 sto SP sto Imm(2)
+  ├ X19 <- PC
+  ├ X8 <- PC
+  ├ X19 <- [<X19> + 8*UOp]_64 loa X19 loa UOp
+  ├ X8 <- [<X8> + 8*UOp]_64 loa X8 loa UOp
+  ├ XZR <- X8 sub X19
+  ├ NZCV <- X8 sub X19
+  ├ PC <- PC bra UOp bra Z bra C
+  ├ END
+└ 0x216488 (__libc_exit_fini) [1 registers]
+  ├ X20 <- PC
+  ├ X20 <- [<X20> + 8*UOp]_64 loa X20 loa UOp
+└ 0x216494 (__libc_exit_fini) [1 registers]
+  ├ X8 <- [<X20> + 8*Imm(-8)]_64 loa X20 loa Imm(-8)
+  ├ X20 <- X20 loa Imm(-8)
+  ├ LR <- PC lin LR lin X8
+  ├ PC <- PC lin X8
+  ├ END
+└ 0x2164a0 (__libc_exit_fini) [0 registers]
+  ├ XZR <- X20 sub X19
+  ├ NZCV <- X20 sub X19
+  ├ PC <- PC bra UOp bra Z bra C
+  ├ END
+└ 0x2164a8 (__libc_exit_fini) [0 registers]
+  ├ X20 <- [<SP> + 8*Imm(2)]_64 loa SP loa Imm(2)
+  ├ X19 <- [<SP> + 8*Imm(2) + 64]_64 loa SP loa Imm(2)
+  ├ LR <- [<SP> + 8*Imm(32)]_64 loa SP loa Imm(32)
+  ├ SP <- SP loa Imm(32)
+  ├ Unsupported: TCRETURNdi
+  ├ END
+└ 0x2164b4 (exit) [1 registers]
+  ├ [<SP> + 8*Imm(-2)]_64 <- LR sto SP sto Imm(-2)
+  ├ [<SP> + 8*Imm(-2) + 64]_64 <- X19 sto SP sto Imm(-2)
+  ├ SP <- SP sto Imm(-2)
+  ├ X9 <- PC
+  ├ X9 <- X9 add UOp add C
+  ├ NZCV <- X9 add UOp add C
+  ├ W8 <- [<X8> + Imm(-168)]_32 loa X8 loa Imm(-168)
+└ 0x2164cc (exit) [0 registers]
+  ├ Unsupported: CBNZW
+  ├ END
+└ 0x2164d4 (exit) [0 registers]
+  ├ Unsupported: CBNZW
+  ├ END
+└ 0x2164dc (exit) [0 registers]
+  ├ Unsupported: CBNZW
+  ├ END
+└ 0x2164e0 (exit) [1 registers]
+  ├ X8 <- Imm(0)
+  ├ [<X8> + 1*Imm(0)]_8 <- WZR sto X8 sto Imm(0)
+└ 0x2164ec (exit) [0 registers]
+  ├ W19 <- WZR log W0
+  ├ LR <- PC lin LR lin UOp
+  ├ PC <- PC lin UOp
+  ├ END
+└ 0x2164f4 (exit) [0 registers]
+  ├ LR <- PC lin LR lin UOp
+  ├ PC <- PC lin UOp
+  ├ END
+└ 0x2164f8 (exit) [0 registers]
+  ├ LR <- PC lin LR lin UOp
+  ├ PC <- PC lin UOp
+  ├ END
+└ 0x2164fc (exit) [0 registers]
+  ├ W0 <- WZR log W19
+  ├ LR <- PC lin LR lin UOp
+  ├ PC <- PC lin UOp
+  ├ END
+└ 0x216504 (exit) [0 registers]
+  ├ WZR <- W10 sub W8
+  ├ NZCV <- W10 sub W8
+  ├ PC <- PC bra UOp bra Z
+  ├ END
+└ 0x216510 (exit) [0 registers]
+  ├ X1 <- Imm(0)
+  ├ X2 <- Imm(0)
+  ├ X3 <- Imm(0)
+└ 0x21651c (exit) [0 registers]
+  ├ X0 <- Imm(0)
+  ├ W8 <- Imm(73)
+  ├ SVC
+  ├ END
+└ 0x216528 (exit) [0 registers]
+  ├ PC <- PC bra UOp
+  ├ END
+└ 0x21652c (_Exit) [0 registers]
+  ├ Unsupported: SBFMXri
+  ├ W8 <- Imm(94)
+  ├ X0 <- XZR log X9
+  ├ SVC
+  ├ END
+└ 0x21653c (_Exit) [0 registers]
+  ├ X0 <- XZR log X9
+  ├ W8 <- Imm(93)
+  ├ SVC
+  ├ END
+└ 0x216548 (_Exit) [0 registers]
+  ├ PC <- PC bra UOp
+  ├ END
+└ 0x21678c (__set_thread_area) [0 registers]
+  ├ TPIDR_EL0 <- X0
+  ├ W0 <- Imm(0)
+  ├ PC <- PC ret LR
+  ├ END
+└ 0x216798 (secure_function) [0 registers]
+  ├ [<SP> + 8*Imm(-2)]_64 <- FP sto SP sto Imm(-2)
+  ├ [<SP> + 8*Imm(-2) + 64]_64 <- LR sto SP sto Imm(-2)
+  ├ SP <- SP sto Imm(-2)
+  ├ FP <- SP add Imm(0) add C
+  ├ NZCV <- SP add Imm(0) add C
+  ├ W0 <- Imm(0)
+  ├ LR <- PC lin LR lin UOp
+  ├ PC <- PC lin UOp
+  ├ END
+└ 0x2167a8 (force_frame) [0 registers]
+  ├ PC <- PC ret LR
+  ├ END
+└ 0x2167ac (vulnerable) [0 registers]
+  ├ SP <- SP sub Imm(32)
+  ├ [<SP> + 8*Imm(2)]_64 <- FP sto SP sto Imm(2)
+  ├ [<SP> + 8*Imm(2) + 64]_64 <- LR sto SP sto Imm(2)
+  ├ FP <- SP add Imm(16) add C
+  ├ NZCV <- SP add Imm(16) add C
+  ├ LR <- PC lin LR lin UOp
+  ├ PC <- PC lin UOp
+  ├ END
+└ 0x2167bc (vulnerable) [0 registers]
+  ├ W0 <- Imm(0)
+  ├ X1 <- SP add Imm(8) add C
+  ├ NZCV <- SP add Imm(8) add C
+  ├ X2 <- Imm(32)
+  ├ LR <- PC lin LR lin UOp
+  ├ PC <- PC lin UOp
+  ├ END
+└ 0x2167cc (vulnerable) [0 registers]
+  ├ FP <- [<SP> + 8*Imm(2)]_64 loa SP loa Imm(2)
+  ├ LR <- [<SP> + 8*Imm(2) + 64]_64 loa SP loa Imm(2)
+  ├ SP <- SP add Imm(32) add C
+  ├ NZCV <- SP add Imm(32) add C
+  ├ PC <- PC ret LR
+  ├ END
+└ 0x2167d8 (main) [0 registers]
+  ├ SP <- SP sub Imm(32)
+  ├ [<SP> + 8*Imm(2)]_64 <- FP sto SP sto Imm(2)
+  ├ [<SP> + 8*Imm(2) + 64]_64 <- LR sto SP sto Imm(2)
+  ├ FP <- SP add Imm(16) add C
+  ├ NZCV <- SP add Imm(16) add C
+  ├ [<FP> + Imm(-4)]_32 <- WZR sto FP sto Imm(-4)
+  ├ LR <- PC lin LR lin UOp
+  ├ PC <- PC lin UOp
+  ├ END
+└ 0x2167f0 (main) [0 registers]
+  ├ W0 <- Imm(1)
+  ├ FP <- [<SP> + 8*Imm(2)]_64 loa SP loa Imm(2)
+  ├ LR <- [<SP> + 8*Imm(2) + 64]_64 loa SP loa Imm(2)
+  ├ SP <- SP add Imm(32) add C
+  ├ NZCV <- SP add Imm(32) add C
+  ├ PC <- PC ret LR
+  ├ END
+└ 0x216800 (read) [0 registers]
+  ├ [<SP> + 8*Imm(-16)]_64 <- LR sto SP sto Imm(-16)
+  ├ SP <- SP sto Imm(-16)
+  ├ Unsupported: SBFMXri
+  ├ X3 <- XZR log X2
+  ├ X2 <- XZR log X1
+  ├ W0 <- Imm(63)
+  ├ X4 <- Imm(0)
+  ├ X5 <- Imm(0)
+  ├ X1 <- XZR log X8
+  ├ X6 <- Imm(0)
+  ├ LR <- PC lin LR lin UOp
+  ├ PC <- PC lin UOp
+  ├ END
+└ 0x216828 (read) [0 registers]
+  ├ LR <- [<SP> + 8*Imm(16)]_64 loa SP loa Imm(16)
+  ├ SP <- SP loa Imm(16)
+  ├ Unsupported: TCRETURNdi
+  ├ END
+└ 0x216830 (__syscall_cp_c) [0 registers]
+  ├ X8 <- XZR log X0
+  ├ X0 <- XZR log X1
+  ├ X1 <- XZR log X2
+  ├ X2 <- XZR log X3
+  ├ X3 <- XZR log X4
+  ├ X4 <- XZR log X5
+  ├ X5 <- XZR log X6
+  ├ SVC
+  ├ END
+└ 0x216850 (__syscall_cp_c) [0 registers]
+  ├ PC <- PC ret LR
+  ├ END
+└ 0x216854 (__syscall_cp) [0 registers]
+  ├ Unsupported: TCRETURNdi
+  ├ END
+└ 0x216858 (__syscall_ret) [0 registers]
+  ├ XZR <- X0 ari Imm(4095)
+  ├ NZCV <- X0 ari Imm(4095)
+  ├ PC <- PC bra UOp bra C
+  ├ END
+└ 0x216860 (__syscall_ret) [0 registers]
+  ├ [<SP> + 8*Imm(-2)]_64 <- LR sto SP sto Imm(-2)
+  ├ [<SP> + 8*Imm(-2) + 64]_64 <- X19 sto SP sto Imm(-2)
+  ├ SP <- SP sto Imm(-2)
+  ├ W19 <- WZR sub W0
+  ├ LR <- PC lin LR lin UOp
+  ├ PC <- PC lin UOp
+  ├ END
+└ 0x21686c (__syscall_ret) [1 registers]
+  ├ X8 <- XZR log X0
+  ├ X0 <- Imm(0)
+  ├ [<X8> + 4*Imm(0)]_32 <- W19 sto X8 sto Imm(0)
+  ├ LR <- [<SP> + 8*Imm(2)]_64 loa SP loa Imm(2)
+  ├ X19 <- [<SP> + 8*Imm(2) + 64]_64 loa SP loa Imm(2)
+  ├ SP <- SP loa Imm(2)
+└ 0x216880 (__syscall_ret) [0 registers]
+  ├ PC <- PC ret LR
+  ├ END
+└ 0x216884 (__errno_location) [0 registers]
+  ├ X0 <- X8 sub Imm(164)
+  ├ PC <- PC ret LR
+  ├ END
