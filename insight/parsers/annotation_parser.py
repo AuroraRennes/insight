@@ -84,7 +84,7 @@ class AnnotationParseInfo:
 
 class AnnotationParser:
     # Note: ?P<value> lets us define named value to be extracted from the matched group
-    OPE_RE = re.compile(r"(?P<op>ari|add|sub|sto|loa|bra)")
+    OPE_RE = re.compile(r"(?P<op>ari|add|sub|sto|loa|bra|ret)")
     IMM_RE = re.compile(r"Imm\((?P<value>-?\d+)\)")
     REG_RE = re.compile(r"(?P<name>[A-Z0-9]+)")
     MEM_RE = re.compile(

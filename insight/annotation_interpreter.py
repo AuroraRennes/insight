@@ -250,6 +250,11 @@ class AnnotationInterpreter:
         else:
             raise UnknownSPUpdateError(assignment.raw_annot)
 
+    # SVC Capture
+    # \___________
+
+    def check_svc(self, bb_offset: int) -> None: ...
+
     # Tag Access
     # \___________
 

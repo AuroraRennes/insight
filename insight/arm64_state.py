@@ -1,7 +1,7 @@
 import logging
 from typing import ClassVar
 
-from insight.exceptions import NegativeAddressError, UndefinedRegisterError
+from insight.exceptions import ControlFlowRuleBrokenError, NegativeAddressError, UndefinedRegisterError
 from insight.helpers import COLOG
 
 logger = logging.getLogger("insight")
@@ -111,10 +111,13 @@ class ARM64State:
                     f"{hex(aligned_addr)}, setting tag 0"
                 )
                 self.memory_write(aligned_addr, size, 0)
-            result = result << aligned_addr | self.memory[aligned_addr]
+            result = result | self.memory[aligned_addr]
         return result
 
     # Rules configuration and checking
     # \___________________________________
 
-    def check_tag_rules(self) -> None: ...
+    def check_tag_rules(self) -> None:
+        for cf_register in ["LR", "PC"]:
+            if self.read_register(cf_register) == 1:
+                raise ControlFlowRuleBrokenError(cf_register)

@@ -251,3 +251,15 @@ class BrokenRuleError(StateError):
 class NegativeAddressError(StateError):
     def __init__(self, address: int) -> None:
         super().__init__(f"Trying to access negative address {hex(address)}")
+
+
+# Tag checking rules /
+
+
+class TagCheckingRuleError(Exception):
+    pass
+
+
+class ControlFlowRuleBrokenError(TagCheckingRuleError):
+    def __init__(self, register: str) -> None:
+        super().__init__(f"Tag 1 set in register {register}, control-flow hijacking detected.")
