@@ -97,7 +97,8 @@ class PacketParser:
         # Synchronization packets
         "I_TRACE_ON": ParseInfo("parse_trace_on", ""),
         **dict.fromkeys(["I_ASYNC", "ASYNC"], ParseInfo("parse_async", "")),
-        "NOTSYNC": ParseInfo("parse_notsync", ""),
+        **dict.fromkeys(["NOTSYNC", "I_NOT_SYNC"], ParseInfo("parse_notsync", "")),
+        "I_OVERFLOW": ParseInfo("parse_overflow", ""),
         "END": ParseInfo("parse_end", ""),
         # STM packets
         "NULL": ParseInfo("parse_null", ""),
@@ -265,6 +266,9 @@ class PacketParser:
         else:
             raise NoMatchingDescriptionError
         return ExceptionPacket.exception(packet_info=packet_info, description=description)
+
+    def parse_overflow(self, packet_info: PacketInfo, **kwargs: dict[str, Any]) -> ExceptionPacket:
+        return ExceptionPacket.overflow(packet_info=packet_info)
 
     # STM packets /
 

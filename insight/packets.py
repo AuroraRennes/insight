@@ -110,6 +110,10 @@ class ExceptionPacket(Packet):
     def exception(cls, packet_info: PacketInfo, description: str) -> ExceptionPacket:
         return cls(name="Exception", packet_info=packet_info, description=description)
 
+    @classmethod
+    def overflow(cls, packet_info: PacketInfo) -> ExceptionPacket:
+        return cls(name="Overflow", packet_info=packet_info, description="overflow")
+
 
 # Address Packets
 # \________________

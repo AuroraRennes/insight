@@ -94,7 +94,7 @@ class AnnotationParser:
         \s*\+\s*                    # +
         ((?P<scale>\d+)\*)?       # Scale (2, 4, 8)
         (?P<offset><[A-Z0-9]+>|Imm\(-?\d+\)|UOp)  # Offset register or immediate (or uop)
-        (?:\s+(?P<shiftop>uxtx|uxtw|sxtx|sxtw)\s+(?P<shiftval>2|4|8))?  # Optional shift
+        (?:\s+(?P<shiftop>uxtx|uxtw|sxtx|sxtw)\s+(?P<shiftval>[0-9]))?  # Optional shift
         (\s*\+\s*((?P<pairoffset>[0-9]*)))? # Optional pair offset
         \]_                         # Closing bracket
         (?P<accesssize>\d+)         # Access size (e.g., 32)

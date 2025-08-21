@@ -130,6 +130,7 @@ class AnnotationInterpreter:
                 f"{hex(bb_offset)} ({function_name})"
             )
             self.interpret_block(bb_assignments)
+            self.check_svc(bb_offset)
             falled_through = False
 
             # If it is not ending with an END annotation, fall through the next annotations
@@ -190,6 +191,7 @@ class AnnotationInterpreter:
                 f"{hex(bb_offset)} ({self.annotation_dict[bb_offset].function_name})"
             )
             self.interpret_block(bb_assignments)
+            self.check_svc(bb_offset)
         return bb_offset
 
     def interpret_block(self, assignments: list[Assignment]) -> None:
@@ -277,7 +279,7 @@ class AnnotationInterpreter:
         base_value: int
         if memory_access.base.is_sp():
             base_value = self.state.stack_value
-            logger.info(f"{COLOG['success']} \t├ 📚 SP State - Register value of SP")
+            logger.info(f"{COLOG['success']} \t├ 📚 SP State - Register value of SP ({hex(base_value)})")
         else:
             base_value = self.stm_addresses.dequeue()
             logger.info(
@@ -341,3 +343,31 @@ class AnnotationInterpreter:
                 offset_value = offset_value << shift_value
                 offset_value &= 0xFFFFFFFFFFFFFFFF  # Final 64-bit mask
         return offset_value
+
+
+if __name__ == "__main__":
+    from insight.elf_decoder import ELFDecoder
+    from insight.parsers.packet_parser import PacketParser
+
+    BIN_NAME = "automotive_bitcount"
+    ELF_FILE_PATH = "data/annotations/bin/" + BIN_NAME
+    TRACE_PATH = "data/annotations/bin/" + BIN_NAME + ".opencsd"
+
+    # Decode elf file and sections
+    elf_decoder: ELFDecoder = ELFDecoder()
+    elf_info: ELFInfo = elf_decoder.decode_elf_file(ELF_FILE_PATH)
+
+    # Parse packets into objects
+    packet_parser: PacketParser = PacketParser()
+    packets: list[Packet] = packet_parser.parse_opencsd_file(TRACE_PATH)
+    packets_dict: dict[int, list[Packet]] = {}
+    for packet in packets:
+        cpu = packet.packet_info.cpu_nb
+        if cpu in {0, 1, 2, 3, 10}:
+            packets_dict.setdefault(cpu, []).append(packet)
+
+    # Interpret both
+    interpreter: AnnotationInterpreter = AnnotationInterpreter(elf_info)
+    interpreter.interpret_packet_trace(packets_dict[10], 0)
+    interpreter.interpret_packet_trace(packets_dict[0], 0)
+    # interpreter.interpret_packet_trace(packets, 0)
