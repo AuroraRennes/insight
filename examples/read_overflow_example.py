@@ -15,7 +15,7 @@ class ROAnnotationInterpreter(AnnotationInterpreter):
         )
 
         # When reaching the next svc instruction, tag memory related to the x1 value
-        if function_name == "__syscall_cp_c":
+        if function_name == "read":
             x1_value: int = self.state.stack_value + 8
             self.state.memory_write(x1_value, 32, 1)
 
@@ -42,8 +42,9 @@ if __name__ == "__main__":
         if cpu in {0, 1, 2, 3, 10}:
             packets_dict.setdefault(cpu, []).append(packet)
 
-    # Interpret both
-    interpreter: ROAnnotationInterpreter = ROAnnotationInterpreter(elf_info)
-    interpreter.interpret_packet_trace(packets_dict[10], 0)
+    # Interpret both first STM then Core 0 packets
+    interpreter: AnnotationInterpreter = ROAnnotationInterpreter(elf_info)
+    interpreter.interpret_packet_trace(packets_dict[10], 0)  # STM
+
     with contextlib.suppress(TagCheckingRuleError):
-        interpreter.interpret_packet_trace(packets_dict[0], 0)
+        interpreter.interpret_packet_trace(packets_dict[0], 0)   # Core 0
