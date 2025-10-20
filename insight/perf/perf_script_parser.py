@@ -3,12 +3,12 @@ import re
 from io import TextIOWrapper
 from pathlib import Path
 
-from insight.basic_block import BasicBlock
-from insight.disassembler import Disassembler
+from insight.elf.disassembler import Disassembler
 from insight.exceptions import NoEndLineError, WrongStartLineError
-from insight.execution_trace import ExecutionTrace
 from insight.helpers import reverse_endianness32, string_to_bytes, string_to_int
-from insight.parsers.parser import Parser
+from insight.model.basic_block import BasicBlock
+from insight.model.execution_trace import ExecutionTrace
+from insight.perf.parser import Parser
 
 logger = logging.getLogger("insight")
 
@@ -61,13 +61,7 @@ class PerfScriptParser(Parser):
         "_fini",
     )
 
-    def __init__(self) -> None:
-        super().__init__(extension=".perf.script")
-
     def parse(self, file_name: str, *args: str, **kwargs: str) -> ExecutionTrace:
-        # Check extension
-        self.check_extension(file_name)
-
         # Execution trace initialization
         exec_trace = ExecutionTrace(address_trace=[], basic_blocks={})
 

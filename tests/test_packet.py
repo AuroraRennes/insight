@@ -1,6 +1,6 @@
 import pytest
 
-from insight.packets import AtomPacket, PacketInfo
+from insight.model.packets import AtomPacket, PacketInfo
 
 
 @pytest.fixture

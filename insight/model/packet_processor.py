@@ -3,12 +3,12 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
-from insight.basic_block import BasicBlock
 from insight.constants import AVOIDED_FUNC_NAMES
-from insight.disassembler import Disassembler
-from insight.execution_trace import ExecutionTrace
-from insight.packets import AddressPacket, AtomPacket, Packet
-from insight.parsers.objdump_parser import FunctionDict, FunctionInfo
+from insight.elf.disassembler import Disassembler
+from insight.elf.objdump_parser import FunctionDict, FunctionInfo
+from insight.model.basic_block import BasicBlock
+from insight.model.execution_trace import ExecutionTrace
+from insight.model.packets import AddressPacket, AtomPacket, Packet
 
 logger = logging.getLogger("insight")
 

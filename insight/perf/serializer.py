@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from insight.constants import DATA_JSON, DATA_TESSLA
-from insight.execution_trace import ExecutionTrace
+from insight.model.execution_trace import ExecutionTrace
 
 logger = logging.getLogger("insight")
 

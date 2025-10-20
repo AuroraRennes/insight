@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 from insight.helpers import COLOG
 
 if TYPE_CHECKING:
-    from insight.annotation_interpreter import AnnotationInterpreter
+    from insight.annotations.annotation_interpreter import AnnotationInterpreter
 
 
 from insight.exceptions import (

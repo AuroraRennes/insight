@@ -1,7 +1,7 @@
 import pytest
 
-from insight.basic_block import BasicBlock
-from insight.execution_trace import ExecutionTrace
+from insight.model.basic_block import BasicBlock
+from insight.model.execution_trace import ExecutionTrace
 
 MAIN_ADDRESS = 0x100
 

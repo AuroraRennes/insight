@@ -3,9 +3,9 @@ from typing import TYPE_CHECKING
 import pytest
 
 from insight.exceptions import ShadowStackError
-from insight.parsers.perf_report_parser import PerfReportParser
-from insight.parsers.perf_script_parser import PerfScriptParser
-from insight.verifiers.shadow_stack_verifier import ShadowStackVerifier
+from insight.perf.perf_report_parser import PerfReportParser
+from insight.perf.perf_script_parser import PerfScriptParser
+from insight.perf.verifiers.shadow_stack_verifier import ShadowStackVerifier
 from tests.conftest import (
     DUMP_FILES,
     PERF_BASE_REPORT_FILES,
@@ -16,7 +16,7 @@ from tests.conftest import (
 )
 
 if TYPE_CHECKING:
-    from insight.execution_trace import ExecutionTrace
+    from insight.model.execution_trace import ExecutionTrace
 
 
 @pytest.mark.parametrize(

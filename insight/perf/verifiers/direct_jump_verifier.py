@@ -1,13 +1,13 @@
 import logging
 from typing import TYPE_CHECKING
 
-from insight.disassembler import Disassembler
+from insight.elf.disassembler import Disassembler
 from insight.exceptions import DirectJumpError
-from insight.execution_trace import ExecutionTrace
-from insight.verifiers.verifier import Verifier
+from insight.model.execution_trace import ExecutionTrace
+from insight.perf.verifiers.verifier import Verifier
 
 if TYPE_CHECKING:
-    from insight.basic_block import BasicBlock
+    from insight.model.basic_block import BasicBlock
 
 
 logger = logging.getLogger("insight")

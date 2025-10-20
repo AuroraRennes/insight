@@ -4,20 +4,14 @@ from dataclasses import dataclass
 from io import TextIOWrapper
 from pathlib import Path
 
-from insight.exceptions import (
-    PacketParserError,
-    PerfParserError,
-    TraceSizeError,
-)
-from insight.execution_trace import ExecutionTrace
+from insight.elf.objdump_parser import FunctionDict, ObjdumpParser
+from insight.exceptions import PacketParserError, PerfParserError, TraceSizeError
 from insight.helpers import string_to_int
-from insight.packet_processor import PacketProcessor
-from insight.packets import (
-    Packet,
-)
-from insight.parsers.objdump_parser import FunctionDict, ObjdumpParser
-from insight.parsers.packet_parser import PacketParser
-from insight.parsers.parser import Parser
+from insight.model.execution_trace import ExecutionTrace
+from insight.model.packet_parser import PacketParser
+from insight.model.packet_processor import PacketProcessor
+from insight.model.packets import Packet
+from insight.perf.parser import Parser
 
 logger = logging.getLogger("insight")
 
@@ -57,18 +51,12 @@ class PerfReportParser(Parser):
     PROGRAM_MEM_SIZE: int = 0x10000
     TRACE_START_LINE_REGEX: str = r"\. \.\.\. CoreSight ETMV4I Trace data: size (?P<trace_size>0x\w+) bytes"
 
-    def __init__(self) -> None:
-        super().__init__(extension=".perf.report")
-
     def parse(self, file_name: str, *args: str, **kwargs: str) -> ExecutionTrace:
         try:
             dump_file_name: str = kwargs["dump_file_name"]
         except KeyError:
             logger.exception("[-] Missing file dump.")
             raise
-
-        # Check extension
-        self.check_extension(file_name)
 
         # Main parsing function
         try:

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Any, NamedTuple
 
-from insight.basic_block import BasicBlock
-from insight.disassembler import Disassembler
+from insight.elf.disassembler import Disassembler
+from insight.model.basic_block import BasicBlock
 
 
 class AddressTrace(NamedTuple):

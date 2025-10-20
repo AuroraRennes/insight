@@ -4,13 +4,15 @@ import sys
 from pathlib import Path
 
 from insight.exceptions import VerifierError
-from insight.execution_trace import ExecutionTrace
 from insight.helpers import COLOG
-from insight.parsers.parser import Parser
-from insight.serializer import Serializer
-from insight.verifiers.direct_jump_verifier import DirectJumpVerifier
-from insight.verifiers.shadow_stack_verifier import ShadowStackVerifier
-from insight.verifiers.verifier import Verifier
+from insight.model.execution_trace import ExecutionTrace
+from insight.perf.parser import Parser
+from insight.perf.perf_report_parser import PerfReportParser
+from insight.perf.perf_script_parser import PerfScriptParser
+from insight.perf.serializer import Serializer
+from insight.perf.verifiers.direct_jump_verifier import DirectJumpVerifier
+from insight.perf.verifiers.shadow_stack_verifier import ShadowStackVerifier
+from insight.perf.verifiers.verifier import Verifier
 
 logger = logging.getLogger("insight")
 
@@ -18,6 +20,8 @@ VERIFIERS: dict[str, type[Verifier]] = {
     "shadow-stack": ShadowStackVerifier,
     "direct-jump": DirectJumpVerifier,
 }
+
+PARSERS: dict[str, type[Parser]] = {"perf.report": PerfReportParser, "perf.script": PerfScriptParser}
 
 
 class ArgParser(argparse.ArgumentParser):
@@ -79,8 +83,7 @@ class ArgParser(argparse.ArgumentParser):
 
     def get_parser_from_extension(self, extension: str) -> Parser:
         try:
-            method_name: str = f"for{extension.replace('.', '_')}"
-            parser: Parser = getattr(Parser, method_name)()
+            parser: Parser = PARSERS[extension]()
         except AttributeError:
             logger.exception(
                 f"Parser not defined for extension '{extension}'(or not propagated in the 'Parser' class)"

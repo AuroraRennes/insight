@@ -19,7 +19,7 @@ from insight.exceptions import (
     WrongSizeAtomPacketError,
 )
 from insight.helpers import string_to_int
-from insight.packets import (
+from insight.model.packets import (
     AddressContextPacket,
     AddressPacket,
     AtomPacket,

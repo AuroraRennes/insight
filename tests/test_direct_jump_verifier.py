@@ -2,12 +2,12 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from insight.parsers.perf_script_parser import PerfScriptParser
-from insight.verifiers.direct_jump_verifier import DirectJumpVerifier
+from insight.perf.perf_script_parser import PerfScriptParser
+from insight.perf.verifiers.direct_jump_verifier import DirectJumpVerifier
 from tests.conftest import PERF_BASE_SCRIPT_FILES, PERF_BB_SCRIPT_FILES
 
 if TYPE_CHECKING:
-    from insight.execution_trace import ExecutionTrace
+    from insight.model.execution_trace import ExecutionTrace
 
 
 @pytest.mark.parametrize(
