@@ -24,6 +24,20 @@ class Packet:
         pass
 
 
+# Unknown Packets
+# \________________
+
+
+class UnknownPacket(Packet):
+    def __init__(self, index: int) -> None:
+        super().__init__(name="Unknown", packet_info=PacketInfo(index=index, vmid=0, header=0, cpu_nb=0))
+
+
+class IncompletePacket(Packet):
+    def __init__(self, index: int) -> None:
+        super().__init__(name="Incomplete", packet_info=PacketInfo(index=index, vmid=0, header=0, cpu_nb=0))
+
+
 # Synchronization Packets
 # \________________________
 
@@ -45,6 +59,10 @@ class SynchronizationPacket(Packet):
     @classmethod
     def end(cls, packet_info: PacketInfo) -> SynchronizationPacket:
         return cls(name="End Trace", packet_info=packet_info)
+
+    @classmethod
+    def resynchronization(cls, packet_info: PacketInfo) -> SynchronizationPacket:
+        return cls(name="Resynchronization", packet_info=packet_info)
 
 
 # Info/Version/
@@ -111,8 +129,22 @@ class ExceptionPacket(Packet):
         return cls(name="Exception", packet_info=packet_info, description=description)
 
     @classmethod
+    def return_exception(cls, packet_info: PacketInfo) -> ExceptionPacket:
+        return cls(name="Return Exception", packet_info=packet_info, description="return from exception")
+
+    @classmethod
     def overflow(cls, packet_info: PacketInfo) -> ExceptionPacket:
         return cls(name="Overflow", packet_info=packet_info, description="overflow")
+
+
+# Timestamp packets
+# \_________________
+
+
+class TimestampPacket(Packet):
+    def __init__(self, packet_info: PacketInfo, timestamp: int) -> None:
+        super().__init__(name="Timestamp", packet_info=packet_info)
+        self.timestamp = timestamp
 
 
 # Address Packets
@@ -141,8 +173,8 @@ class AddressPacket(Packet):
         return cls(name="Long Address 32bit IS0", packet_info=packet_info, address=address)
 
 
-# Address with Context Packets
-# \______________________________
+# Context Packets
+# \________________
 
 
 @dataclass
@@ -152,10 +184,20 @@ class Context:
     security_state: str  # Secure/S or Not Secure/NS
 
 
+class ContextPacket(Packet):
+    def __init__(self, name: str, packet_info: PacketInfo, context: Context) -> None:
+        super().__init__(name=name, packet_info=packet_info)
+        self.context_info: Context = context
+
+    @classmethod
+    def context(cls, packet_info: PacketInfo, context: Context) -> ContextPacket:
+        return cls(name="Context", packet_info=packet_info, context=context)
+
+
 class AddressContextPacket(AddressPacket):
     def __init__(self, name: str, packet_info: PacketInfo, address: int, context: Context) -> None:
         super().__init__(name=name, packet_info=packet_info, address=address)
-        self.context: Context = context
+        self.context_info: Context = context
 
     @classmethod
     def addr_ctxt_l_64is0(

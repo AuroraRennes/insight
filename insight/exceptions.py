@@ -204,6 +204,9 @@ class WrongAssignmentError(AnnotationParsingError):
         super().__init__(f"Multiple '<-' found, are the annotations correctly formatted? {line}")
 
 
+# Runtime exceptions
+# \___________________
+
 # Interpretation /
 
 
@@ -263,3 +266,21 @@ class TagCheckingRuleError(Exception):
 class ControlFlowRuleBrokenError(TagCheckingRuleError):
     def __init__(self, register: str) -> None:
         super().__init__(f"Tag 1 set in register {register}, control-flow hijacking detected.")
+
+
+# Trace decoder exceptions
+# \___________________________
+
+
+class DecoderError(Exception):
+    pass
+
+
+class HeaderNotRecognizedError(DecoderError):
+    def __init__(self, header: int) -> None:
+        super().__init__(f"Header {bin(header)} not recognized.")
+
+
+class UnimplementedSectionError(DecoderError):
+    def __init__(self, section: str) -> None:
+        super().__init__(f"Trace info packet section {section} decoding is not implemented.")
