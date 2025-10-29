@@ -65,6 +65,7 @@ class PacketParser:
 
     # Address packets
     ADDR_REGEX: str = r"Addr=(?P<address>0x\w+)"  # Address, in address    ...; Addr=0xFFFF800008AA4BE0;
+    # TODO: Catch cid and update attribute
     CTXT_REGEX: str = r"Ctxt: (?P<context>[,\s\w]*)"  # Context, in address    ...; Ctxt: AArch64,EL0, NS;
     # Atom packets
     ELTS_REGEX: str = r"(?P<atom_elements>[EN]+)"  # Basic blocks, in atoms ...;  Atom format 3.; ENE
@@ -112,6 +113,9 @@ class PacketParser:
         ),
     }
 
+    def __init__(self) -> None:
+        self.cid = 0
+
     # Main parsing
     # \_______________
 
@@ -125,24 +129,20 @@ class PacketParser:
             sys.exit(1)
         return packets
 
-    def parse_packet(self, line: str, cpu_nb: int | None = None) -> Packet:
+    def parse_packet(self, line: str) -> Packet:
         match_line: re.Match[str] | None = re.search(PacketParser.PACKET_BASE_REGEX, line)
         if not match_line:
             raise NoPacketMatchError(line)
         group: dict[str, str] = match_line.groupdict()
 
-        # if cpu_nb is None, use the id - 10 or stm
-        # TODO: put in a function, explain
-        if cpu_nb is None:
-            cpu_nb = int(group["id"]) - 10
-
         index: int = int(group["index"]) if group["index"] else (1 << 64)
 
         packet_info: PacketInfo = PacketInfo(
             index=index,
-            vmid=int(group["id"]),
-            header=0x0,  # No header as it is already disassembled by perf
-            cpu_nb=cpu_nb,
+            vmid=0,  # No VMID in our traces
+            cid=self.cid,
+            sid=int(group["id"], 16),
+            size=0,  # Size unknown while parsing here
         )
 
         packet_name: str = group["name"]

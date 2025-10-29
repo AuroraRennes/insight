@@ -7,10 +7,11 @@ from insight.helpers import format_to
 
 @dataclass
 class PacketInfo:
-    index: int
-    vmid: int  # FIXME: VMID? CID?
-    header: int
-    cpu_nb: int
+    index: int  # Index of the packet in the trace
+    vmid: int  # Virtual memory id, from context packet
+    cid: int  # Context id, from context packet
+    sid: int  # Trace source id, from deformatter
+    size: int  # Packet size
 
 
 class Packet:
@@ -29,13 +30,13 @@ class Packet:
 
 
 class UnknownPacket(Packet):
-    def __init__(self, index: int) -> None:
-        super().__init__(name="Unknown", packet_info=PacketInfo(index=index, vmid=0, header=0, cpu_nb=0))
+    def __init__(self, packet_info: PacketInfo) -> None:
+        super().__init__(name="Unknown", packet_info=packet_info)
 
 
 class IncompletePacket(Packet):
-    def __init__(self, index: int) -> None:
-        super().__init__(name="Incomplete", packet_info=PacketInfo(index=index, vmid=0, header=0, cpu_nb=0))
+    def __init__(self, packet_info: PacketInfo) -> None:
+        super().__init__(name="Incomplete", packet_info=packet_info)
 
 
 # Synchronization Packets

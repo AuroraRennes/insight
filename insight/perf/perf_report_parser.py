@@ -102,7 +102,7 @@ class PerfReportParser(Parser):
         match_line: re.Match[str] | None = re.search(PacketParser.PACKET_BASE_REGEX, line)
         while match_line:
             try:
-                packets.append(packet_parser.parse_packet(line, cpu_nb))
+                packets.append(packet_parser.parse_packet(line))
             except PacketParserError:
                 logger.exception("[-] Packet parsing failed.")
                 raise

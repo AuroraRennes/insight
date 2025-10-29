@@ -5,7 +5,7 @@ from insight.model.packets import AtomPacket, PacketInfo
 
 @pytest.fixture
 def default_packet_info() -> PacketInfo:
-    return PacketInfo(index=0, vmid=0, header=0xC0, cpu_nb=0)
+    return PacketInfo(index=0, vmid=0, cid=0, sid=0x10, size=1)
 
 
 def test_packet_initialization(default_packet_info):
