@@ -1,6 +1,10 @@
 from typing import ClassVar
 
-from insight.exceptions import HeaderNotRecognizedError, UnimplementedSectionError
+from insight.exceptions import (
+    HeaderNotRecognizedError,
+    UnimplementedAddressRegError,
+    UnimplementedSectionError,
+)
 from insight.model.packets import (
     AddressContextPacket,
     AddressPacket,
@@ -41,14 +45,30 @@ class Decoder:
         self.trace_size: int = len(trace_data)
         self.trace_offset: int = 0
         self.remaining_trace: int = self.trace_size - self.trace_offset
-        self.vmid: int
-        self.cid: int
-        self.sid: int
-        self.context: Context
-        self.address_reg: int
+        self.vmid: int = 0
+        self.cid: int = 0
+        self.sid: int = 0
+        self.context: Context = Context("undef", "undef", "undef")
+        self.address_regs: tuple[int, int, int] = (0, 0, 0)
 
     def update_sid(self, new_sid: int) -> None:
         self.sid = new_sid
+
+    def update_addresses(self, new_address: int) -> None:
+        self.address_regs = (new_address, self.address_regs[0], self.address_regs[1])
+
+    def reset_addresses(self) -> None:
+        self.address_regs = (0, 0, 0)
+
+    def decode_trace(self) -> list[Packet]:
+        packet_list: list[Packet] = []
+
+        while self.trace_offset < self.trace_size:
+            packet: Packet = self.decode_packet()
+            packet_list.append(packet)
+            self.trace_offset += packet.packet_info.size
+
+        return packet_list
 
     def decode_packet(self) -> Packet:  # noqa: C901, PLR0911, PLR0912
         # ruff disabled for this one, it is just a switch case......
@@ -91,6 +111,9 @@ class Decoder:
         # 64-bit IS0 long address and context packet header: 0b10000101
         if header == 0b10000101:
             return self.decode_address_long_64_is0_with_context_packet()
+
+        if header >> 2 == 0b100100:
+            return self.decode_address_exact_match_packet()
 
         # IS0 short address packet header: 0b10010101
         if header == 0b10010101:
@@ -148,7 +171,10 @@ class Decoder:
             return self.create_incomplete_packet()
 
         # Async packet: 10 bytes of 0x00 then one 0x80
-        if self.trace_data[self.trace_offset : self.trace_offset + 12] == 0x0000000000000000000080:
+        if (
+            self.trace_data[self.trace_offset : self.trace_offset + 12]
+            == b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80"
+        ):
             return SynchronizationPacket.asynch(
                 PacketInfo(
                     index=self.trace_offset, vmid=self.vmid, cid=self.cid, sid=self.sid, size=packet_size
@@ -165,7 +191,7 @@ class Decoder:
 
         # Continuation bit activated for the section PLCTL
         # Note: Not sure why this section might continue? The doc only talks about bits 0-3
-        while self.trace_data[packet_size - 1] & 0x80:
+        while self.trace_data[self.trace_offset + packet_size - 1] & 0x80:
             packet_size += 1
             # Check remaining data size
             if not self.check_remaining_trace(packet_size):
@@ -176,6 +202,10 @@ class Decoder:
 
         # INFO section
         if plctl_bits & 0x1:
+            packet_size += 1
+            if not self.check_remaining_trace(packet_size):
+                return self.create_incomplete_packet()
+
             # Extract information payload
             info_bits = self.trace_data[self.trace_offset + packet_size] & 0x1F
 
@@ -298,19 +328,20 @@ class Decoder:
         )
 
     def decode_address_long_64_is0_with_context_packet(self) -> Packet:
-        if not self.check_remaining_trace(10):
+        # 1 header + 8 address + 1 context info
+        packet_size: int = 10
+        if not self.check_remaining_trace(packet_size):
             return self.create_incomplete_packet()
 
         # Rebuild address
         address: int = self.extract_address(
-            raw_data=self.trace_data[self.trace_offset + 1 : self.trace_offset + 9]
+            raw_data=self.trace_data[self.trace_offset + 1 : self.trace_offset + packet_size - 1]
         )
-        self.address_reg = address
 
-        packet_size: int = 9
+        self.update_addresses(new_address=address)
 
         # Extract context values
-        byte_info: int = self.trace_data[self.trace_offset + 1]
+        byte_info: int = self.trace_data[self.trace_offset + packet_size - 1]
         context: Context = self.extract_context(byte_info=byte_info)
 
         # Check for virtual context id
@@ -318,7 +349,7 @@ class Decoder:
             packet_size += 4
             if not self.check_remaining_trace(packet_size):
                 return self.create_incomplete_packet()
-            self.vmid = int(
+            self.vmid = self.extract_id(
                 self.trace_data[self.trace_offset + packet_size - 4 : self.trace_offset + packet_size]
             )
 
@@ -327,7 +358,7 @@ class Decoder:
             packet_size += 4
             if not self.check_remaining_trace(packet_size):
                 return self.create_incomplete_packet()
-            self.cid = int(
+            self.cid = self.extract_id(
                 self.trace_data[self.trace_offset + packet_size - 4 : self.trace_offset + packet_size]
             )
 
@@ -341,7 +372,7 @@ class Decoder:
         if not self.check_remaining_trace(2):
             return self.create_incomplete_packet()
 
-        address: int = self.address_reg
+        address: int = self.address_regs[0]
         # Lower part extraction
         address = address & ~0x1FF
         address = address | ((self.trace_data[self.trace_offset + 1] & 0x7F) << 2)
@@ -355,7 +386,7 @@ class Decoder:
             address = address & ~0x1FE00
             address = address | (self.trace_data[self.trace_offset + 2] << 9)
 
-        self.address_reg = address
+        self.update_addresses(new_address=address)
 
         return AddressPacket.addr_s_is0(
             packet_info=self.create_packet_info(packet_size),
@@ -363,25 +394,30 @@ class Decoder:
         )
 
     def decode_address_long_64_is0_packet(self) -> Packet:
-        packet_size: int = 10
+        packet_size: int = 9
         if not self.check_remaining_trace(packet_size):
             return self.create_incomplete_packet()
 
         # Rebuild address
         address: int = self.extract_address(
-            raw_data=self.trace_data[self.trace_offset + 1 : self.trace_offset + 9]
+            raw_data=self.trace_data[self.trace_offset + 1 : self.trace_offset + packet_size]
         )
-        self.address_reg = address
+        self.update_addresses(address)
 
         return AddressPacket.addr_l_64is0(
             packet_info=self.create_packet_info(packet_size),
             address=address,
         )
 
+    def decode_address_exact_match_packet(self) -> Packet:
+        address_reg: int = self.trace_data[self.trace_offset] & 0b11
+
+        return AddressPacket.addr_match(self.create_packet_info(1), self.address_regs[address_reg])
+
     def decode_atom_f1_packet(self) -> Packet:
         # The list of elements is encoded in the header
         en_bits: int = self.trace_data[self.trace_offset] & 0b1
-        elements_list: list[str] = self.create_element_list(en_bits=en_bits)
+        elements_list: list[str] = self.create_element_list(en_bits=en_bits, bit_length=1)
 
         return AtomPacket.atom_format(
             packet_info=self.create_packet_info(1),
@@ -391,7 +427,7 @@ class Decoder:
     def decode_atom_f2_packet(self) -> Packet:
         # The list of elements is encoded in the header
         en_bits: int = self.trace_data[self.trace_offset] & 0b11
-        elements_list: list[str] = self.create_element_list(en_bits=en_bits)
+        elements_list: list[str] = self.create_element_list(en_bits=en_bits, bit_length=2)
 
         return AtomPacket.atom_format(
             packet_info=self.create_packet_info(1),
@@ -401,7 +437,7 @@ class Decoder:
     def decode_atom_f3_packet(self) -> Packet:
         # The list of elements is encoded in the header
         en_bits: int = self.trace_data[self.trace_offset] & 0b111
-        elements_list: list[str] = self.create_element_list(en_bits=en_bits)
+        elements_list: list[str] = self.create_element_list(en_bits=en_bits, bit_length=3)
 
         return AtomPacket.atom_format(
             packet_info=self.create_packet_info(1),
@@ -474,18 +510,21 @@ class Decoder:
 
     def extract_address(self, raw_data: bytearray) -> int:
         return (
-            raw_data[1] & 0x7F << 2
-            | raw_data[2] & 0x7F << 9
-            | raw_data[3] << 16
-            | raw_data[4] << 24
-            | raw_data[5] << 32
-            | raw_data[6] << 40
-            | raw_data[7] << 48
-            | raw_data[8] << 56
+            raw_data[0] & 0x7F << 2
+            | raw_data[1] & 0x7F << 9
+            | raw_data[2] << 16
+            | raw_data[3] << 24
+            | raw_data[4] << 32
+            | raw_data[5] << 40
+            | raw_data[6] << 48
+            | raw_data[7] << 56
         )
 
-    def create_element_list(self, en_bits: int) -> list[str]:
-        elements_list: list[str] = ["E" if (en_bits >> i) & 1 else "N" for i in range(en_bits.bit_length())]
+    def extract_id(self, raw_data: bytearray) -> int:
+        return raw_data[0] | raw_data[1] << 8 | raw_data[2] << 16 | raw_data[3] << 24
+
+    def create_element_list(self, en_bits: int, bit_length: int) -> list[str]:
+        elements_list: list[str] = ["E" if (en_bits >> i) & 1 else "N" for i in range(bit_length)]
         return elements_list
 
     def create_packet_info(self, size: int) -> PacketInfo:

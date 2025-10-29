@@ -272,6 +272,21 @@ class ControlFlowRuleBrokenError(TagCheckingRuleError):
 # \___________________________
 
 
+# Deformatter /
+
+
+class DeformatterError(Exception):
+    pass
+
+
+class IncompleteFrameError(DeformatterError):
+    def __init__(self, size: int) -> None:
+        super().__init__(f"Cannot deformat frame, expecting 128 bits, got {size}.")
+
+
+# Decoder /
+
+
 class DecoderError(Exception):
     pass
 
@@ -284,3 +299,8 @@ class HeaderNotRecognizedError(DecoderError):
 class UnimplementedSectionError(DecoderError):
     def __init__(self, section: str) -> None:
         super().__init__(f"Trace info packet section {section} decoding is not implemented.")
+
+
+class UnimplementedAddressRegError(DecoderError):
+    def __init__(self, address_reg: int) -> None:
+        super().__init__(f"Address register {address_reg} unimplemented, expecting only one register.")

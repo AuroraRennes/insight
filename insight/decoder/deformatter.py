@@ -1,5 +1,7 @@
 from collections import defaultdict
 
+from insight.exceptions import IncompleteFrameError
+
 
 class Deformatter:
     def __init__(self) -> None:
@@ -12,7 +14,7 @@ class Deformatter:
         for data_idx in range(0, len(trace_data), 16):
             frame = trace_data[data_idx : data_idx + 16]
             if len(frame) < 16:
-                break  # TODO: Exception incomplete frame
+                raise IncompleteFrameError(len(frame))
 
             # Last byte holds bits for all other bytes
             auxiliary_byte: int = frame[15]
