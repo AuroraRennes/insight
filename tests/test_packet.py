@@ -1,11 +1,15 @@
 import pytest
 
-from insight.model.packets import AtomPacket, PacketInfo
+from insight.model.packets import AtomPacket, ETMPacketInfo, PacketInfo
 
 
 @pytest.fixture
 def default_packet_info() -> PacketInfo:
-    return PacketInfo(index=0, vmid=0, cid=0, sid=0x10, size=1)
+    return PacketInfo(index=0, sid=0x10, size=1)
+
+@pytest.fixture
+def default_etm_packet_info() -> PacketInfo:
+    return ETMPacketInfo(index=0, sid=0x10, size=1, vmid=0, cid=0)
 
 
 def test_packet_initialization(default_packet_info):

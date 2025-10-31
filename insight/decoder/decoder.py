@@ -1,9 +1,10 @@
-from typing import ClassVar
+from abc import abstractmethod
+from typing import TYPE_CHECKING, ClassVar, Union
 
 from insight.exceptions import (
     HeaderNotRecognizedError,
-    UnimplementedAddressRegError,
     UnimplementedSectionError,
+    UnknownSTMOpcodeError,
 )
 from insight.model.packets import (
     AddressContextPacket,
@@ -11,19 +12,52 @@ from insight.model.packets import (
     AtomPacket,
     Context,
     ContextPacket,
+    ETMPacketInfo,
+    ETMSynchronizationPacket,
     ExceptionPacket,
     IncompletePacket,
     InfoFields,
     InfoPacket,
     Packet,
     PacketInfo,
-    SynchronizationPacket,
+    STMIncompletePacket,
+    STMPacket,
+    STMPacketInfo,
+    STMSynchronizationPacket,
     TimestampPacket,
     UnknownPacket,
 )
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 
 class Decoder:
+    def __init__(self, trace_data: bytearray, sid: int) -> None:
+        self.trace_data: bytearray = trace_data
+        self.trace_size: int = len(trace_data)
+        self.trace_offset: int = 0
+        self.remaining_trace: int = self.trace_size - self.trace_offset
+        self.sid: int = sid
+
+    def decode_trace(self) -> list[Packet]:
+        packet_list: list[Packet] = []
+
+        while self.trace_offset < self.trace_size:
+            packet: Packet = self.decode_packet()
+            packet_list.append(packet)
+            self.compute_next_offset(packet)
+
+        return packet_list
+
+    def compute_next_offset(self, packet: Packet) -> None:
+        self.trace_offset += packet.packet_info.size
+
+    @abstractmethod
+    def decode_packet(self) -> Packet: ...
+
+
+class ETMDecoder(Decoder):
     # From ETM Specification, v4.0 to v4.6, table 6-12
     EXCEPTION_CODES: ClassVar[dict[int, str]] = {
         0b00000: "PE Reset",
@@ -40,14 +74,10 @@ class Decoder:
         0b01111: "FIQ",
     }
 
-    def __init__(self, trace_data: bytearray) -> None:
-        self.trace_data: bytearray = trace_data
-        self.trace_size: int = len(trace_data)
-        self.trace_offset: int = 0
-        self.remaining_trace: int = self.trace_size - self.trace_offset
+    def __init__(self, trace_data: bytearray, sid: int) -> None:
+        super().__init__(trace_data=trace_data, sid=sid)
         self.vmid: int = 0
         self.cid: int = 0
-        self.sid: int = 0
         self.context: Context = Context("undef", "undef", "undef")
         self.address_regs: tuple[int, int, int] = (0, 0, 0)
 
@@ -59,16 +89,6 @@ class Decoder:
 
     def reset_addresses(self) -> None:
         self.address_regs = (0, 0, 0)
-
-    def decode_trace(self) -> list[Packet]:
-        packet_list: list[Packet] = []
-
-        while self.trace_offset < self.trace_size:
-            packet: Packet = self.decode_packet()
-            packet_list.append(packet)
-            self.trace_offset += packet.packet_info.size
-
-        return packet_list
 
     def decode_packet(self) -> Packet:  # noqa: C901, PLR0911, PLR0912
         # ruff disabled for this one, it is just a switch case......
@@ -160,7 +180,7 @@ class Decoder:
         # Overflow packet: 1 header byte + 1 payload byte containing 0x5
         if self.trace_data[self.trace_offset + 1] == 0x5:
             return ExceptionPacket.overflow(
-                PacketInfo(
+                ETMPacketInfo(
                     index=self.trace_offset, vmid=self.vmid, cid=self.cid, sid=self.sid, size=packet_size
                 )
             )
@@ -175,15 +195,16 @@ class Decoder:
             self.trace_data[self.trace_offset : self.trace_offset + 12]
             == b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80"
         ):
-            return SynchronizationPacket.asynch(
-                PacketInfo(
+            return ETMSynchronizationPacket.asynch(
+                ETMPacketInfo(
                     index=self.trace_offset, vmid=self.vmid, cid=self.cid, sid=self.sid, size=packet_size
                 )
             )
 
         return self.create_unknown_packet()
 
-    def decode_trace_info_packet(self) -> Packet:
+    def decode_trace_info_packet(self) -> Packet:  # noqa: C901
+        # FIXME: ruff finds function too complex
         # Check minimal number of bytes, PLCTL of 1 byte
         packet_size: int = 2
         if not self.check_remaining_trace(packet_size):
@@ -251,7 +272,7 @@ class Decoder:
         )
 
     def decode_trace_on_packet(self) -> Packet:
-        return SynchronizationPacket.trace_on(
+        return ETMSynchronizationPacket.trace_on(
             packet_info=self.create_packet_info(1),
         )
 
@@ -273,7 +294,7 @@ class Decoder:
 
         return ExceptionPacket.exception(
             packet_info=self.create_packet_info(packet_size),
-            description=Decoder.EXCEPTION_CODES[exception_code],
+            description=ETMDecoder.EXCEPTION_CODES[exception_code],
         )
 
     def decode_exception_return_packet(self) -> Packet:
@@ -282,7 +303,7 @@ class Decoder:
         )
 
     def decode_resynchronization_packet(self) -> Packet:
-        return SynchronizationPacket.resynchronization(
+        return ETMSynchronizationPacket.resynchronization(
             packet_info=self.create_packet_info(1),
         )
 
@@ -528,14 +549,169 @@ class Decoder:
         return elements_list
 
     def create_packet_info(self, size: int) -> PacketInfo:
-        return PacketInfo(index=self.trace_offset, vmid=self.vmid, cid=self.cid, sid=self.sid, size=size)
+        return ETMPacketInfo(index=self.trace_offset, vmid=self.vmid, cid=self.cid, sid=self.sid, size=size)
 
     def create_incomplete_packet(self) -> IncompletePacket:
         return IncompletePacket(
-            PacketInfo(index=self.trace_offset, vmid=self.vmid, cid=self.cid, sid=self.sid, size=1)
+            ETMPacketInfo(index=self.trace_offset, vmid=self.vmid, cid=self.cid, sid=self.sid, size=1)
         )
 
     def create_unknown_packet(self) -> UnknownPacket:
         return UnknownPacket(
-            PacketInfo(index=self.trace_offset, vmid=self.vmid, cid=self.cid, sid=self.sid, size=1)
+            ETMPacketInfo(index=self.trace_offset, vmid=self.vmid, cid=self.cid, sid=self.sid, size=1)
         )
+
+
+# Recursive type def for the tree
+NibbleTree = dict[int, Union[str, "NibbleTree"]]
+
+
+class STMDecoder(Decoder):
+    NIBBLE_TREE: ClassVar[NibbleTree] = {
+        # Nibble 1
+        0x0: "decode_null",
+        0x1: "decode_m8",
+        0x2: "decode_merr",
+        0x3: "decode_c8",
+        0x4: "decode_d8",
+        0x5: "decode_d16",
+        0x6: "decode_d32",
+        0x7: "decode_d64",
+        0x8: "decode_d8mts",
+        0x9: "decode_d16mts",
+        0xA: "decode_d32mts",
+        0xB: "decode_d64mts",
+        0xC: "decode_d4",
+        0xD: "decode_d4mts",
+        0xE: "decode_flag_ts",
+        0xF: {
+            # Nibble 2
+            0x0: {
+                # Nibble 3
+                0x0: "decode_version",
+                0x1: "decode_coresight_unimplemented",  # NULL_TS
+                0x2: "decode_coresight_unimplemented",  # USER
+                0x3: "decode_coresight_unimplemented",  # USER_TS
+                0x4: "decode_coresight_unimplemented",  # TIME
+                0x5: "decode_coresight_unimplemented",  # TIME_TS
+                0x6: "decode_trig",
+                0x7: "decode_trig_ts",
+                0x8: "decode_freq",
+                0x9: "decode_coresight_unimplemented",  # FREQ_TS
+                0xA: "decode_coresight_unimplemented",  # XSYNC
+                0xB: "decode_coresight_unimplemented",  # XSYNC_TS
+                0xC: "decode_reserved",
+                0xD: "decode_reserved",
+                0xE: "decode_reserved",
+                0xF: {
+                    # Nibble 4
+                    0x0: "decode_coresight_unimplemented",  # FREQ_40
+                    0x1: "decode_coresight_unimplemented",  # FREQ_40_TS
+                    0x2: "decode_coresight_unimplemented",  # DIP
+                    0x3: "decode_coresight_unimplemented",  # CERR
+                    0x4: "decode_reserved",
+                    0x5: "decode_reserved",
+                    0x6: "decode_reserved",
+                    0x7: "decode_reserved",
+                    0x8: "decode_reserved",
+                    0x9: "decode_reserved",
+                    0xA: "decode_reserved",
+                    0xB: "decode_reserved",
+                    0xC: "decode_reserved",
+                    0xD: "decode_reserved",
+                    0xE: "decode_reserved",
+                    0xF: "decode_reserved",
+                },
+            },
+            # Nibble 2 (cont.)
+            0x1: "decode_coresight_unimplemented",  # M16
+            0x2: "decode_gerr",
+            0x3: "decode_c16",
+            0x4: "decode_d8ts",
+            0x5: "decode_d16ts",
+            0x6: "decode_d32ts",
+            0x7: "decode_d64ts",
+            0x8: "decode_d8m",
+            0x9: "decode_d16m",
+            0xA: "decode_d32m",
+            0xB: "decode_d64m",
+            0xC: "decode_d4ts",
+            0xD: "decode_d4m",
+            0xE: "decode_flag",
+            0xF: {
+                # Nibble 3
+                0x0: "decode_reserved",
+                0x1: "decode_coresight_unimplemented",  # PDID_DATA
+                0x2: "decode_coresight_unimplemented",  # PDID_TYPE_TS
+                0x3: "decode_reserved",
+                0x4: "decode_reserved",
+                0x5: "decode_reserved",
+                0x6: "decode_reserved",
+                0x7: "decode_reserved",
+                0x8: "decode_reserved",
+                0x9: "decode_reserved",
+                0xA: "decode_reserved",
+                0xB: "decode_reserved",
+                0xC: "decode_reserved",
+                0xD: "decode_reserved",
+                0xE: "decode_reserved",
+                0xF: "decode_async",
+            },
+        },
+    }
+
+    def __init__(self, trace_data: bytearray, sid: int) -> None:
+        super().__init__(trace_data=trace_data, sid=sid)
+        self.nibble_selector: int = 0  # 0, low nibble / 1, high nibble
+        self.remaining_nibbles: int = self.remaining_trace * 2
+
+    def compute_next_offset(self, packet: Packet) -> None:
+        # Unlike the ETM decoder were all packets are byte-aligned, STM packets are nibble-aligned
+        # and their packet size corresponds to the NUMBER OF NIBBLE.
+        self.trace_offset += packet.packet_info.size // 2
+        self.nibble_selector = packet.packet_info.size % 2
+
+    def decode_packet(self) -> Packet:
+        # Start with the base decode tree
+        node: str | NibbleTree = STMDecoder.NIBBLE_TREE
+
+        nibble: int
+        while isinstance(node, dict):
+            # Get the first byte, check for which nibble to start decoding from
+            byte: int = self.trace_data[self.trace_offset]
+            if self.nibble_selector == 0:
+                nibble = byte & 0xF
+                self.nibble_selector = 1
+            else:
+                nibble = byte >> 4
+            try:
+                node = node[nibble]
+            except KeyError as err:
+                raise UnknownSTMOpcodeError(self.trace_offset, self.nibble_selector) from err
+
+        handler: Callable[[STMDecoder], Packet] = getattr(STMDecoder, node)
+        packet: Packet = handler(self)
+        return packet
+
+    def decode_async(self) -> STMPacket:
+        # expecting 21Fs in total then 0, we're already at nibble 3
+        if not self.check_remaining_trace(19):
+            return self.create_incomplete_packet()
+
+        return STMSynchronizationPacket.asynch(packet_info=self.create_packet_info(22))
+
+    def decode_null(self) -> STMPacket:
+        return STMSynchronizationPacket.null(packet_info=self.create_packet_info(1))
+
+    def check_remaining_trace(self, n_nibbles: int) -> bool:
+        # The list of elements is encoded in the header
+        self.remaining_trace = self.trace_size - self.trace_offset
+        self.remaining_nibbles = self.remaining_trace * 2 - self.nibble_selector
+        # Check for required bytes
+        return self.remaining_nibbles >= n_nibbles
+
+    def create_packet_info(self, size: int) -> STMPacketInfo:
+        return STMPacketInfo(index=self.trace_offset, sid=self.sid, size=size)
+
+    def create_incomplete_packet(self) -> STMIncompletePacket:
+        return STMIncompletePacket(packet_info=self.create_packet_info(1))

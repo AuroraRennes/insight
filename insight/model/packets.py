@@ -8,10 +8,18 @@ from insight.helpers import format_to
 @dataclass
 class PacketInfo:
     index: int  # Index of the packet in the trace
-    vmid: int  # Virtual memory id, from context packet
-    cid: int  # Context id, from context packet
     sid: int  # Trace source id, from deformatter
     size: int  # Packet size
+
+
+@dataclass
+class ETMPacketInfo(PacketInfo):
+    vmid: int  # Virtual memory id, from context packet
+    cid: int  # Context id, from context packet
+
+
+@dataclass
+class STMPacketInfo(PacketInfo): ...
 
 
 class Packet:
@@ -43,26 +51,26 @@ class IncompletePacket(Packet):
 # \________________________
 
 
-class SynchronizationPacket(Packet):
+class ETMSynchronizationPacket(Packet):
     @classmethod
-    def trace_on(cls, packet_info: PacketInfo) -> SynchronizationPacket:
+    def trace_on(cls, packet_info: PacketInfo) -> ETMSynchronizationPacket:
         return cls(name="Trace On", packet_info=packet_info)
 
     # asynch to avoid shadowing async
     @classmethod
-    def asynch(cls, packet_info: PacketInfo) -> SynchronizationPacket:
+    def asynch(cls, packet_info: PacketInfo) -> ETMSynchronizationPacket:
         return cls(name="Async", packet_info=packet_info)
 
     @classmethod
-    def notsync(cls, packet_info: PacketInfo) -> SynchronizationPacket:
+    def notsync(cls, packet_info: PacketInfo) -> ETMSynchronizationPacket:
         return cls(name="Not Sync", packet_info=packet_info)
 
     @classmethod
-    def end(cls, packet_info: PacketInfo) -> SynchronizationPacket:
+    def end(cls, packet_info: PacketInfo) -> ETMSynchronizationPacket:
         return cls(name="End Trace", packet_info=packet_info)
 
     @classmethod
-    def resynchronization(cls, packet_info: PacketInfo) -> SynchronizationPacket:
+    def resynchronization(cls, packet_info: PacketInfo) -> ETMSynchronizationPacket:
         return cls(name="Resynchronization", packet_info=packet_info)
 
 
@@ -253,33 +261,53 @@ class AtomPacket(Packet):
 
 
 class STMPacket(Packet):
-    def __init__(self, name: str, packet_info: PacketInfo) -> None:
+    def __init__(self, name: str, packet_info: STMPacketInfo) -> None:
         super().__init__(name="STM - " + name, packet_info=packet_info)
 
+
+class STMSynchronizationPacket(STMPacket):
     @classmethod
-    def null(cls, packet_info: PacketInfo) -> STMPacket:
+    def asynch(cls, packet_info: STMPacketInfo) -> STMPacket:
+        return cls(name="Async", packet_info=packet_info)
+
+    @classmethod
+    def null(cls, packet_info: STMPacketInfo) -> STMPacket:
         return cls(name="Null", packet_info=packet_info)
 
 
 class MasterPacket(STMPacket):
-    def __init__(self, name: str, packet_info: PacketInfo, master_channel: int) -> None:
+    def __init__(self, name: str, packet_info: STMPacketInfo, master_channel: int) -> None:
         super().__init__(name=name, packet_info=packet_info)
         self.master_channel = master_channel
 
     @classmethod
-    def master(cls, packet_info: PacketInfo, master_channel: int) -> MasterPacket:
+    def master(cls, packet_info: STMPacketInfo, master_channel: int) -> MasterPacket:
         return cls(name="Master", packet_info=packet_info, master_channel=master_channel)
 
 
 # FIXME: We handle all data packets (plain, timestamp, marker, or combined) as plain data packets
 class DataPacket(STMPacket):
-    def __init__(self, name: str, packet_info: PacketInfo, data_size: int, data_value: int) -> None:
+    def __init__(self, name: str, packet_info: STMPacketInfo, data_size: int, data_value: int) -> None:
         super().__init__(name=name, packet_info=packet_info)
         self.data_size: int = data_size
         self.data_value: int = data_value
 
     @classmethod
-    def data(cls, packet_info: PacketInfo, data_size: int, data_value: int) -> DataPacket:
+    def data(cls, packet_info: STMPacketInfo, data_size: int, data_value: int) -> DataPacket:
         return DataPacket(
             name=f"Data {data_size}", packet_info=packet_info, data_size=data_size, data_value=data_value
         )
+
+
+# STM Unknown Packets
+# \________________
+
+
+class STMUnknownPacket(STMPacket):
+    def __init__(self, packet_info: STMPacketInfo) -> None:
+        super().__init__(name="Unknown", packet_info=packet_info)
+
+
+class STMIncompletePacket(STMPacket):
+    def __init__(self, packet_info: STMPacketInfo) -> None:
+        super().__init__(name="Incomplete", packet_info=packet_info)

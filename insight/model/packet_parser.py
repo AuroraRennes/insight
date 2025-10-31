@@ -25,6 +25,8 @@ from insight.model.packets import (
     AtomPacket,
     Context,
     DataPacket,
+    ETMPacketInfo,
+    ETMSynchronizationPacket,
     ExceptionPacket,
     InfoFields,
     InfoPacket,
@@ -32,7 +34,8 @@ from insight.model.packets import (
     Packet,
     PacketInfo,
     STMPacket,
-    SynchronizationPacket,
+    STMPacketInfo,
+    STMSynchronizationPacket,
     VersionPacket,
 )
 
@@ -137,7 +140,7 @@ class PacketParser:
 
         index: int = int(group["index"]) if group["index"] else (1 << 64)
 
-        packet_info: PacketInfo = PacketInfo(
+        packet_info: PacketInfo = ETMPacketInfo(
             index=index,
             vmid=0,  # No VMID in our traces
             cid=self.cid,
@@ -242,17 +245,17 @@ class PacketParser:
 
     # Synchronization packets /
 
-    def parse_trace_on(self, packet_info: PacketInfo, **kwargs: dict[str, Any]) -> SynchronizationPacket:
-        return SynchronizationPacket.trace_on(packet_info=packet_info)
+    def parse_trace_on(self, packet_info: PacketInfo, **kwargs: dict[str, Any]) -> ETMSynchronizationPacket:
+        return ETMSynchronizationPacket.trace_on(packet_info=packet_info)
 
-    def parse_async(self, packet_info: PacketInfo, **kwargs: dict[str, Any]) -> SynchronizationPacket:
-        return SynchronizationPacket.asynch(packet_info=packet_info)
+    def parse_async(self, packet_info: PacketInfo, **kwargs: dict[str, Any]) -> ETMSynchronizationPacket:
+        return ETMSynchronizationPacket.asynch(packet_info=packet_info)
 
-    def parse_notsync(self, packet_info: PacketInfo, **kwargs: dict[str, Any]) -> SynchronizationPacket:
-        return SynchronizationPacket.notsync(packet_info=packet_info)
+    def parse_notsync(self, packet_info: PacketInfo, **kwargs: dict[str, Any]) -> ETMSynchronizationPacket:
+        return ETMSynchronizationPacket.notsync(packet_info=packet_info)
 
-    def parse_end(self, packet_info: PacketInfo, **kwargs: dict[str, Any]) -> SynchronizationPacket:
-        return SynchronizationPacket.end(packet_info=packet_info)
+    def parse_end(self, packet_info: PacketInfo, **kwargs: dict[str, Any]) -> ETMSynchronizationPacket:
+        return ETMSynchronizationPacket.end(packet_info=packet_info)
 
     # Exception packets /
 
@@ -272,11 +275,11 @@ class PacketParser:
 
     # STM packets /
 
-    def parse_null(self, packet_info: PacketInfo, **kwargs: dict[str, Any]) -> STMPacket:
-        return STMPacket.null(packet_info=packet_info)
+    def parse_null(self, packet_info: STMPacketInfo, **kwargs: dict[str, Any]) -> STMPacket:
+        return STMSynchronizationPacket.null(packet_info=packet_info)
 
     def parse_master(
-        self, packet_info: PacketInfo, line: str, regex: str, **kwargs: dict[str, Any]
+        self, packet_info: STMPacketInfo, line: str, regex: str, **kwargs: dict[str, Any]
     ) -> MasterPacket:
         match_channel: re.Match[str] | None
         if match_channel := re.search(regex, line):
@@ -287,7 +290,7 @@ class PacketParser:
         return MasterPacket.master(packet_info=packet_info, master_channel=master_channel)
 
     def parse_data(
-        self, packet_info: PacketInfo, line: str, regex: str, **kwargs: dict[str, Any]
+        self, packet_info: STMPacketInfo, line: str, regex: str, **kwargs: dict[str, Any]
     ) -> DataPacket:
         match_data: re.Match[str] | None
         if match_data := re.search(regex, line):

@@ -304,3 +304,11 @@ class UnimplementedSectionError(DecoderError):
 class UnimplementedAddressRegError(DecoderError):
     def __init__(self, address_reg: int) -> None:
         super().__init__(f"Address register {address_reg} unimplemented, expecting only one register.")
+
+
+class UnknownSTMOpcodeError(DecoderError):
+    def __init__(self, trace_offset: int, nibble_selector: int) -> None:
+        super().__init__(
+            f"Invalid STM opcode sequence at offset {trace_offset}, "
+            f"nibble {'low' if nibble_selector == 0 else 'high'}"
+        )
