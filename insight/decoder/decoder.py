@@ -86,6 +86,55 @@ class ETMDecoder(Decoder):
         self.context: Context = Context("undef", "undef", "undef")
         self.address_regs: tuple[int, int, int] = (0, 0, 0)
 
+        # Helpers
+
+    # \_________
+
+    def check_remaining_trace(self, n_bytes: int) -> bool:
+        # The list of elements is encoded in the header
+        self.remaining_trace = self.trace_size - self.trace_offset
+        # Check for required bytes
+        return self.remaining_trace >= n_bytes
+
+    def extract_context(self, byte_info: int) -> Context:
+        return Context(
+            architecture="AArch64" if byte_info & 0x10 else "AArch32",
+            exception_level=f"EL{byte_info & 0x3}",
+            security_state="NS" if byte_info & 0x20 else "S",
+        )
+
+    def extract_address(self, raw_data: bytearray) -> int:
+        return (
+            raw_data[0] & 0x7F << 2
+            | raw_data[1] & 0x7F << 9
+            | raw_data[2] << 16
+            | raw_data[3] << 24
+            | raw_data[4] << 32
+            | raw_data[5] << 40
+            | raw_data[6] << 48
+            | raw_data[7] << 56
+        )
+
+    def extract_id(self, raw_data: bytearray) -> int:
+        return raw_data[0] | raw_data[1] << 8 | raw_data[2] << 16 | raw_data[3] << 24
+
+    def create_element_list(self, en_bits: int, bit_length: int) -> list[str]:
+        elements_list: list[str] = ["E" if (en_bits >> i) & 1 else "N" for i in range(bit_length)]
+        return elements_list
+
+    def create_packet_info(self, size: int) -> PacketInfo:
+        return ETMPacketInfo(index=self.trace_offset, vmid=self.vmid, cid=self.cid, sid=self.sid, size=size)
+
+    def create_incomplete_packet(self) -> IncompletePacket:
+        return IncompletePacket(
+            ETMPacketInfo(index=self.trace_offset, vmid=self.vmid, cid=self.cid, sid=self.sid, size=1)
+        )
+
+    def create_unknown_packet(self) -> UnknownPacket:
+        return UnknownPacket(
+            ETMPacketInfo(index=self.trace_offset, vmid=self.vmid, cid=self.cid, sid=self.sid, size=1)
+        )
+
     def update_sid(self, new_sid: int) -> None:
         self.sid = new_sid
 
@@ -94,6 +143,9 @@ class ETMDecoder(Decoder):
 
     def reset_addresses(self) -> None:
         self.address_regs = (0, 0, 0)
+
+    # Main decoding method
+    # \______________________
 
     def decode_packet(self) -> Packet:  # noqa: C901, PLR0911, PLR0912
         # ruff disabled for this one, it is just a switch case......
@@ -208,6 +260,9 @@ class ETMDecoder(Decoder):
 
         return self.create_unknown_packet()
 
+    # Misc/Info packets
+    # \__________________
+
     def decode_trace_info_packet(self) -> Packet:  # noqa: C901
         # FIXME: ruff finds function too complex
         # Check minimal number of bytes, PLCTL of 1 byte
@@ -311,6 +366,9 @@ class ETMDecoder(Decoder):
         return ETMSynchronizationPacket.resynchronization(
             packet_info=self.create_packet_info(1),
         )
+
+    # Context/Address packets
+    # \_________________________
 
     def decode_context_packet(self) -> Packet:
         packet_size: int = 1
@@ -440,6 +498,9 @@ class ETMDecoder(Decoder):
 
         return AddressPacket.addr_match(self.create_packet_info(1), self.address_regs[address_reg])
 
+    # Atom packets
+    # \_____________
+
     def decode_atom_f1_packet(self) -> Packet:
         # The list of elements is encoded in the header
         en_bits: int = self.trace_data[self.trace_offset] & 0b1
@@ -519,51 +580,6 @@ class ETMDecoder(Decoder):
         return AtomPacket.atom_format(
             packet_info=self.create_packet_info(1),
             elements=elements_list,
-        )
-
-    def check_remaining_trace(self, n_bytes: int) -> bool:
-        # The list of elements is encoded in the header
-        self.remaining_trace = self.trace_size - self.trace_offset
-        # Check for required bytes
-        return self.remaining_trace >= n_bytes
-
-    def extract_context(self, byte_info: int) -> Context:
-        return Context(
-            architecture="AArch64" if byte_info & 0x10 else "AArch32",
-            exception_level=f"EL{byte_info & 0x3}",
-            security_state="NS" if byte_info & 0x20 else "S",
-        )
-
-    def extract_address(self, raw_data: bytearray) -> int:
-        return (
-            raw_data[0] & 0x7F << 2
-            | raw_data[1] & 0x7F << 9
-            | raw_data[2] << 16
-            | raw_data[3] << 24
-            | raw_data[4] << 32
-            | raw_data[5] << 40
-            | raw_data[6] << 48
-            | raw_data[7] << 56
-        )
-
-    def extract_id(self, raw_data: bytearray) -> int:
-        return raw_data[0] | raw_data[1] << 8 | raw_data[2] << 16 | raw_data[3] << 24
-
-    def create_element_list(self, en_bits: int, bit_length: int) -> list[str]:
-        elements_list: list[str] = ["E" if (en_bits >> i) & 1 else "N" for i in range(bit_length)]
-        return elements_list
-
-    def create_packet_info(self, size: int) -> PacketInfo:
-        return ETMPacketInfo(index=self.trace_offset, vmid=self.vmid, cid=self.cid, sid=self.sid, size=size)
-
-    def create_incomplete_packet(self) -> IncompletePacket:
-        return IncompletePacket(
-            ETMPacketInfo(index=self.trace_offset, vmid=self.vmid, cid=self.cid, sid=self.sid, size=1)
-        )
-
-    def create_unknown_packet(self) -> UnknownPacket:
-        return UnknownPacket(
-            ETMPacketInfo(index=self.trace_offset, vmid=self.vmid, cid=self.cid, sid=self.sid, size=1)
         )
 
 
@@ -671,6 +687,9 @@ class STMDecoder(Decoder):
         self.remaining_nibbles: int = self.remaining_trace * 2
         self.header_size: int = 0
 
+    # Helpers
+    # \________
+
     def compute_next_offset(self, packet: Packet) -> None:
         # Unlike the ETM decoder were all packets are byte-aligned, STM packets are nibble-aligned
         # and their packet size corresponds to the NUMBER OF NIBBLE.
@@ -707,6 +726,9 @@ class STMDecoder(Decoder):
     def create_incomplete_packet(self) -> STMIncompletePacket:
         return STMIncompletePacket(packet_info=self.create_packet_info(1))
 
+    # Main decoding method
+    # \______________________
+
     def decode_packet(self) -> Packet:
         # Start with the base decode tree
         node: str | NibbleTree = STMDecoder.NIBBLE_TREE
@@ -727,6 +749,9 @@ class STMDecoder(Decoder):
         handler: Callable[[STMDecoder], Packet] = getattr(STMDecoder, node)
         packet: Packet = handler(self)
         return packet
+
+    # Sync/Misc packets
+    # \___________________
 
     def decode_async(self) -> STMPacket:
         # expecting 21Fs in total then 0, we're already at nibble 3
@@ -760,6 +785,9 @@ class STMDecoder(Decoder):
             ts_format=ts_format,
             endianness=endianness,
         )
+
+    # Data packets
+    # \______________
 
     def decode_data_value(self, size: int) -> int:
         data_value: int = 0
