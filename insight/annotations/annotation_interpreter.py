@@ -21,7 +21,7 @@ from insight.exceptions import (
 )
 from insight.helpers import COLOG
 from insight.model.arm64_state import ARM64State
-from insight.model.packets import AddressPacket, AtomPacket, DataPacket, ExceptionPacket, Packet
+from insight.model.packets import AddressPacket, AtomPacket, ExceptionPacket, Packet, STMDataPacket
 
 logger = logging.getLogger("insight")
 
@@ -91,7 +91,7 @@ class AnnotationInterpreter:
                 bb_offset = current_offset
                 self.process_atom_packet(packet, bb_offset)
 
-            elif isinstance(packet, DataPacket):
+            elif isinstance(packet, STMDataPacket):
                 self.process_data_packet(packet)
 
     def process_atom_packet(self, packet: AtomPacket, bb_offset: int) -> None:
@@ -163,7 +163,7 @@ class AnnotationInterpreter:
         self.interpret_block(bb_assignments)
         self.check_svc(bb_offset)
 
-    def process_data_packet(self, packet: DataPacket) -> None:
+    def process_data_packet(self, packet: STMDataPacket) -> None:
         if self.first_stm_packet:
             self.state.stack_value = packet.data_value
             logger.info(

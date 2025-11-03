@@ -24,15 +24,15 @@ from insight.model.packets import (
     AddressPacket,
     AtomPacket,
     Context,
-    DataPacket,
     ETMPacketInfo,
     ETMSynchronizationPacket,
     ExceptionPacket,
     InfoFields,
     InfoPacket,
-    MasterPacket,
     Packet,
     PacketInfo,
+    STMDataPacket,
+    STMMasterPacket,
     STMPacket,
     STMPacketInfo,
     STMSynchronizationPacket,
@@ -280,18 +280,18 @@ class PacketParser:
 
     def parse_master(
         self, packet_info: STMPacketInfo, line: str, regex: str, **kwargs: dict[str, Any]
-    ) -> MasterPacket:
+    ) -> STMMasterPacket:
         match_channel: re.Match[str] | None
         if match_channel := re.search(regex, line):
             group: dict[str, str] = match_channel.groupdict()
             master_channel: int = string_to_int(group["master_channel"])
         else:
             raise NoMatchingChannelError
-        return MasterPacket.master(packet_info=packet_info, master_channel=master_channel)
+        return STMMasterPacket.master(packet_info=packet_info, master_channel=master_channel)
 
     def parse_data(
         self, packet_info: STMPacketInfo, line: str, regex: str, **kwargs: dict[str, Any]
-    ) -> DataPacket:
+    ) -> STMDataPacket:
         match_data: re.Match[str] | None
         if match_data := re.search(regex, line):
             group: dict[str, str] = match_data.groupdict()
@@ -299,4 +299,4 @@ class PacketParser:
             data_value: int = string_to_int(group["data_value"])
         else:
             raise NoMatchingDataError
-        return DataPacket.data(packet_info=packet_info, data_size=data_size, data_value=data_value)
+        return STMDataPacket.data(packet_info=packet_info, data_size=data_size, data_value=data_value)

@@ -7,6 +7,7 @@ from insight.model.packets import AtomPacket, ETMPacketInfo, PacketInfo
 def default_packet_info() -> PacketInfo:
     return PacketInfo(index=0, sid=0x10, size=1)
 
+
 @pytest.fixture
 def default_etm_packet_info() -> PacketInfo:
     return ETMPacketInfo(index=0, sid=0x10, size=1, vmid=0, cid=0)

@@ -265,37 +265,115 @@ class STMPacket(Packet):
         super().__init__(name="STM - " + name, packet_info=packet_info)
 
 
+class STMVersionPacket(Packet):
+    def __init__(
+        self, name: str, packet_info: STMPacketInfo, version: int, ts_format: int, endianness: str
+    ) -> None:
+        super().__init__(name=name, packet_info=packet_info)
+        self.version_info: int = version
+        self.ts_format: int = ts_format
+        self.endianness: str = endianness
+
+    @classmethod
+    def version(
+        cls, packet_info: STMPacketInfo, version: int, ts_format: int, endianness: str
+    ) -> STMVersionPacket:
+        return cls(
+            name="Version",
+            packet_info=packet_info,
+            version=version,
+            ts_format=ts_format,
+            endianness=endianness,
+        )
+
+
 class STMSynchronizationPacket(STMPacket):
     @classmethod
-    def asynch(cls, packet_info: STMPacketInfo) -> STMPacket:
+    def asynch(cls, packet_info: STMPacketInfo) -> STMSynchronizationPacket:
         return cls(name="Async", packet_info=packet_info)
 
     @classmethod
-    def null(cls, packet_info: STMPacketInfo) -> STMPacket:
+    def null(cls, packet_info: STMPacketInfo) -> STMSynchronizationPacket:
         return cls(name="Null", packet_info=packet_info)
 
 
-class MasterPacket(STMPacket):
+class STMMasterPacket(STMPacket):
     def __init__(self, name: str, packet_info: STMPacketInfo, master_channel: int) -> None:
         super().__init__(name=name, packet_info=packet_info)
         self.master_channel = master_channel
 
     @classmethod
-    def master(cls, packet_info: STMPacketInfo, master_channel: int) -> MasterPacket:
+    def master(cls, packet_info: STMPacketInfo, master_channel: int) -> STMMasterPacket:
         return cls(name="Master", packet_info=packet_info, master_channel=master_channel)
 
 
 # FIXME: We handle all data packets (plain, timestamp, marker, or combined) as plain data packets
-class DataPacket(STMPacket):
+class STMDataPacket(STMPacket):
     def __init__(self, name: str, packet_info: STMPacketInfo, data_size: int, data_value: int) -> None:
         super().__init__(name=name, packet_info=packet_info)
         self.data_size: int = data_size
         self.data_value: int = data_value
 
     @classmethod
-    def data(cls, packet_info: STMPacketInfo, data_size: int, data_value: int) -> DataPacket:
-        return DataPacket(
+    def data(cls, packet_info: STMPacketInfo, data_size: int, data_value: int) -> STMDataPacket:
+        return STMDataPacket(
             name=f"Data {data_size}", packet_info=packet_info, data_size=data_size, data_value=data_value
+        )
+
+
+class STMDataMPacket(STMDataPacket):
+    @classmethod
+    def m_data(cls, packet_info: STMPacketInfo, data_size: int, data_value: int) -> STMDataMPacket:
+        return cls(
+            name=f"Marked Data {data_size}",
+            packet_info=packet_info,
+            data_size=data_size,
+            data_value=data_value,
+        )
+
+
+class STMDataTSPacket(STMDataPacket):
+    def __init__(
+        self, name: str, packet_info: STMPacketInfo, data_size: int, data_value: int, timestamp: int
+    ) -> None:
+        super().__init__(name=name, packet_info=packet_info, data_size=data_size, data_value=data_value)
+        self.timestamp = timestamp
+
+    @classmethod
+    def ts_data(
+        cls, packet_info: STMPacketInfo, data_size: int, data_value: int, timestamp: int
+    ) -> STMDataTSPacket:
+        return cls(
+            name=f"Timestamped Data {data_size}",
+            packet_info=packet_info,
+            data_size=data_size,
+            data_value=data_value,
+            timestamp=timestamp,
+        )
+
+
+class STMDataMTSPacket(STMDataTSPacket, STMDataMPacket):
+    def __init__(
+        self, name: str, packet_info: STMPacketInfo, data_size: int, data_value: int, timestamp: int
+    ) -> None:
+        super().__init__(
+            name=name,
+            packet_info=packet_info,
+            data_size=data_size,
+            data_value=data_value,
+            timestamp=timestamp,
+        )
+
+    @classmethod
+    def mts_data(
+        cls, packet_info: STMPacketInfo, data_size: int, data_value: int, timestamp: int
+    ) -> STMDataMTSPacket:
+        return cls(
+            name=f"Marked Timestamped Data {data_size}",
+            packet_info=packet_info,
+            data_size=data_size,
+            data_value=data_value,
+            timestamp=timestamp,
         )
 
 
