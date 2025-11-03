@@ -20,10 +20,15 @@ from insight.model.packets import (
     InfoPacket,
     Packet,
     PacketInfo,
+    STMDataMPacket,
+    STMDataMTSPacket,
+    STMDataPacket,
+    STMDataTSPacket,
     STMIncompletePacket,
     STMPacket,
     STMPacketInfo,
     STMSynchronizationPacket,
+    STMVersionPacket,
     TimestampPacket,
     UnknownPacket,
 )
@@ -664,6 +669,7 @@ class STMDecoder(Decoder):
         super().__init__(trace_data=trace_data, sid=sid)
         self.nibble_selector: int = 0  # 0, low nibble / 1, high nibble
         self.remaining_nibbles: int = self.remaining_trace * 2
+        self.header_size: int = 0
 
     def compute_next_offset(self, packet: Packet) -> None:
         # Unlike the ETM decoder were all packets are byte-aligned, STM packets are nibble-aligned
@@ -671,37 +677,22 @@ class STMDecoder(Decoder):
         self.trace_offset += packet.packet_info.size // 2
         self.nibble_selector = packet.packet_info.size % 2
 
-    def decode_packet(self) -> Packet:
-        # Start with the base decode tree
-        node: str | NibbleTree = STMDecoder.NIBBLE_TREE
+    def access_nibble_at_offset(self, nibble_offset: int) -> int:
+        # Offset is in nibbles, so *2 for byte trace offset
+        trace_offset: int = self.trace_offset + (nibble_offset // 2)
+        # Follows this truth table (which is XOR):
+        # nibble_selector  |  offset % 2  || expected
+        # -----------------+--------------++----------
+        #        1         |       1      ||     0
+        #        1         |       0      ||     1
+        #        0         |       1      ||     1
+        #        0         |       0      ||     0
+        nibble_selector: int = self.nibble_selector ^ (nibble_offset % 2)
 
-        nibble: int
-        while isinstance(node, dict):
-            # Get the first byte, check for which nibble to start decoding from
-            byte: int = self.trace_data[self.trace_offset]
-            if self.nibble_selector == 0:
-                nibble = byte & 0xF
-                self.nibble_selector = 1
-            else:
-                nibble = byte >> 4
-            try:
-                node = node[nibble]
-            except KeyError as err:
-                raise UnknownSTMOpcodeError(self.trace_offset, self.nibble_selector) from err
-
-        handler: Callable[[STMDecoder], Packet] = getattr(STMDecoder, node)
-        packet: Packet = handler(self)
-        return packet
-
-    def decode_async(self) -> STMPacket:
-        # expecting 21Fs in total then 0, we're already at nibble 3
-        if not self.check_remaining_trace(19):
-            return self.create_incomplete_packet()
-
-        return STMSynchronizationPacket.asynch(packet_info=self.create_packet_info(22))
-
-    def decode_null(self) -> STMPacket:
-        return STMSynchronizationPacket.null(packet_info=self.create_packet_info(1))
+        byte: int = self.trace_data[trace_offset]
+        if nibble_selector == 0:
+            return byte & 0xF
+        return byte >> 4
 
     def check_remaining_trace(self, n_nibbles: int) -> bool:
         # The list of elements is encoded in the header
@@ -715,3 +706,160 @@ class STMDecoder(Decoder):
 
     def create_incomplete_packet(self) -> STMIncompletePacket:
         return STMIncompletePacket(packet_info=self.create_packet_info(1))
+
+    def decode_packet(self) -> Packet:
+        # Start with the base decode tree
+        node: str | NibbleTree = STMDecoder.NIBBLE_TREE
+
+        # Reset header size, increments on tree traversal
+        header_size: int = 0
+
+        while isinstance(node, dict):
+            # Get the first byte, check for which nibble to start decoding from
+            nibble: int = self.access_nibble_at_offset(header_size)
+            try:
+                node = node[nibble]
+                header_size += 1
+            except KeyError as err:
+                raise UnknownSTMOpcodeError(self.trace_offset, self.nibble_selector) from err
+
+        self.header_size = header_size
+        handler: Callable[[STMDecoder], Packet] = getattr(STMDecoder, node)
+        packet: Packet = handler(self)
+        return packet
+
+    def decode_async(self) -> STMPacket:
+        # expecting 21Fs in total then 0, we're already at nibble 3
+        if not self.check_remaining_trace(19):
+            return self.create_incomplete_packet()
+
+        return STMSynchronizationPacket.asynch(packet_info=self.create_packet_info(22))
+
+    def decode_null(self) -> STMSynchronizationPacket:
+        return STMSynchronizationPacket.null(packet_info=self.create_packet_info(1))
+
+    def decode_version(self) -> STMVersionPacket:
+        # Info Nibble:         3           2         0
+        #                payload present? | ts_format
+        version_info_nibble: int = self.access_nibble_at_offset(self.header_size)
+        packet_size: int = self.header_size + 1
+
+        # Default values
+        endianness: str = "BE"
+        version: int = 0
+
+        ts_format: int = version_info_nibble & 0x7
+        if version_info_nibble >> 3:
+            endianness = "LE" if (self.access_nibble_at_offset(self.header_size + 1) >> 3) else "BE"
+            version = self.access_nibble_at_offset(self.header_size + 2) & 0x3
+            packet_size += 2
+
+        return STMVersionPacket.version(
+            packet_info=self.create_packet_info(packet_size),
+            version=version,
+            ts_format=ts_format,
+            endianness=endianness,
+        )
+
+    def decode_data_value(self, size: int) -> int:
+        data_value: int = 0
+        for nibble_idx in range(size // 4):
+            # A succession of values 0x0 0x1 0x2 0x3 should come out as 0x0123
+            # Placing the nibble correctly means shifting it by size - (running index * 4)
+            data_value |= self.access_nibble_at_offset(nibble_offset=nibble_idx) << (size - (nibble_idx * 4))
+
+        return data_value
+
+    def decode_data_packet(self, size: int) -> STMDataPacket:
+        packet_size: int = self.header_size + (size // 4)
+        return STMDataPacket.data(
+            packet_info=self.create_packet_info(packet_size),
+            data_size=size,
+            data_value=self.decode_data_value(size),
+        )
+
+    def decode_mdata_packet(self, size: int) -> STMDataMPacket:
+        packet_size: int = self.header_size + (size // 4)
+        return STMDataMPacket.m_data(
+            packet_info=self.create_packet_info(packet_size),
+            data_size=size,
+            data_value=self.decode_data_value(size),
+        )
+
+    def decode_tsdata_packet(self, size: int) -> STMDataTSPacket:
+        packet_size: int = self.header_size + (size // 4) + 1
+        return STMDataTSPacket.ts_data(
+            packet_info=self.create_packet_info(packet_size),
+            data_size=size,
+            data_value=self.decode_data_value(size=size),
+            timestamp=self.access_nibble_at_offset(nibble_offset=(size // 4) + 1),
+        )
+
+    def decode_mtsdata_packet(self, size: int) -> STMDataMTSPacket:
+        packet_size: int = self.header_size + (size // 4) + 1
+        return STMDataMTSPacket.mts_data(
+            packet_info=self.create_packet_info(packet_size),
+            data_size=size,
+            data_value=self.decode_data_value(size=size),
+            timestamp=self.access_nibble_at_offset(nibble_offset=(size // 4) + 1),
+        )
+
+    def decode_d4(self) -> STMDataPacket:
+        return self.decode_data_packet(4)
+
+    def decode_d8(self) -> STMDataPacket:
+        return self.decode_data_packet(8)
+
+    def decode_d16(self) -> STMDataPacket:
+        return self.decode_data_packet(16)
+
+    def decode_d32(self) -> STMDataPacket:
+        return self.decode_data_packet(32)
+
+    def decode_d64(self) -> STMDataPacket:
+        return self.decode_data_packet(64)
+
+    def decode_d4m(self) -> STMDataMPacket:
+        return self.decode_mdata_packet(4)
+
+    def decode_d8m(self) -> STMDataMPacket:
+        return self.decode_mdata_packet(8)
+
+    def decode_d16m(self) -> STMDataMPacket:
+        return self.decode_mdata_packet(16)
+
+    def decode_d32m(self) -> STMDataMPacket:
+        return self.decode_mdata_packet(32)
+
+    def decode_d64m(self) -> STMDataMPacket:
+        return self.decode_mdata_packet(64)
+
+    def decode_d4ts(self) -> STMDataTSPacket:
+        return self.decode_tsdata_packet(4)
+
+    def decode_d8ts(self) -> STMDataTSPacket:
+        return self.decode_tsdata_packet(8)
+
+    def decode_d16ts(self) -> STMDataTSPacket:
+        return self.decode_tsdata_packet(16)
+
+    def decode_d32ts(self) -> STMDataTSPacket:
+        return self.decode_tsdata_packet(32)
+
+    def decode_d64ts(self) -> STMDataTSPacket:
+        return self.decode_tsdata_packet(64)
+
+    def decode_d4mts(self) -> STMDataMTSPacket:
+        return self.decode_mtsdata_packet(4)
+
+    def decode_d8mts(self) -> STMDataMTSPacket:
+        return self.decode_mtsdata_packet(8)
+
+    def decode_d16mts(self) -> STMDataMTSPacket:
+        return self.decode_mtsdata_packet(16)
+
+    def decode_d32mts(self) -> STMDataMTSPacket:
+        return self.decode_mtsdata_packet(32)
+
+    def decode_d64mts(self) -> STMDataMTSPacket:
+        return self.decode_mtsdata_packet(64)
