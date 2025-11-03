@@ -265,7 +265,7 @@ class STMPacket(Packet):
         super().__init__(name="STM - " + name, packet_info=packet_info)
 
 
-class STMVersionPacket(Packet):
+class STMVersionPacket(STMPacket):
     def __init__(
         self, name: str, packet_info: STMPacketInfo, version: int, ts_format: int, endianness: str
     ) -> None:
@@ -296,6 +296,24 @@ class STMSynchronizationPacket(STMPacket):
     def null(cls, packet_info: STMPacketInfo) -> STMSynchronizationPacket:
         return cls(name="Null", packet_info=packet_info)
 
+    @classmethod
+    def flag(cls, packet_info: STMPacketInfo) -> STMSynchronizationPacket:
+        return cls(name="Flag", packet_info=packet_info)
+
+
+class STMErrorPacket(STMPacket):
+    def __init__(self, name: str, packet_info: STMPacketInfo, err_code: int) -> None:
+        super().__init__(name=name, packet_info=packet_info)
+        self.err_code = err_code
+
+    @classmethod
+    def merr(cls, packet_info: STMPacketInfo, err_code: int) -> STMErrorPacket:
+        return cls(name="MERR", packet_info=packet_info, err_code=err_code)
+
+    @classmethod
+    def gerr(cls, packet_info: STMPacketInfo, err_code: int) -> STMErrorPacket:
+        return cls(name="GERR", packet_info=packet_info, err_code=err_code)
+
 
 class STMMasterPacket(STMPacket):
     def __init__(self, name: str, packet_info: STMPacketInfo, master_channel: int) -> None:
@@ -305,6 +323,16 @@ class STMMasterPacket(STMPacket):
     @classmethod
     def master(cls, packet_info: STMPacketInfo, master_channel: int) -> STMMasterPacket:
         return cls(name="Master", packet_info=packet_info, master_channel=master_channel)
+
+
+class STMChannelPacket(STMPacket):
+    def __init__(self, name: str, packet_info: STMPacketInfo, channel: int) -> None:
+        super().__init__(name=name, packet_info=packet_info)
+        self.channel_nb = channel
+
+    @classmethod
+    def channel(cls, packet_info: STMPacketInfo, channel: int) -> STMChannelPacket:
+        return cls(name="Channel", packet_info=packet_info, channel=channel)
 
 
 # FIXME: We handle all data packets (plain, timestamp, marker, or combined) as plain data packets

@@ -20,11 +20,14 @@ from insight.model.packets import (
     InfoPacket,
     Packet,
     PacketInfo,
+    STMChannelPacket,
     STMDataMPacket,
     STMDataMTSPacket,
     STMDataPacket,
     STMDataTSPacket,
+    STMErrorPacket,
     STMIncompletePacket,
+    STMMasterPacket,
     STMPacket,
     STMPacketInfo,
     STMSynchronizationPacket,
@@ -693,16 +696,36 @@ class STMDecoder(Decoder):
     def compute_next_offset(self, packet: Packet) -> None:
         # Unlike the ETM decoder were all packets are byte-aligned, STM packets are nibble-aligned
         # and their packet size corresponds to the NUMBER OF NIBBLE.
-        self.trace_offset += packet.packet_info.size // 2
-        self.nibble_selector = packet.packet_info.size % 2
+        next_offsets: tuple[int, int] = self.compute_trace_access_for_offset(packet.packet_info.size)
+        # FIXME: better with a dedicated structure?
+        self.trace_offset = next_offsets[0]
+        self.nibble_selector = next_offsets[1]
 
-    def access_nibble_at_offset(self, nibble_offset: int) -> int:
-        # Offset is in nibbles, so *2 for byte trace offset
-        trace_offset: int = self.trace_offset + (nibble_offset // 2)
+    def compute_trace_access_for_offset(self, nibble_offset: int) -> tuple[int, int]:
+        # Offset is in nibbles, so *2 for byte trace offset, if both selectors are on, add 1
+        trace_offset: int = (
+            self.trace_offset + (nibble_offset // 2) + (self.nibble_selector & (nibble_offset % 2))
+        )
         # Follows this truth table (which is XOR):
         # nibble_selector  |  offset % 2  || expected
         # -----------------+--------------++----------
         #        1         |       1      ||     0
+        #        1         |       0      ||     1
+        #        0         |       1      ||     1
+        #        0         |       0      ||     0
+        nibble_selector: int = self.nibble_selector ^ (nibble_offset % 2)
+
+        return (trace_offset, nibble_selector)
+
+    def access_nibble_at_offset(self, nibble_offset: int) -> int:
+        # Offset is in nibbles, so *2 for byte trace offset, if both selectors are on, add 1
+        trace_offset: int = (
+            self.trace_offset + (nibble_offset // 2) + (self.nibble_selector & (nibble_offset % 2))
+        )
+        # Follows this truth table (which is XOR):
+        # nibble_selector  |  offset % 2  || expected
+        # -----------------+--------------++----------
+        #        1         |       1      ||     0 --> +1 to the trace_offset!
         #        1         |       0      ||     1
         #        0         |       1      ||     1
         #        0         |       0      ||     0
@@ -726,10 +749,21 @@ class STMDecoder(Decoder):
     def create_incomplete_packet(self) -> STMIncompletePacket:
         return STMIncompletePacket(packet_info=self.create_packet_info(1))
 
+    def build_payload(self, size: int) -> int:
+        payload: int = 0
+        for nibble_idx in range(size // 4):
+            # A succession of values 0x0 0x1 0x2 0x3 should come out as 0x0123
+            # Placing the nibble correctly means shifting it by size - (running index * 4)
+            payload |= self.access_nibble_at_offset(nibble_offset=self.header_size + nibble_idx) << (
+                size - ((nibble_idx + 1) * 4)
+            )
+
+        return payload
+
     # Main decoding method
     # \______________________
 
-    def decode_packet(self) -> Packet:
+    def decode_packet(self) -> STMPacket:
         # Start with the base decode tree
         node: str | NibbleTree = STMDecoder.NIBBLE_TREE
 
@@ -746,22 +780,41 @@ class STMDecoder(Decoder):
                 raise UnknownSTMOpcodeError(self.trace_offset, self.nibble_selector) from err
 
         self.header_size = header_size
-        handler: Callable[[STMDecoder], Packet] = getattr(STMDecoder, node)
-        packet: Packet = handler(self)
+        handler: Callable[[STMDecoder], STMPacket] = getattr(STMDecoder, node)
+        packet: STMPacket = handler(self)
         return packet
+
+    # Error packets
+    # \_______________
+
+    def decode_merr(self) -> STMErrorPacket:
+        packet_size: int = self.header_size + 2
+        return STMErrorPacket.merr(
+            packet_info=self.create_packet_info(packet_size), err_code=self.build_payload(8)
+        )
+
+    def decode_gerr(self) -> STMErrorPacket:
+        packet_size: int = self.header_size + 2
+        return STMErrorPacket.gerr(
+            packet_info=self.create_packet_info(packet_size), err_code=self.build_payload(8)
+        )
 
     # Sync/Misc packets
     # \___________________
 
     def decode_async(self) -> STMPacket:
-        # expecting 21Fs in total then 0, we're already at nibble 3
-        if not self.check_remaining_trace(19):
+        # expecting 21Fs in total then 0
+        packet_size: int = 22
+        if not self.check_remaining_trace(packet_size):
             return self.create_incomplete_packet()
 
-        return STMSynchronizationPacket.asynch(packet_info=self.create_packet_info(22))
+        return STMSynchronizationPacket.asynch(packet_info=self.create_packet_info(packet_size))
 
     def decode_null(self) -> STMSynchronizationPacket:
-        return STMSynchronizationPacket.null(packet_info=self.create_packet_info(1))
+        return STMSynchronizationPacket.null(packet_info=self.create_packet_info(self.header_size))
+
+    def decode_flag(self) -> STMSynchronizationPacket:
+        return STMSynchronizationPacket.flag(packet_info=self.create_packet_info(self.header_size))
 
     def decode_version(self) -> STMVersionPacket:
         # Info Nibble:         3           2         0
@@ -789,21 +842,12 @@ class STMDecoder(Decoder):
     # Data packets
     # \______________
 
-    def decode_data_value(self, size: int) -> int:
-        data_value: int = 0
-        for nibble_idx in range(size // 4):
-            # A succession of values 0x0 0x1 0x2 0x3 should come out as 0x0123
-            # Placing the nibble correctly means shifting it by size - (running index * 4)
-            data_value |= self.access_nibble_at_offset(nibble_offset=nibble_idx) << (size - (nibble_idx * 4))
-
-        return data_value
-
     def decode_data_packet(self, size: int) -> STMDataPacket:
         packet_size: int = self.header_size + (size // 4)
         return STMDataPacket.data(
             packet_info=self.create_packet_info(packet_size),
             data_size=size,
-            data_value=self.decode_data_value(size),
+            data_value=self.build_payload(size),
         )
 
     def decode_mdata_packet(self, size: int) -> STMDataMPacket:
@@ -811,7 +855,7 @@ class STMDecoder(Decoder):
         return STMDataMPacket.m_data(
             packet_info=self.create_packet_info(packet_size),
             data_size=size,
-            data_value=self.decode_data_value(size),
+            data_value=self.build_payload(size),
         )
 
     def decode_tsdata_packet(self, size: int) -> STMDataTSPacket:
@@ -819,7 +863,7 @@ class STMDecoder(Decoder):
         return STMDataTSPacket.ts_data(
             packet_info=self.create_packet_info(packet_size),
             data_size=size,
-            data_value=self.decode_data_value(size=size),
+            data_value=self.build_payload(size=size),
             timestamp=self.access_nibble_at_offset(nibble_offset=(size // 4) + 1),
         )
 
@@ -828,7 +872,7 @@ class STMDecoder(Decoder):
         return STMDataMTSPacket.mts_data(
             packet_info=self.create_packet_info(packet_size),
             data_size=size,
-            data_value=self.decode_data_value(size=size),
+            data_value=self.build_payload(size=size),
             timestamp=self.access_nibble_at_offset(nibble_offset=(size // 4) + 1),
         )
 
@@ -891,3 +935,24 @@ class STMDecoder(Decoder):
 
     def decode_d64mts(self) -> STMDataMTSPacket:
         return self.decode_mtsdata_packet(64)
+
+    # Master/Channel packets
+    # \________________________
+
+    def decode_m8(self) -> STMMasterPacket:
+        packet_size: int = self.header_size + 2
+        return STMMasterPacket.master(
+            packet_info=self.create_packet_info(packet_size), master_channel=self.build_payload(size=8)
+        )
+
+    def decode_m16(self) -> STMMasterPacket:
+        packet_size: int = self.header_size + 4
+        return STMMasterPacket.master(
+            packet_info=self.create_packet_info(packet_size), master_channel=self.build_payload(size=16)
+        )
+
+    def decode_c8(self) -> STMChannelPacket:
+        packet_size: int = self.header_size + 2
+        return STMChannelPacket.channel(
+            packet_info=self.create_packet_info(packet_size), channel=self.build_payload(size=8)
+        )
