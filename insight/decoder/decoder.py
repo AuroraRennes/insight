@@ -719,17 +719,7 @@ class STMDecoder(Decoder):
 
     def access_nibble_at_offset(self, nibble_offset: int) -> int:
         # Offset is in nibbles, so *2 for byte trace offset, if both selectors are on, add 1
-        trace_offset: int = (
-            self.trace_offset + (nibble_offset // 2) + (self.nibble_selector & (nibble_offset % 2))
-        )
-        # Follows this truth table (which is XOR):
-        # nibble_selector  |  offset % 2  || expected
-        # -----------------+--------------++----------
-        #        1         |       1      ||     0 --> +1 to the trace_offset!
-        #        1         |       0      ||     1
-        #        0         |       1      ||     1
-        #        0         |       0      ||     0
-        nibble_selector: int = self.nibble_selector ^ (nibble_offset % 2)
+        trace_offset, nibble_selector = self.compute_trace_access_for_offset(nibble_offset)
 
         byte: int = self.trace_data[trace_offset]
         if nibble_selector == 0:
@@ -754,9 +744,9 @@ class STMDecoder(Decoder):
         for nibble_idx in range(size // 4):
             # A succession of values 0x0 0x1 0x2 0x3 should come out as 0x0123
             # Placing the nibble correctly means shifting it by size - (running index * 4)
-            payload |= self.access_nibble_at_offset(nibble_offset=self.header_size + nibble_idx) << (
-                size - ((nibble_idx + 1) * 4)
-            )
+            nibble: int = self.access_nibble_at_offset(nibble_offset=self.header_size + nibble_idx)
+            shift: int = size - ((nibble_idx + 1) * 4)
+            payload |= nibble << shift
 
         return payload
 

@@ -123,6 +123,7 @@ class PacketParser:
     # \_______________
 
     def parse_opencsd_file(self, trace_file_name: str) -> list[Packet]:
+        # FIXME: Should handle the start and end lines that trc_pkt_lister adds and keep them
         packets: list[Packet] = []
         try:
             with Path(trace_file_name).open("r") as trace_file:
