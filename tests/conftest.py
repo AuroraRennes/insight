@@ -98,10 +98,10 @@ def mock_file(monkeypatch, request):
     monkeypatch.setattr(Path, "open", mock_open)
 
 
-# Data files
-# \___________
+# Perf related data files
+# \_________________________
 
-DATA_DIR = "data/"
+DATA_DIR = "data/perf"
 BREAKING_FILES: list[str] = ["stack_overflow"]
 
 

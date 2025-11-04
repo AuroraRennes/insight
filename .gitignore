@@ -81,7 +81,7 @@ docs/_build
 
 # logs
 log/
-!data/bin
+!data/perf/bin
 
 # serialization
 data/json
