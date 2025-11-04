@@ -108,8 +108,8 @@ class ETMDecoder(Decoder):
 
     def extract_address(self, raw_data: bytearray) -> int:
         return (
-            raw_data[0] & 0x7F << 2
-            | raw_data[1] & 0x7F << 9
+            (raw_data[0] & 0x7F) << 2
+            | (raw_data[1] & 0x7F) << 9
             | raw_data[2] << 16
             | raw_data[3] << 24
             | raw_data[4] << 32
