@@ -498,7 +498,14 @@ class ETMDecoder(Decoder):
     def decode_address_exact_match_packet(self) -> Packet:
         address_reg: int = self.trace_data[self.trace_offset] & 0b11
 
-        return ETMAddressPacket.addr_match(self.create_packet_info(1), self.address_regs[address_reg])
+        etm_addr_packet: ETMAddressPacket = ETMAddressPacket.addr_match(
+            self.create_packet_info(1), int(self.address_regs[address_reg])
+        )
+
+        # Exact match is still expected to update addresses!
+        self.update_addresses(self.address_regs[address_reg])
+
+        return etm_addr_packet
 
     # Atom packets
     # \_____________
