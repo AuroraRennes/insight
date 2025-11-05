@@ -8,7 +8,7 @@ from insight.elf.disassembler import Disassembler
 from insight.elf.objdump_parser import FunctionDict, FunctionInfo
 from insight.model.basic_block import BasicBlock
 from insight.model.execution_trace import ExecutionTrace
-from insight.model.packets import AddressPacket, AtomPacket, Packet
+from insight.model.packets import ETMAddressPacket, ETMAtomPacket, Packet
 
 logger = logging.getLogger("insight")
 
@@ -45,15 +45,15 @@ class PacketProcessor:
 
         for packet in packet_trace:
             # Extracting address from address packet
-            if isinstance(packet, AddressPacket):
-                address_packet: AddressPacket = packet
+            if isinstance(packet, ETMAddressPacket):
+                address_packet: ETMAddressPacket = packet
                 process_info.pie_address = address_packet.address - start_address
 
             # Extracting basic block(s) from atom packet
-            if isinstance(packet, AtomPacket):
+            if isinstance(packet, ETMAtomPacket):
                 # Check if pie address is 0, meaning an atom packet is arriving
                 # before an address packet (TODO)
-                atom_packet: AtomPacket = packet
+                atom_packet: ETMAtomPacket = packet
                 # Search the function the address in the function dict
                 # If None, this means the  obtained address is outside the traced binary
                 optional_func_info: FunctionInfo | None = func_dict.find_function_by_address(
@@ -77,7 +77,7 @@ class PacketProcessor:
             basic_blocks={bb.address: bb for bb in self.basic_blocks},
         )
 
-    def process_atom_packet(self, atom_packet: AtomPacket, process_info: ProcessingInfo) -> ProcessingInfo:
+    def process_atom_packet(self, atom_packet: ETMAtomPacket, process_info: ProcessingInfo) -> ProcessingInfo:
         # Pass through all elements: ["E", "E", "N", ...]
         for atom_element in atom_packet.elements:
             # Extract instructions

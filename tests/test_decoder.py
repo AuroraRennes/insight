@@ -8,6 +8,15 @@ from insight.model.packets import STMDataPacket
 if TYPE_CHECKING:
     from insight.model.packets import STMPacket
 
+
+# ETM Tests
+# \_____________
+
+
+# STM Tests
+# \_____________
+
+
 STM_HEADERS: dict[str, int] = {
     # 1 nibble
     "NULL": 0x0,

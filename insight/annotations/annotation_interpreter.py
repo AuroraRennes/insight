@@ -21,7 +21,7 @@ from insight.exceptions import (
 )
 from insight.helpers import COLOG
 from insight.model.arm64_state import ARM64State
-from insight.model.packets import AddressPacket, AtomPacket, ExceptionPacket, Packet, STMDataPacket
+from insight.model.packets import ETMAddressPacket, ETMAtomPacket, ETMExceptionPacket, Packet, STMDataPacket
 
 logger = logging.getLogger("insight")
 
@@ -80,21 +80,21 @@ class AnnotationInterpreter:
 
         # Execute annotations one by one
         for packet in packet_trace:
-            if isinstance(packet, AddressPacket):
+            if isinstance(packet, ETMAddressPacket):
                 current_address = packet.address
                 current_offset = current_address - start_address
 
-            elif isinstance(packet, ExceptionPacket):
+            elif isinstance(packet, ETMExceptionPacket):
                 bb_offset = current_offset
 
-            elif isinstance(packet, AtomPacket):
+            elif isinstance(packet, ETMAtomPacket):
                 bb_offset = current_offset
                 self.process_atom_packet(packet, bb_offset)
 
             elif isinstance(packet, STMDataPacket):
                 self.process_data_packet(packet)
 
-    def process_atom_packet(self, packet: AtomPacket, bb_offset: int) -> None:
+    def process_atom_packet(self, packet: ETMAtomPacket, bb_offset: int) -> None:
         falled_through: bool = False
         falled_through_msg: str = "(falling through, N atom)"
 
@@ -144,7 +144,7 @@ class AnnotationInterpreter:
                 # If it is not ending with an END annotation, fall through the next annotations
                 bb_offset = self.interpret_blocks_until_end(bb_offset, packet.packet_info.index)
 
-    def process_exception_packet(self, packet: ExceptionPacket, bb_offset: int) -> None:
+    def process_exception_packet(self, packet: ETMExceptionPacket, bb_offset: int) -> None:
         function_name: str = (
             self.symbol_dict.function_for_address(bb_offset) if self.symbol_dict else "no symbol"
         )

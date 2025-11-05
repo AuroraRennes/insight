@@ -20,15 +20,16 @@ from insight.exceptions import (
 )
 from insight.helpers import string_to_int
 from insight.model.packets import (
-    AddressContextPacket,
-    AddressPacket,
-    AtomPacket,
     Context,
+    ETMAddressContextPacket,
+    ETMAddressPacket,
+    ETMAtomPacket,
+    ETMExceptionPacket,
+    ETMInfoPacket,
     ETMPacketInfo,
     ETMSynchronizationPacket,
-    ExceptionPacket,
+    ETMVersionPacket,
     InfoFields,
-    InfoPacket,
     Packet,
     PacketInfo,
     STMDataPacket,
@@ -36,7 +37,6 @@ from insight.model.packets import (
     STMPacket,
     STMPacketInfo,
     STMSynchronizationPacket,
-    VersionPacket,
 )
 
 if TYPE_CHECKING:
@@ -167,7 +167,9 @@ class PacketParser:
 
     # Address packets /
 
-    def parse_addr(self, packet_name: str, packet_info: PacketInfo, line: str, regex: str) -> AddressPacket:
+    def parse_addr(
+        self, packet_name: str, packet_info: PacketInfo, line: str, regex: str
+    ) -> ETMAddressPacket:
         match_address: re.Match[str] | None
         if match_address := re.search(regex, line):
             group: dict[str, str] = match_address.groupdict()
@@ -175,12 +177,12 @@ class PacketParser:
         else:
             raise NoMatchingAddressError
 
-        constr_method: Callable[..., AddressPacket] = getattr(AddressPacket, packet_name[2:].lower())
+        constr_method: Callable[..., ETMAddressPacket] = getattr(ETMAddressPacket, packet_name[2:].lower())
         return constr_method(packet_info=packet_info, address=address)
 
     def parse_addr_ctxt(
-        self, packet_name: str, packet_info: PacketInfo, line: str, regex: str
-    ) -> AddressContextPacket:
+        self, packet_name: str, packet_info: ETMPacketInfo, line: str, regex: str
+    ) -> ETMAddressContextPacket:
         match_addr_ctxt: re.Match[str] | None
         if match_addr_ctxt := re.search(regex, line):
             group: dict[str, str] = match_addr_ctxt.groupdict()
@@ -194,16 +196,16 @@ class PacketParser:
         else:
             raise NoMatchingAddressContextError
 
-        constr_method: Callable[..., AddressContextPacket] = getattr(
-            AddressContextPacket, packet_name[2:].lower()
+        constr_method: Callable[..., ETMAddressContextPacket] = getattr(
+            ETMAddressContextPacket, packet_name[2:].lower()
         )
         return constr_method(packet_info=packet_info, address=address, context=context)
 
     # Info packets /
 
     def parse_trace_info(
-        self, packet_info: PacketInfo, line: str, regex: str, **kwargs: dict[str, Any]
-    ) -> InfoPacket:
+        self, packet_info: ETMPacketInfo, line: str, regex: str, **kwargs: dict[str, Any]
+    ) -> ETMInfoPacket:
         match_info: re.Match[str] | None
         if match_info := re.search(regex, line):
             group: dict[str, str] = match_info.groupdict()
@@ -212,13 +214,13 @@ class PacketParser:
         else:
             raise NoMatchingInfoError
 
-        return InfoPacket.trace_info(packet_info=packet_info, info_fields=info_fields)
+        return ETMInfoPacket.trace_info(packet_info=packet_info, info_fields=info_fields)
 
     # Version packets /
 
     def parse_version(
-        self, packet_info: PacketInfo, line: str, regex: str, **kwargs: dict[str, Any]
-    ) -> VersionPacket:
+        self, packet_info: ETMPacketInfo, line: str, regex: str, **kwargs: dict[str, Any]
+    ) -> ETMVersionPacket:
         match_version: re.Match[str] | None
         if match_version := re.search(regex, line):
             group: dict[str, str] = match_version.groupdict()
@@ -226,11 +228,13 @@ class PacketParser:
         else:
             raise NoMatchingVersionError
 
-        return VersionPacket.version_nb(packet_info=packet_info, version_number=version_number)
+        return ETMVersionPacket.version_nb(packet_info=packet_info, version_number=version_number)
 
     # Atom packets /
 
-    def parse_atom(self, packet_info: PacketInfo, packet_name: str, line: str, regex: str) -> AtomPacket:
+    def parse_atom(
+        self, packet_info: ETMPacketInfo, packet_name: str, line: str, regex: str
+    ) -> ETMAtomPacket:
         match_elements: re.Match[str] | None
         if match_elements := re.search(regex, line):
             group: dict[str, str] = match_elements.groupdict()
@@ -240,39 +244,41 @@ class PacketParser:
 
         # I_ATOM_F1 > [I, ATOM, F1] > 1, but atom format 6 can have more elements!
         format_extracted: str = packet_name.split("_")[-1][-1]
-        if not AtomPacket.check_format_size(format=int(format_extracted), elements_nb=len(elements)):
+        if not ETMAtomPacket.check_format_size(format=int(format_extracted), elements_nb=len(elements)):
             raise WrongSizeAtomPacketError(expected_size=int(format_extracted), size=len(elements))
-        return AtomPacket.atom_format(packet_info=packet_info, elements=elements)
+        return ETMAtomPacket.atom_format(packet_info=packet_info, elements=elements)
 
     # Synchronization packets /
 
-    def parse_trace_on(self, packet_info: PacketInfo, **kwargs: dict[str, Any]) -> ETMSynchronizationPacket:
+    def parse_trace_on(
+        self, packet_info: ETMPacketInfo, **kwargs: dict[str, Any]
+    ) -> ETMSynchronizationPacket:
         return ETMSynchronizationPacket.trace_on(packet_info=packet_info)
 
-    def parse_async(self, packet_info: PacketInfo, **kwargs: dict[str, Any]) -> ETMSynchronizationPacket:
+    def parse_async(self, packet_info: ETMPacketInfo, **kwargs: dict[str, Any]) -> ETMSynchronizationPacket:
         return ETMSynchronizationPacket.asynch(packet_info=packet_info)
 
-    def parse_notsync(self, packet_info: PacketInfo, **kwargs: dict[str, Any]) -> ETMSynchronizationPacket:
+    def parse_notsync(self, packet_info: ETMPacketInfo, **kwargs: dict[str, Any]) -> ETMSynchronizationPacket:
         return ETMSynchronizationPacket.notsync(packet_info=packet_info)
 
-    def parse_end(self, packet_info: PacketInfo, **kwargs: dict[str, Any]) -> ETMSynchronizationPacket:
+    def parse_end(self, packet_info: ETMPacketInfo, **kwargs: dict[str, Any]) -> ETMSynchronizationPacket:
         return ETMSynchronizationPacket.end(packet_info=packet_info)
 
     # Exception packets /
 
     def parse_exception(
-        self, packet_info: PacketInfo, line: str, regex: str, **kwargs: dict[str, Any]
-    ) -> ExceptionPacket:
+        self, packet_info: ETMPacketInfo, line: str, regex: str, **kwargs: dict[str, Any]
+    ) -> ETMExceptionPacket:
         match_description: re.Match[str] | None
         if match_description := re.search(regex, line):
             group: dict[str, str] = match_description.groupdict()
             description: str = group["description"]
         else:
             raise NoMatchingDescriptionError
-        return ExceptionPacket.exception(packet_info=packet_info, description=description)
+        return ETMExceptionPacket.exception(packet_info=packet_info, description=description)
 
-    def parse_overflow(self, packet_info: PacketInfo, **kwargs: dict[str, Any]) -> ExceptionPacket:
-        return ExceptionPacket.overflow(packet_info=packet_info)
+    def parse_overflow(self, packet_info: ETMPacketInfo, **kwargs: dict[str, Any]) -> ETMExceptionPacket:
+        return ETMExceptionPacket.overflow(packet_info=packet_info)
 
     # STM packets /
 

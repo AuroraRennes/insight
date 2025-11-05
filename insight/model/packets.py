@@ -33,16 +33,21 @@ class Packet:
         pass
 
 
-# Unknown Packets
+class ETMPacket(Packet):
+    def __init__(self, name: str, packet_info: ETMPacketInfo) -> None:
+        super().__init__(name="ETM - " + name, packet_info=packet_info)
+
+
+# ETM Unknown Packets
 # \________________
 
 
-class UnknownPacket(Packet):
-    def __init__(self, packet_info: PacketInfo) -> None:
+class ETMUnknownPacket(Packet):
+    def __init__(self, packet_info: ETMPacketInfo) -> None:
         super().__init__(name="Unknown", packet_info=packet_info)
 
 
-class IncompletePacket(Packet):
+class ETMIncompletePacket(Packet):
     def __init__(self, packet_info: PacketInfo) -> None:
         super().__init__(name="Incomplete", packet_info=packet_info)
 
@@ -51,26 +56,26 @@ class IncompletePacket(Packet):
 # \________________________
 
 
-class ETMSynchronizationPacket(Packet):
+class ETMSynchronizationPacket(ETMPacket):
     @classmethod
-    def trace_on(cls, packet_info: PacketInfo) -> ETMSynchronizationPacket:
+    def trace_on(cls, packet_info: ETMPacketInfo) -> ETMSynchronizationPacket:
         return cls(name="Trace On", packet_info=packet_info)
 
     # asynch to avoid shadowing async
     @classmethod
-    def asynch(cls, packet_info: PacketInfo) -> ETMSynchronizationPacket:
+    def asynch(cls, packet_info: ETMPacketInfo) -> ETMSynchronizationPacket:
         return cls(name="Async", packet_info=packet_info)
 
     @classmethod
-    def notsync(cls, packet_info: PacketInfo) -> ETMSynchronizationPacket:
+    def notsync(cls, packet_info: ETMPacketInfo) -> ETMSynchronizationPacket:
         return cls(name="Not Sync", packet_info=packet_info)
 
     @classmethod
-    def end(cls, packet_info: PacketInfo) -> ETMSynchronizationPacket:
+    def end(cls, packet_info: ETMPacketInfo) -> ETMSynchronizationPacket:
         return cls(name="End Trace", packet_info=packet_info)
 
     @classmethod
-    def resynchronization(cls, packet_info: PacketInfo) -> ETMSynchronizationPacket:
+    def resynchronization(cls, packet_info: ETMPacketInfo) -> ETMSynchronizationPacket:
         return cls(name="Resynchronization", packet_info=packet_info)
 
 
@@ -99,13 +104,13 @@ class InfoFields:
         self.p0_store: int = format_to(info_bits >> 5, 1)
 
 
-class InfoPacket(Packet):
-    def __init__(self, name: str, packet_info: PacketInfo, info_fields: InfoFields) -> None:
+class ETMInfoPacket(ETMPacket):
+    def __init__(self, name: str, packet_info: ETMPacketInfo, info_fields: InfoFields) -> None:
         super().__init__(name=name, packet_info=packet_info)
         self.info_fields: InfoFields = info_fields
 
     @classmethod
-    def trace_info(cls, packet_info: PacketInfo, info_fields: InfoFields) -> InfoPacket:
+    def trace_info(cls, packet_info: ETMPacketInfo, info_fields: InfoFields) -> ETMInfoPacket:
         return cls(name="Trace Info", packet_info=packet_info, info_fields=info_fields)
 
 
@@ -113,14 +118,14 @@ class InfoPacket(Packet):
 # \_______________
 
 
-class VersionPacket(Packet):
-    def __init__(self, name: str, packet_info: PacketInfo, version_number: str) -> None:
+class ETMVersionPacket(Packet):
+    def __init__(self, name: str, packet_info: ETMPacketInfo, version_number: str) -> None:
         super().__init__(name=name, packet_info=packet_info)
         self.version_number: str = version_number
 
     # avoid shadowing base version() method
     @classmethod
-    def version_nb(cls, packet_info: PacketInfo, version_number: str) -> VersionPacket:
+    def version_nb(cls, packet_info: ETMPacketInfo, version_number: str) -> ETMVersionPacket:
         return cls(name="Version", packet_info=packet_info, version_number=version_number)
 
 
@@ -128,21 +133,21 @@ class VersionPacket(Packet):
 # \_________________
 
 
-class ExceptionPacket(Packet):
-    def __init__(self, name: str, packet_info: PacketInfo, description: str) -> None:
+class ETMExceptionPacket(ETMPacket):
+    def __init__(self, name: str, packet_info: ETMPacketInfo, description: str) -> None:
         super().__init__(name=name, packet_info=packet_info)
         self.description: str = description
 
     @classmethod
-    def exception(cls, packet_info: PacketInfo, description: str) -> ExceptionPacket:
+    def exception(cls, packet_info: ETMPacketInfo, description: str) -> ETMExceptionPacket:
         return cls(name="Exception", packet_info=packet_info, description=description)
 
     @classmethod
-    def return_exception(cls, packet_info: PacketInfo) -> ExceptionPacket:
+    def return_exception(cls, packet_info: ETMPacketInfo) -> ETMExceptionPacket:
         return cls(name="Return Exception", packet_info=packet_info, description="return from exception")
 
     @classmethod
-    def overflow(cls, packet_info: PacketInfo) -> ExceptionPacket:
+    def overflow(cls, packet_info: ETMPacketInfo) -> ETMExceptionPacket:
         return cls(name="Overflow", packet_info=packet_info, description="overflow")
 
 
@@ -150,8 +155,8 @@ class ExceptionPacket(Packet):
 # \_________________
 
 
-class TimestampPacket(Packet):
-    def __init__(self, packet_info: PacketInfo, timestamp: int) -> None:
+class ETMTimestampPacket(Packet):
+    def __init__(self, packet_info: ETMPacketInfo, timestamp: int) -> None:
         super().__init__(name="Timestamp", packet_info=packet_info)
         self.timestamp = timestamp
 
@@ -160,25 +165,25 @@ class TimestampPacket(Packet):
 # \________________
 
 
-class AddressPacket(Packet):
-    def __init__(self, name: str, packet_info: PacketInfo, address: int) -> None:
+class ETMAddressPacket(Packet):
+    def __init__(self, name: str, packet_info: ETMPacketInfo, address: int) -> None:
         super().__init__(name=name, packet_info=packet_info)
         self.address: int = address
 
     @classmethod
-    def addr_l_64is0(cls, packet_info: PacketInfo, address: int) -> AddressPacket:
+    def addr_l_64is0(cls, packet_info: ETMPacketInfo, address: int) -> ETMAddressPacket:
         return cls(name="Long Address 64bit IS0", packet_info=packet_info, address=address)
 
     @classmethod
-    def addr_s_is0(cls, packet_info: PacketInfo, address: int) -> AddressPacket:
+    def addr_s_is0(cls, packet_info: ETMPacketInfo, address: int) -> ETMAddressPacket:
         return cls(name="Short Address 64bit IS0", packet_info=packet_info, address=address)
 
     @classmethod
-    def addr_match(cls, packet_info: PacketInfo, address: int) -> AddressPacket:
+    def addr_match(cls, packet_info: ETMPacketInfo, address: int) -> ETMAddressPacket:
         return cls(name="Exact Address Match", packet_info=packet_info, address=address)
 
     @classmethod
-    def addr_l_32is0(cls, packet_info: PacketInfo, address: int) -> AddressPacket:
+    def addr_l_32is0(cls, packet_info: ETMPacketInfo, address: int) -> ETMAddressPacket:
         return cls(name="Long Address 32bit IS0", packet_info=packet_info, address=address)
 
 
@@ -193,25 +198,25 @@ class Context:
     security_state: str  # Secure/S or Not Secure/NS
 
 
-class ContextPacket(Packet):
-    def __init__(self, name: str, packet_info: PacketInfo, context: Context) -> None:
+class ETMContextPacket(Packet):
+    def __init__(self, name: str, packet_info: ETMPacketInfo, context: Context) -> None:
         super().__init__(name=name, packet_info=packet_info)
         self.context_info: Context = context
 
     @classmethod
-    def context(cls, packet_info: PacketInfo, context: Context) -> ContextPacket:
+    def context(cls, packet_info: ETMPacketInfo, context: Context) -> ETMContextPacket:
         return cls(name="Context", packet_info=packet_info, context=context)
 
 
-class AddressContextPacket(AddressPacket):
-    def __init__(self, name: str, packet_info: PacketInfo, address: int, context: Context) -> None:
+class ETMAddressContextPacket(ETMAddressPacket):
+    def __init__(self, name: str, packet_info: ETMPacketInfo, address: int, context: Context) -> None:
         super().__init__(name=name, packet_info=packet_info, address=address)
         self.context_info: Context = context
 
     @classmethod
     def addr_ctxt_l_64is0(
-        cls, packet_info: PacketInfo, address: int, context: Context
-    ) -> AddressContextPacket:
+        cls, packet_info: ETMPacketInfo, address: int, context: Context
+    ) -> ETMAddressContextPacket:
         return cls(
             name="Long Address 64bit IS0 with Context",
             packet_info=packet_info,
@@ -224,11 +229,11 @@ class AddressContextPacket(AddressPacket):
 # \_____________
 
 
-class AtomPacket(Packet):
+class ETMAtomPacket(Packet):
     def __init__(
         self,
         name: str,
-        packet_info: PacketInfo,
+        packet_info: ETMPacketInfo,
         format: int,
         elements: list[str],
     ) -> None:
@@ -237,7 +242,7 @@ class AtomPacket(Packet):
         self.elements: list[str] = elements
 
     @classmethod
-    def atom_format(cls, packet_info: PacketInfo, elements: list[str]) -> AtomPacket:
+    def atom_format(cls, packet_info: ETMPacketInfo, elements: list[str]) -> ETMAtomPacket:
         # FIXME: F6 atoms can have 4-24 elements
         atom_format: int = min(6, len(elements))
         return cls(

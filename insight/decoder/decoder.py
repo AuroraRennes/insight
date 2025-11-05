@@ -7,19 +7,20 @@ from insight.exceptions import (
     UnknownSTMOpcodeError,
 )
 from insight.model.packets import (
-    AddressContextPacket,
-    AddressPacket,
-    AtomPacket,
     Context,
-    ContextPacket,
+    ETMAddressContextPacket,
+    ETMAddressPacket,
+    ETMAtomPacket,
+    ETMContextPacket,
+    ETMExceptionPacket,
+    ETMIncompletePacket,
+    ETMInfoPacket,
     ETMPacketInfo,
     ETMSynchronizationPacket,
-    ExceptionPacket,
-    IncompletePacket,
+    ETMTimestampPacket,
+    ETMUnknownPacket,
     InfoFields,
-    InfoPacket,
     Packet,
-    PacketInfo,
     STMChannelPacket,
     STMDataMPacket,
     STMDataMTSPacket,
@@ -32,8 +33,6 @@ from insight.model.packets import (
     STMPacketInfo,
     STMSynchronizationPacket,
     STMVersionPacket,
-    TimestampPacket,
-    UnknownPacket,
 )
 
 if TYPE_CHECKING:
@@ -125,16 +124,16 @@ class ETMDecoder(Decoder):
         elements_list: list[str] = ["E" if (en_bits >> i) & 1 else "N" for i in range(bit_length)]
         return elements_list
 
-    def create_packet_info(self, size: int) -> PacketInfo:
+    def create_packet_info(self, size: int) -> ETMPacketInfo:
         return ETMPacketInfo(index=self.trace_offset, vmid=self.vmid, cid=self.cid, sid=self.sid, size=size)
 
-    def create_incomplete_packet(self) -> IncompletePacket:
-        return IncompletePacket(
+    def create_incomplete_packet(self) -> ETMIncompletePacket:
+        return ETMIncompletePacket(
             ETMPacketInfo(index=self.trace_offset, vmid=self.vmid, cid=self.cid, sid=self.sid, size=1)
         )
 
-    def create_unknown_packet(self) -> UnknownPacket:
-        return UnknownPacket(
+    def create_unknown_packet(self) -> ETMUnknownPacket:
+        return ETMUnknownPacket(
             ETMPacketInfo(index=self.trace_offset, vmid=self.vmid, cid=self.cid, sid=self.sid, size=1)
         )
 
@@ -239,7 +238,7 @@ class ETMDecoder(Decoder):
 
         # Overflow packet: 1 header byte + 1 payload byte containing 0x5
         if self.trace_data[self.trace_offset + 1] == 0x5:
-            return ExceptionPacket.overflow(
+            return ETMExceptionPacket.overflow(
                 ETMPacketInfo(
                     index=self.trace_offset, vmid=self.vmid, cid=self.cid, sid=self.sid, size=packet_size
                 )
@@ -315,7 +314,7 @@ class ETMDecoder(Decoder):
             msg = "CYCT"
             raise UnimplementedSectionError(msg)
 
-        return InfoPacket.trace_info(
+        return ETMInfoPacket.trace_info(
             packet_info=self.create_packet_info(packet_size),
             info_fields=InfoFields(info_bits=info_bits),
         )
@@ -329,7 +328,7 @@ class ETMDecoder(Decoder):
 
         # Note: the timestamp itself is not computed
 
-        return TimestampPacket(
+        return ETMTimestampPacket(
             packet_info=self.create_packet_info(packet_size),
             timestamp=0,
         )
@@ -355,13 +354,13 @@ class ETMDecoder(Decoder):
         # Note: TYPE[9:5] are always 0b00000 for Armv7-A/R and Armv8-A/R PEs.
         exception_code: int = (self.trace_data[self.trace_offset + 1] >> 1) & 0x1F
 
-        return ExceptionPacket.exception(
+        return ETMExceptionPacket.exception(
             packet_info=self.create_packet_info(packet_size),
             description=ETMDecoder.EXCEPTION_CODES[exception_code],
         )
 
     def decode_exception_return_packet(self) -> Packet:
-        return ExceptionPacket.return_exception(
+        return ETMExceptionPacket.return_exception(
             packet_info=self.create_packet_info(1),
         )
 
@@ -377,7 +376,7 @@ class ETMDecoder(Decoder):
         packet_size: int = 1
         # Check from the header if the packet has a payload, if not reuse the previous one
         if not self.trace_data[self.trace_offset] & 0x1:
-            return ContextPacket.context(
+            return ETMContextPacket.context(
                 packet_info=self.create_packet_info(packet_size),
                 context=self.context,
             )
@@ -409,7 +408,7 @@ class ETMDecoder(Decoder):
                 self.trace_data[self.trace_offset + packet_size - 4 : self.trace_offset + packet_size]
             )
 
-        return ContextPacket.context(
+        return ETMContextPacket.context(
             packet_info=self.create_packet_info(packet_size),
             context=context,
         )
@@ -449,7 +448,7 @@ class ETMDecoder(Decoder):
                 self.trace_data[self.trace_offset + packet_size - 4 : self.trace_offset + packet_size]
             )
 
-        return AddressContextPacket.addr_ctxt_l_64is0(
+        return ETMAddressContextPacket.addr_ctxt_l_64is0(
             packet_info=self.create_packet_info(packet_size),
             address=address,
             context=context,
@@ -475,7 +474,7 @@ class ETMDecoder(Decoder):
 
         self.update_addresses(new_address=address)
 
-        return AddressPacket.addr_s_is0(
+        return ETMAddressPacket.addr_s_is0(
             packet_info=self.create_packet_info(packet_size),
             address=address,
         )
@@ -491,7 +490,7 @@ class ETMDecoder(Decoder):
         )
         self.update_addresses(address)
 
-        return AddressPacket.addr_l_64is0(
+        return ETMAddressPacket.addr_l_64is0(
             packet_info=self.create_packet_info(packet_size),
             address=address,
         )
@@ -499,7 +498,7 @@ class ETMDecoder(Decoder):
     def decode_address_exact_match_packet(self) -> Packet:
         address_reg: int = self.trace_data[self.trace_offset] & 0b11
 
-        return AddressPacket.addr_match(self.create_packet_info(1), self.address_regs[address_reg])
+        return ETMAddressPacket.addr_match(self.create_packet_info(1), self.address_regs[address_reg])
 
     # Atom packets
     # \_____________
@@ -509,7 +508,7 @@ class ETMDecoder(Decoder):
         en_bits: int = self.trace_data[self.trace_offset] & 0b1
         elements_list: list[str] = self.create_element_list(en_bits=en_bits, bit_length=1)
 
-        return AtomPacket.atom_format(
+        return ETMAtomPacket.atom_format(
             packet_info=self.create_packet_info(1),
             elements=elements_list,
         )
@@ -519,7 +518,7 @@ class ETMDecoder(Decoder):
         en_bits: int = self.trace_data[self.trace_offset] & 0b11
         elements_list: list[str] = self.create_element_list(en_bits=en_bits, bit_length=2)
 
-        return AtomPacket.atom_format(
+        return ETMAtomPacket.atom_format(
             packet_info=self.create_packet_info(1),
             elements=elements_list,
         )
@@ -529,7 +528,7 @@ class ETMDecoder(Decoder):
         en_bits: int = self.trace_data[self.trace_offset] & 0b111
         elements_list: list[str] = self.create_element_list(en_bits=en_bits, bit_length=3)
 
-        return AtomPacket.atom_format(
+        return ETMAtomPacket.atom_format(
             packet_info=self.create_packet_info(1),
             elements=elements_list,
         )
@@ -548,7 +547,7 @@ class ETMDecoder(Decoder):
 
         elements_list: list[str] = f4_patterns[en_bits]
 
-        return AtomPacket.atom_format(
+        return ETMAtomPacket.atom_format(
             packet_info=self.create_packet_info(1),
             elements=elements_list,
         )
@@ -568,7 +567,7 @@ class ETMDecoder(Decoder):
 
         elements_list: list[str] = f5_patterns[en_bits]
 
-        return AtomPacket.atom_format(
+        return ETMAtomPacket.atom_format(
             packet_info=self.create_packet_info(1),
             elements=elements_list,
         )
@@ -580,7 +579,7 @@ class ETMDecoder(Decoder):
 
         elements_list: list[str] = ["E"] * e_count + (["N"] if header & 0b10000 else ["E"])
 
-        return AtomPacket.atom_format(
+        return ETMAtomPacket.atom_format(
             packet_info=self.create_packet_info(1),
             elements=elements_list,
         )
