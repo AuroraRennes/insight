@@ -1,8 +1,9 @@
 import contextlib
 
-from insight.annotation_interpreter import AnnotationInterpreter
-from insight.elf_decoder import ELFInfo
-from insight.packets import Packet
+from insight.annotations.annotation_interpreter import AnnotationInterpreter
+from insight.elf.elf_decoder import ELFDecoder, ELFInfo
+from insight.model.packet_parser import PacketParser
+from insight.model.packets import Packet
 
 
 class ROAnnotationInterpreter(AnnotationInterpreter):
@@ -21,9 +22,7 @@ class ROAnnotationInterpreter(AnnotationInterpreter):
 
 
 if __name__ == "__main__":
-    from insight.elf_decoder import ELFDecoder
     from insight.exceptions import TagCheckingRuleError
-    from insight.parsers.packet_parser import PacketParser
 
     BIN_NAME = "read_overflow"
     ELF_FILE_PATH = "examples/read_overflow/" + BIN_NAME
@@ -37,14 +36,14 @@ if __name__ == "__main__":
     packet_parser: PacketParser = PacketParser()
     packets: list[Packet] = packet_parser.parse_opencsd_file(TRACE_PATH)
     packets_dict: dict[int, list[Packet]] = {}
+    # Parse packets into objects
     for packet in packets:
-        cpu = packet.packet_info.cpu_nb
-        if cpu in {0, 1, 2, 3, 10}:
-            packets_dict.setdefault(cpu, []).append(packet)
+        packets_dict.setdefault(packet.packet_info.sid, []).append(packet)
 
-    # Interpret both first STM then Core 0 packets
-    interpreter: AnnotationInterpreter = ROAnnotationInterpreter(elf_info)
-    interpreter.interpret_packet_trace(packets_dict[10], 0)  # STM
+    # Interpret both
+    interpreter: AnnotationInterpreter = AnnotationInterpreter(elf_info)
+    interpreter.interpret_packet_trace(packets_dict[0x20], 0)  # STM
 
+    # Interpret Core 0 packets
     with contextlib.suppress(TagCheckingRuleError):
-        interpreter.interpret_packet_trace(packets_dict[0], 0)   # Core 0
+        interpreter.interpret_packet_trace(packets_dict[0x10], 0)  # Core 0
