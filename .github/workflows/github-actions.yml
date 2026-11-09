@@ -1,48 +1,37 @@
 name: build
 on: [push, pull_request]
 jobs:
+  check:
+    name: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@v4
+    - uses: astral-sh/setup-uv@v6
+      with:
+        python-version: '3.13'
+    - name: install dependencies
+      run: uv sync --locked
+    - name: lint, format, types
+      run: |
+        uv run ruff check
+        uv run ruff format --check
+        uv run mypy .
+
   test:
-    name: ${{ matrix.name }}
+    name: py313 (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - name: 'check'
-            python: '3.13'
-            toxpython: 'python3.13'
-            tox_env: 'check'
-            os: 'ubuntu-latest'
-
-          - name: 'py313 (ubuntu)'
-            python: '3.13'
-            toxpython: 'python3.13'
-            python_arch: 'x64'
-            tox_env: 'py313'
-            os: 'ubuntu-latest'
-
-          - name: 'py313 (macos)'
-            python: '3.13'
-            toxpython: 'python3.13'
-            python_arch: 'x64'
-            tox_env: 'py313'
-            os: 'macos-latest'
-
+        os: [ubuntu-latest, macos-latest]
     steps:
     - uses: actions/checkout@v4
+    - uses: astral-sh/setup-uv@v6
       with:
-        fetch-depth: 0
-    - uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python }}
-        architecture: ${{ matrix.python_arch }}
+        python-version: '3.13'
     - name: install dependencies
-      run: |
-        python -mpip install --progress-bar=off pipenv
-        pipenv install --dev
+      run: uv sync --locked
     - name: test
-      env:
-        TOXPYTHON: '${{ matrix.toxpython }}'
-      run: >
-        pipenv run tox -e ${{ matrix.tox_env }} -v
+      run: uv run pytest

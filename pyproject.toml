@@ -2,23 +2,34 @@
 # Project information
 # ===================================================
 [build-system]
-requires = [
-    "capstone",
-    "setuptools"
-]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "insight"
 description = "CoreSight/OpenCSD Trace parser and annotation interpreter"
 version = "0.0.0"
 requires-python = ">= 3.13"
+dependencies = [
+    "capstone",
+    "pyelftools",
+    "unicorn",
+]
+
+[dependency-groups]
+dev = [
+    "mypy",
+    "pytest",
+    "pytest-mock",
+    "ruff",
+]
 
 # ===================================================
 # Setuptools
 # ===================================================
 
-[tool.setuptools]
-py-modules = ["insight"]
+[tool.setuptools.packages.find]
+include = ["insight*"]
 
 # ===================================================
 # Mypy - type hints
