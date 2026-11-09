@@ -1,0 +1,129 @@
+(* The HBNG annotation DSL, in W3C-style EBNF: '::=' defines, '|' alternates, '?' is optional,
+   '*' zero or more, '+' one or more, quoted text is literal.
+
+   One grammar for both uses: the statements of one transfer (an instruction's @ group, a rule
+   of R, a dump), read by insight.dsl.syntax, and the block framing around them in the
+   compiler's .hbngannot section, read by insight.annotations.
+
+   Left of '<-' is the exit, right the entry. Angle brackets mark values (<X0>, <SP>), bare
+   names tags (X0, SP). *)
+
+
+(* Block framing
+   \_____________
+
+   One block of the .hbngannot section, the text of its .ascii lines. The label is the one the
+   block table points to. *)
+
+block       ::= label NL group+ 'END' NL
+label       ::= 'HBNG_' NAME '_annot:'            (* HBNG_<function>[_n_<block>][_split_<i>] *)
+group       ::= '@' DEC NL (stmt NL)*
+
+(* Not expressed above:
+   - the offsets are 0, 4, 8, ...: every instruction of the block has its group, in order,
+     empty groups included. A block whose first line is not '@0' is the old format, rejected;
+   - <Xn> in group k pairs with the latest 'send Xn' in groups <= k (k included) with no write
+     of Xn in between; the paired block form names the i-th send S<i>. *)
+
+
+(* Statements
+   \__________
+
+   One per line. Blank lines and '#' comments are ignored; whitespace between tokens is free. *)
+
+transfer    ::= (stmt? COMMENT? NL)*
+
+stmt        ::= tag_stmt
+              | value_stmt
+              | 'send' reg
+              | 'svc'
+              | 'unsupported' STRING
+
+tag_stmt    ::= loc '<-' part ('excl' part)? ('over' loc+)?
+value_stmt  ::= ('<SP>' | '<FP>') '<-' term
+
+(* Not expressed above:
+   - a location is written by at most one statement, <SP> and <FP> at most once each, a register
+     sent at most once ('send SP' is refused);
+   - 'svc' and 'unsupported' stand alone: no other statement in the transfer;
+   - the written loc is never a descending V range;
+   - the 'over' locations are sources of the written locations they apply to. *)
+
+
+(* Parts
+   \_____
+
+   What each written location gets, for the sources and for 'excl'.
+   - Union: every written location gets all the part's locations.
+   - 'per e_in:e_out' ('per e' is 'per e:e'): the written locations are cut into elements of
+     e_out, every loc of the part into elements of e_in, and element i gets the union of the
+     locs' elements i. 'per 1' is byte for byte.
+   - Byte map: one entry per written location, in order; a loc gives as many entries as it has
+     locations, '0' gives one empty entry.
+   - '0': nothing (a clear for the sources, no exclusion for 'excl'). *)
+
+part        ::= '0' per?
+              | loc ('|' loc)* per?
+              | bytemap
+per         ::= 'per' NUM (':' NUM)?
+bytemap     ::= '[' (bm_loc | '0')* ']'
+
+(* Not expressed above: with 'per', every loc of the part has (written count / e_out) * e_in
+   locations; a byte map has exactly as many entries as there are written locations. *)
+
+
+(* Locations
+   \_________
+
+   A loc names one or more locations (tag cells): a whole X register, or bytes. *)
+
+loc         ::= reg | vrange | mem
+bm_loc      ::= reg | vrange_any | mem            (* byte maps only: V ranges may descend *)
+
+reg         ::= XREG | 'SP' | 'FP' | 'LR'         (* FP is X29, LR is X30 *)
+vrange      ::= VREG '[' BYTE (':' BYTE)? ']'     (* lo <= hi, both inclusive *)
+vrange_any  ::= VREG '[' BYTE (':' BYTE)? ']'     (* V1[3:0] is bytes 3, 2, 1, 0 *)
+
+(* Memory, low byte first. M[a] is one byte, M[a .. +n] is n bytes at a, and
+   M[a .. +n step s times k] is k elements of n bytes at a, a + s, ..., a + (k - 1) * s, element
+   by element; step 0 repeats the same bytes (ld1r). n >= 1, s >= 0, k >= 1. *)
+
+mem         ::= 'M' '[' term ('..' '+' NUM ('step' NUM 'times' NUM)?)? ']'
+
+
+(* Terms
+   \_____
+
+   64-bit values, modulo 2^64, all at the entry of the transfer. A product has at most one
+   non-constant factor (the terms are linear). *)
+
+term        ::= '-'? prod (('+' | '-') prod)*
+prod        ::= primary ('*' primary)*
+primary     ::= NUM
+              | SYMBOL
+              | 'ext' '(' term ',' EXT ',' NUM ')'  (* shift 0..63 *)
+              | '(' term ('&' SNUM)? ')'
+
+SYMBOL      ::= '<X' XNUM '>'                     (* Xn's value; instruction groups only *)
+              | '<SP>' | '<FP>'                   (* the tracked SP and FP, not <X29> *)
+              | 'S' INDEX                         (* the block's i-th send, block forms only *)
+              | 'GLOBAL'                          (* the image base *)
+EXT         ::= 'uxtw' | 'sxtw' | 'uxtx' | 'sxtx'
+
+
+(* Lexical
+   \_______ *)
+
+XREG        ::= 'X' XNUM
+VREG        ::= 'V' VNUM
+XNUM        ::= [0-9] | [12] [0-9] | '30'
+VNUM        ::= [0-9] | [12] [0-9] | '3' [01]
+BYTE        ::= [0-9] | '1' [0-5]
+DEC         ::= [0-9]+
+INDEX       ::= '0' | [1-9] [0-9]*
+NUM         ::= DEC | '0x' [0-9a-fA-F]+
+SNUM        ::= '-'? NUM
+NAME        ::= [A-Za-z0-9_.$]+
+STRING      ::= '"' [^"#x23#x0A]* '"'               (* no '#': it starts a comment *)
+COMMENT     ::= '#' [^#x0A]*
+NL          ::= #x0A
