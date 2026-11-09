@@ -233,8 +233,6 @@ class Parser:
             if reg is None or reg.n == SP_INDEX:
                 self.fail("expected send X<n>")
             self.end()
-            if reg in out.sends:
-                self.fail(f"{reg} sent twice")
             out.sends.append(reg)
         elif first == "svc":
             self.take()

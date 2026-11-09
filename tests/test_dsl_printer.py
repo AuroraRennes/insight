@@ -43,6 +43,7 @@ def test_roundtrip():
         ("V0[0:15] <- 0 excl V1[0:15]", "V0[0:15] <- 0 excl V1[0:15]"),
         ("<SP> <- <SP> - 16", "<SP> <- <SP> - 16"),
         ("send FP", "send X29"),
+        ("send X1\nsend X0\nsend X1", "send X1\nsend X0\nsend X1"),
         ("svc", "svc"),
     ],
 )

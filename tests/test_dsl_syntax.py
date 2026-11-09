@@ -143,6 +143,13 @@ def test_send_aliases():
     assert parse("send FP\nsend X0").sends == (Reg(29), Reg(0))
 
 
+def test_repeated_sends_keep_fifo_order():
+    # ld4 {v0-v3}, [x0] today: stp x0, x0, [x18] twice, four FIFO entries.
+    assert parse("send X0\nsend X0\nsend X0\nsend X0").sends == (Reg(0),) * 4
+    # stp x29, x16, [x18]: x16 is emitted first.
+    assert parse("send X16\nsend X29").sends == (Reg(16), Reg(29))
+
+
 def test_tags_and_values_are_told_apart():
     t = parse("FP <- X29\n<FP> <- <SP> + 16")
     assert srcs(t, Reg(29)) == {Reg(29)}
@@ -186,7 +193,6 @@ def test_terms_in_addresses():
         ("X0 <- M[<X1> .. +4 step 8]", "expected 'times'"),
         ("X0 <- M[<X1> .. +4 step 8 times 0]", "bad stride"),
         ("send SP", "expected send X<n>"),
-        ("send X0\nsend X0", "sent twice"),
         ("svc\nX0 <- 0", "must stand alone"),
         ('X0 <- X1\nunsupported "TBXv16i8One"', "must stand alone"),
     ],

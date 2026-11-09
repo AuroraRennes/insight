@@ -22,6 +22,8 @@ group       ::= '@' DEC NL (stmt NL)*
 (* Not expressed above:
    - the offsets are 0, 4, 8, ...: every instruction of the block has its group, in order,
      empty groups included. A block whose first line is not '@0' is the old format, rejected;
+   - a group's send lines are its FIFO entries, in the order the STM emits them:
+     'stp a, b, [x18]' is 'send b' then 'send a'. A register may be sent several times;
    - <Xn> in group k pairs with the latest 'send Xn' in groups <= k (k included) with no write
      of Xn in between; the paired block form names the i-th send S<i>. *)
 
@@ -43,8 +45,8 @@ tag_stmt    ::= loc '<-' part ('excl' part)? ('over' loc+)?
 value_stmt  ::= ('<SP>' | '<FP>') '<-' term
 
 (* Not expressed above:
-   - a location is written by at most one statement, <SP> and <FP> at most once each, a register
-     sent at most once ('send SP' is refused);
+   - a location is written by at most one statement, <SP> and <FP> at most once each;
+   - 'send SP' is refused: SP is tracked, never sent;
    - 'svc' and 'unsupported' stand alone: no other statement in the transfer;
    - the written loc is never a descending V range;
    - the 'over' locations are sources of the written locations they apply to. *)

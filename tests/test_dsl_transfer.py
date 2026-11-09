@@ -45,6 +45,8 @@ def test_addresses_compare_by_canonical_form():
 def test_sends_and_opaque_are_part_of_the_meaning():
     assert not parse("send X0").same_meaning(Transfer())
     assert parse("send X0").sends == (Reg(0),)
+    assert not parse("send X0").same_meaning(parse("send X0\nsend X0"))
+    assert not parse("send X0\nsend X1").same_meaning(parse("send X1\nsend X0"))
     assert parse("svc").opaque == (Opaque("svc"),)
     assert not parse("svc").same_meaning(parse('unsupported "TBXv16i8One"'))
 
