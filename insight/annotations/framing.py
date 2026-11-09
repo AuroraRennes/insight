@@ -30,6 +30,7 @@ class FramingError(Exception):
     def __init__(self, message: str, address: int, offset: int | None = None) -> None:
         where = f"block {address:#x}" if offset is None else f"block {address:#x} @{offset}"
         super().__init__(f"{where}: {message}")
+        self.message = message
         self.address = address
         self.offset = offset
 

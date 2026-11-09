@@ -35,6 +35,7 @@ SVC_WRITES = frozenset({0})
 class PairingError(Exception):
     def __init__(self, message: str, address: int, offset: int) -> None:
         super().__init__(f"block {address:#x} @{offset}: {message}")
+        self.message = message
         self.address = address
         self.offset = offset
 
