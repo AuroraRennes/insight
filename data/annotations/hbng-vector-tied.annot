@@ -1,0 +1,5 @@
+HBNG_bsl_annot:
+@0      # bsl v0.16b, v1.16b, v2.16b
+V0[0:15] <- V1[0:15] | V2[0:15] per 1 excl V0[0:15] per 1
+@4      # ret
+END

@@ -1,0 +1,28 @@
+HBNG_cas128_n_1_annot:
+@0      # stp x0, x0, [x18]
+send X0
+send X0
+@4      # ldaxp x8, x1, [x0]
+X8 <- M[<X0> .. +8]
+X1 <- M[<X0> + 8 .. +8]
+@8      # cmp x8, x2
+@12     # cset w9, ne
+X9 <- 0
+@16     # cmp x1, x3
+@20     # cinc w9, w9, ne
+X9 <- X9
+@24     # cbz w9, .LBB2_3
+END
+HBNG_cas128_n_2_annot:
+@0      # stlxp w9, x8, x1, [x0]: its sends come after it
+M[<X0> .. +8] <- X8
+M[<X0> + 8 .. +8] <- X1
+X9 <- 0
+@4      # stp x0, x0, [x18]
+send X0
+send X0
+@8      # cbnz w9, .LBB2_1
+END
+HBNG_cas128_n_2_split_0_annot:
+@0      # b .LBB2_4
+END

@@ -1,0 +1,26 @@
+HBNG_insgpr8_annot:
+@0      # mov v0.b[5], w0
+V0[5] <- X0
+@4      # ret
+END
+HBNG_umov_annot:
+@0      # mov w0, v0.s[1]
+X0 <- V0[4:7]
+@4      # ret
+END
+HBNG_dupgpr2s_annot:
+@0      # dup v0.2s, w0
+V0[0:7] <- X0
+V0[8:15] <- 0
+@4      # ret
+END
+HBNG_fmovhigh_annot:
+@0      # mov v0.d[1], x0
+V0[8:15] <- X0
+@4      # ret
+END
+HBNG_movi4s_annot:
+@0      # movi v0.4s, #18, lsl #8
+V0[0:15] <- 0
+@4      # ret
+END

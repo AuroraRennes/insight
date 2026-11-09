@@ -1,0 +1,9 @@
+HBNG_far_annot:
+@0      # tbnz w1, #0, .LBB0_1
+END
+HBNG_far_split_0_annot:
+@0      # b .LBB0_2
+END
+HBNG_far_n_2_annot:
+@0      # ret
+END

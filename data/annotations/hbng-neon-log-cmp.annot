@@ -1,0 +1,5 @@
+HBNG_cmhs_annot:
+@0      # cmhs v0.4s, v0.4s, v1.4s
+V0[0:15] <- 0 excl V0[0:15] | V1[0:15] per 4
+@4      # ret
+END

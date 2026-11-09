@@ -1,0 +1,62 @@
+HBNG_ld4_annot:
+@0      # stp x0, x0, [x18]
+send X0
+send X0
+@4      # stp x0, x0, [x18]
+send X0
+send X0
+@8      # ld4 { v0.16b, v1.16b, v2.16b, v3.16b }, [x0]
+V0[0:15] <- M[<X0> .. +1 step 4 times 16] per 1
+V1[0:15] <- M[<X0> + 1 .. +1 step 4 times 16] per 1
+V2[0:15] <- M[<X0> + 2 .. +1 step 4 times 16] per 1
+V3[0:15] <- M[<X0> + 3 .. +1 step 4 times 16] per 1
+@12     # ret
+END
+HBNG_ld1r_annot:
+@0      # str x0, [x18]
+send X0
+@4      # ld1r { v0.4s }, [x0]
+V0[0:15] <- M[<X0> .. +4 step 0 times 4] per 1
+@8      # ret
+END
+HBNG_ld1lane32_annot:
+@0      # str x0, [x18]
+send X0
+@4      # ld1 { v0.s }[2], [x0]
+V0[8:11] <- M[<X0> .. +4] per 1
+@8      # ret
+END
+HBNG_st2d_annot:
+@0      # stp x0, x0, [x18]
+send X0
+send X0
+@4      # st2 { v0.2s, v1.2s }, [x0]
+M[<X0> .. +4 step 8 times 2] <- V0[0:7] per 1
+M[<X0> + 4 .. +4 step 8 times 2] <- V1[0:7] per 1
+@8      # ret
+END
+HBNG_ld2_post_reg_annot:
+@0      # stp x30, x19, [sp, #-16]!
+M[<SP> - 16 .. +8] <- LR
+M[<SP> - 8 .. +8] <- X19
+<SP> <- <SP> - 16
+@4      # mov x19, x0
+X19 <- X0
+@8      # stp x19, x19, [x18]
+send X19
+send X19
+@12     # ld2 { v0.4s, v1.4s }, [x19], x1 (the write-back of x19 is not annotated)
+V0[0:15] <- M[<X19> .. +4 step 8 times 4] per 1
+V1[0:15] <- M[<X19> + 4 .. +4 step 8 times 4] per 1
+@16     # bl use
+LR <- 0
+END
+HBNG_ld2_post_reg_split_0_annot:
+@0      # mov x0, x19
+X0 <- X19
+@4      # ldp x30, x19, [sp], #16
+LR <- M[<SP> .. +8]
+X19 <- M[<SP> + 8 .. +8]
+<SP> <- <SP> + 16
+@8      # ret
+END

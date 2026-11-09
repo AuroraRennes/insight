@@ -1,0 +1,43 @@
+# _init and _fini: one block each, the prologue from crt/aarch64/crti.s and the epilogue from
+# crt/aarch64/crtn.s (nothing else goes into .init/.fini).
+HBNG__init_annot:
+@0      # stp x29, x30, [sp, -16]!
+M[<SP> - 16 .. +8] <- FP
+M[<SP> - 8 .. +8] <- LR
+<SP> <- <SP> - 16
+@4      # mov x29, sp
+FP <- SP
+<FP> <- <SP>
+@8      # ldp x29, x30, [sp], #16 (crtn.s)
+FP <- M[<SP> .. +8]
+LR <- M[<SP> + 8 .. +8]
+<SP> <- <SP> + 16
+@12     # str x29, [x18]
+send X29
+<FP> <- <X29>
+@16     # ret
+END
+HBNG__fini_annot:
+@0      # stp x29, x30, [sp, -16]!
+M[<SP> - 16 .. +8] <- FP
+M[<SP> - 8 .. +8] <- LR
+<SP> <- <SP> - 16
+@4      # mov x29, sp
+FP <- SP
+<FP> <- <SP>
+@8      # ldp x29, x30, [sp], #16 (crtn.s)
+FP <- M[<SP> .. +8]
+LR <- M[<SP> + 8 .. +8]
+<SP> <- <SP> + 16
+@12     # str x29, [x18]
+send X29
+<FP> <- <X29>
+@16     # ret
+END
+# src/thread/aarch64/__set_thread_area.s
+HBNG___set_thread_area_annot:
+@0      # msr tpidr_el0, x0
+@4      # mov w0, #0
+X0 <- 0
+@8      # ret
+END

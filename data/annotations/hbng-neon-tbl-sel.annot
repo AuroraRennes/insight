@@ -1,0 +1,16 @@
+HBNG_tbl2_annot:
+@0      # tbl v0.8b, { v0.16b, v1.16b }, v2.8b
+V0[0:7] <- V0[0:15] | V1[0:15] excl V2[0:7] per 1
+V0[8:15] <- 0
+@4      # ret
+END
+HBNG_tbx_annot:
+@0      # tbx v0.16b, { v1.16b }, v2.16b
+unsupported "TBXv16i8One"
+@4      # ret
+END
+HBNG_bsl_annot:
+@0      # bsl v0.16b, v1.16b, v2.16b
+V0[0:15] <- V1[0:15] | V2[0:15] per 1 excl V0[0:15] per 1
+@4      # ret
+END

@@ -1,0 +1,9 @@
+HBNG_tp_annot:
+@0      # mrs x0, TPIDR_EL0
+X0 <- 0
+@4      # ret
+END
+HBNG_fence_annot:
+@0      # dmb ish
+@4      # ret
+END

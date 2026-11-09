@@ -1,0 +1,7 @@
+HBNG_user_annot:
+@0      # str x0, [x18]
+send X0
+@4      # ldr x0, [x0]
+X0 <- M[<X0> .. +8]
+@8      # ret
+END

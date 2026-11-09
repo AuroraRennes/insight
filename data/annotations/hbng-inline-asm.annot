@@ -1,0 +1,18 @@
+HBNG_ll_sc_annot:
+@0      # ldaxr x8, [x0] (inline asm)
+unsupported "INLINEASM ldaxr"
+@4      # stlxr w9, x1, [x0] (inline asm)
+unsupported "INLINEASM stlxr"
+@8      # mov w0, w8
+X0 <- X8
+@12     # ret
+END
+HBNG_syscall_annot:
+@0      # mov x8, x0
+X8 <- X0
+@4      # svc #0
+svc
+END
+HBNG_syscall_split_0_annot:
+@0      # ret
+END

@@ -1,0 +1,15 @@
+HBNG_ushll2_annot:
+@0      # ushll2 v0.4s, v0.8h, #3
+V0[0:15] <- V0[8:15] per 2:4
+@4      # ret
+END
+HBNG_xtn2_annot:
+@0      # xtn2 v0.16b, v1.8h
+V0[8:15] <- V1[0:15] per 2:1
+@4      # ret
+END
+HBNG_umlal_annot:
+@0      # umlal v0.2d, v1.2s, v2.2s
+unsupported "UMLALv2i32_v2i64"
+@4      # ret
+END

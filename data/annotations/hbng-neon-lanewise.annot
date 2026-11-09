@@ -1,0 +1,10 @@
+HBNG_add4_annot:
+@0      # add v0.4s, v1.4s, v0.4s
+V0[0:15] <- V1[0:15] | V0[0:15] per 4
+@4      # ret
+END
+HBNG_fcvtzs1_annot:
+@0      # fcvtzs w0, s0
+X0 <- V0[0:3]
+@4      # ret
+END

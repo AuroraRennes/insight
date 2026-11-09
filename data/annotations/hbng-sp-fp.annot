@@ -1,0 +1,101 @@
+HBNG_vla_annot:
+@0      # stp x29, x30, [sp, #-32]!
+M[<SP> - 32 .. +8] <- FP
+M[<SP> - 24 .. +8] <- LR
+<SP> <- <SP> - 32
+@4      # str x19, [sp, #16]
+M[<SP> + 16 .. +8] <- X19
+@8      # mov x29, sp
+FP <- SP
+<FP> <- <SP>
+@12     # mov w8, w0
+X8 <- X0
+@16     # mov x9, sp
+X9 <- SP
+@20     # add x8, x8, #15
+X8 <- X8
+@24     # and x8, x8, #0x1fffffff0
+X8 <- X8
+@28     # sub x19, x9, x8
+X19 <- X9 | X8
+@32     # str x19, [x18]
+send X19
+@36     # mov sp, x19
+SP <- X19
+<SP> <- <X19>
+@40     # mov x0, x19
+X0 <- X19
+@44     # bl use
+LR <- 0
+END
+HBNG_vla_split_0_annot:
+@0      # str x19, [x18]
+send X19
+@4      # ldrb w0, [x19, #2]
+X0 <- M[<X19> + 2]
+@8      # mov sp, x29
+SP <- FP
+<SP> <- <FP>
+@12     # ldr x19, [sp, #16]
+X19 <- M[<SP> + 16 .. +8]
+@16     # ldp x29, x30, [sp], #32
+FP <- M[<SP> .. +8]
+LR <- M[<SP> + 8 .. +8]
+<SP> <- <SP> + 32
+@20     # str x29, [x18]
+send X29
+<FP> <- <X29>
+@24     # ret
+END
+HBNG_realign_annot:
+@0      # stp x29, x30, [sp, #-16]!
+M[<SP> - 16 .. +8] <- FP
+M[<SP> - 8 .. +8] <- LR
+<SP> <- <SP> - 16
+@4      # sub x9, sp, #48
+X9 <- SP
+@8      # mov x29, sp
+FP <- SP
+<FP> <- <SP>
+@12     # str x9, [x18]
+send X9
+@16     # and sp, x9, #0xffffffffffffffc0
+SP <- X9
+<SP> <- (<X9> & -64)
+@20     # mov x0, sp
+X0 <- SP
+@24     # bl use
+LR <- 0
+END
+HBNG_realign_split_0_annot:
+@0      # ldrb w0, [sp, #1]
+X0 <- M[<SP> + 1]
+@4      # mov sp, x29
+SP <- FP
+<SP> <- <FP>
+@8      # ldp x29, x30, [sp], #16
+FP <- M[<SP> .. +8]
+LR <- M[<SP> + 8 .. +8]
+<SP> <- <SP> + 16
+@12     # str x29, [x18]
+send X29
+<FP> <- <X29>
+@16     # ret
+END
+HBNG_clobber_fp_annot:
+@0      # str x29, [sp, #-16]!
+M[<SP> - 16 .. +8] <- FP
+<SP> <- <SP> - 16
+@4      # mov x29, x0 (inline asm)
+unsupported "INLINEASM mov"
+@8      # str x29, [x18]
+send X29
+<FP> <- <X29>
+@12     # ldr x29, [sp], #16
+FP <- M[<SP> .. +8]
+<SP> <- <SP> + 16
+@16     # str x29, [x18]
+send X29
+<FP> <- <X29>
+@20     # ret
+END

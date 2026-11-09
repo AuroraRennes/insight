@@ -1,0 +1,7 @@
+HBNG_label_annot:
+@0      # sub sp, sp, #16
+<SP> <- <SP> - 16
+@4      # str w0, [sp, #12]
+M[<SP> + 12 .. +4] <- X0
+@8      # b .LBB0_1
+END

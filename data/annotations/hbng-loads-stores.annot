@@ -1,0 +1,72 @@
+HBNG_reg_w_annot:
+@0      # stp x1, x0, [x18]: x0 is emitted first
+send X0
+send X1
+@4      # ldr w0, [x0, w1, sxtw #2]
+X0 <- M[<X0> + ext(<X1>, sxtw, 2) .. +4]
+@8      # ret
+END
+HBNG_pair_annot:
+@0      # stp x0, x0, [x18]
+send X0
+send X0
+@4      # ldp x8, x9, [x0]
+X8 <- M[<X0> .. +8]
+X9 <- M[<X0> + 8 .. +8]
+@8      # add x0, x9, x8
+X0 <- X9 | X8
+@12     # ret
+END
+HBNG_rcpc_imm_annot:
+@0      # str x0, [x18]
+send X0
+@4      # ldapur w8, [x0, #8]
+X8 <- M[<X0> + 8 .. +4]
+@8      # str x0, [x18]
+send X0
+@12     # stlur w8, [x0, #4]
+M[<X0> + 4 .. +4] <- X8
+@16     # ret
+END
+HBNG_excl_add_n_1_annot:
+@0      # str x8, [x18]
+send X8
+@4      # ldaxr x0, [x8]
+X0 <- M[<X8> .. +8]
+@8      # add x9, x0, x1
+X9 <- X0 | X1
+@12     # stlxr w10, x9, [x8]: its send comes after it
+M[<X8> .. +8] <- X9
+X10 <- 0
+@16     # str x8, [x18]
+send X8
+@20     # cbnz w10, .LBB0_1
+END
+HBNG_copy_post_n_1_annot:
+@0      # str x1, [x18]
+send X1
+@4      # ldr x8, [x1], #8
+X8 <- M[<X1> .. +8]
+@8      # subs x2, x2, #1
+X2 <- X2
+@12     # str x0, [x18]
+send X0
+@16     # str x8, [x0], #8
+M[<X0> .. +8] <- X8
+@20     # b.ne .LBB5_1
+END
+HBNG_spill_pre_annot:
+@0      # str x30, [sp, #-16]!
+M[<SP> - 16 .. +8] <- LR
+<SP> <- <SP> - 16
+@4      # add x0, sp, #8
+X0 <- SP
+@8      # bl use
+LR <- 0
+END
+HBNG_spill_pre_split_0_annot:
+@0      # ldr x30, [sp], #16
+LR <- M[<SP> .. +8]
+<SP> <- <SP> + 16
+@4      # ret
+END
