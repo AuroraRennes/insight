@@ -86,3 +86,8 @@ class Transfer:
             and a.opaque == b.opaque
             and a.sends == b.sends
         )
+
+    def __str__(self) -> str:
+        from insight.dsl.printer import dump  # noqa: PLC0415 (printer imports this module)
+
+        return dump(self)
