@@ -10,10 +10,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
+from insight.dsl.locations import Mem
 from insight.dsl.terms import Sym, Term
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Iterator, Mapping
 
     from insight.dsl.locations import Loc, Reg
 
@@ -86,6 +87,44 @@ class Transfer:
             and a.opaque == b.opaque
             and a.sends == b.sends
         )
+
+    # Symbols
+    # \________
+
+    def locations(self) -> Iterator[Loc]:
+        for loc, dep in self.tags.items():
+            yield loc
+            yield from dep.srcs
+            yield from dep.excl
+
+    def symbols(self) -> frozenset[Sym]:
+        """The symbols of every address and value."""
+        found: set[Sym] = set()
+        for loc in self.locations():
+            if isinstance(loc, Mem):
+                found |= loc.addr.symbols()
+        for term in self.values.values():
+            found |= term.symbols()
+        return frozenset(found)
+
+    def subst(self, mapping: Mapping[Sym, Term]) -> Transfer:
+        """Every address and value with the symbols of mapping replaced."""
+        replace = dict(mapping)
+
+        def move(loc: Loc) -> Loc:
+            return Mem(loc.addr.subst(replace)) if isinstance(loc, Mem) else loc
+
+        tags: dict[Loc, Dep] = {}
+        for loc, dep in self.tags.items():
+            target = move(loc)
+            if target in tags:
+                msg = f"{target} written twice once its symbols are replaced"
+                raise ValueError(msg)
+            tags[target] = Dep(
+                frozenset(map(move, dep.srcs)), frozenset(map(move, dep.excl)), frozenset(map(move, dep.over))
+            )
+        values = {reg: term.subst(replace) for reg, term in self.values.items()}
+        return Transfer(tags, values, self.opaque, self.sends)
 
     def __str__(self) -> str:
         from insight.dsl.printer import dump  # noqa: PLC0415 (printer imports this module)

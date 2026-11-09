@@ -2,7 +2,7 @@ import pytest
 
 from insight.dsl.locations import Mem, Reg, VByte
 from insight.dsl.syntax import parse
-from insight.dsl.terms import Term
+from insight.dsl.terms import Sym, Term
 from insight.dsl.transfer import Dep, Opaque, Transfer
 
 SP = Term.sym("<SP>")
@@ -66,3 +66,19 @@ def test_memory_bytes_are_separate_locations():
 def test_over_must_be_sources():
     with pytest.raises(ValueError, match="not sources"):
         Dep(frozenset({Reg(1)}), over=frozenset({Reg(2)}))
+
+
+def test_symbols():
+    t = parse("X0 <- M[<X1> + 8]\nM[S0] <- X2\n<SP> <- <SP> - 16\nX3 <- M[GLOBAL + 64]")
+    assert {str(sym) for sym in t.symbols()} == {"<X1>", "S0", "<SP>", "GLOBAL"}
+
+
+def test_subst_replaces_addresses_and_values():
+    t = parse("X0 <- M[<X1> + 8] excl M[<X1>]\nM[<X1> + 16] <- X2\n<FP> <- <X1>")
+    paired = t.subst({Sym("<X1>"): Term.sym("S3")})
+    assert paired.same_meaning(parse("X0 <- M[S3 + 8] excl M[S3]\nM[S3 + 16] <- X2\n<FP> <- S3"))
+
+
+def test_subst_refuses_to_merge_two_written_locations():
+    with pytest.raises(ValueError, match="written twice"):
+        parse("M[<X1>] <- X0\nM[S0] <- X2").subst({Sym("<X1>"): Term.sym("S0")})
