@@ -4,7 +4,9 @@
 
 ---
 
-**Insight** is a multi-level decoder and verifier for ARM CoreSight. It parses raw CoreSigth packets, or the different results of `perf` outputs (that use [OpenCSD](https://github.com/Linaro/OpenCSD)). A set of verifiers are applied on the execution trace offline, such as a shadow stack or direct jump checker. The objective of this project is for it to serve as a blueprint for hardware decoding and verification later on.
+**Insight** is a multi-level decoder and verifier for ARM CoreSight. It decodes raw CoreSight packets (ETM, STM) and checks the tag-tracking annotations the HBNG compiler embeds in a binary. The objective of this project is for it to serve as a blueprint for hardware decoding and verification later on.
+
+The `perf`-based parsers and control-flow verifiers (shadow stack, direct jumps) are on the `legacy` branch.
 
 
 ## Installation

@@ -1,11 +1,9 @@
 import datetime as dt
-import io
 import logging
 import os
 import random
 import shutil
 from pathlib import Path
-from typing import Any
 
 import pytest
 from capstone import CS_ARCH_ARM64, CS_MODE_ARM, Cs
@@ -75,53 +73,3 @@ def log_test(request, caplog):
 @pytest.fixture
 def cap_disasm_setup():
     return Cs(CS_ARCH_ARM64, CS_MODE_ARM)
-
-
-# Reusable fixtures
-# \__________________
-
-
-# Parametrizable fixture, use @pytest.mark.parametrize with 'indirect'
-# set up to pass a corresponding file (list[str]). For example:
-# @pytest.mark.parametrize(
-#   "mock_file", [ (["line1\n", "line2\n"]) ], indirect=["mock_file"]
-# )
-@pytest.fixture
-def mock_file(monkeypatch, request):
-    # Retrive the file content from the test parameter
-    file_content = request.param
-
-    # Custom open function to use StringIO instead of an actual file
-    def mock_open(*args: tuple, **kwargs: dict[str, Any]) -> io.StringIO:
-        return io.StringIO("".join(file_content))
-
-    monkeypatch.setattr(Path, "open", mock_open)
-
-
-# Perf related data files
-# \_________________________
-
-DATA_DIR = "data/perf"
-BREAKING_FILES: list[str] = ["stack_overflow"]
-
-
-def find_files_with_extension(subdir: str, extension: str) -> list[Path]:
-    return sorted(Path.glob(Path(DATA_DIR) / subdir, extension))
-
-
-def filter_files(path_list: list[Path], comply: bool) -> list[Path]:
-    return [
-        path
-        for path in path_list
-        if all((breaking_file_name in path.as_posix()) != comply for breaking_file_name in BREAKING_FILES)
-    ]
-
-
-# Dumps
-DUMP_FILES: list[Path] = find_files_with_extension("bin/", "*.dump")
-# Base
-PERF_BASE_REPORT_FILES: list[Path] = find_files_with_extension("base/", "*.perf.report")
-PERF_BASE_SCRIPT_FILES: list[Path] = find_files_with_extension("base/", "*.perf.script")
-# Branch broadcast
-PERF_BB_REPORT_FILES: list[Path] = find_files_with_extension("branch_broadcast/", "*.perf.report")
-PERF_BB_SCRIPT_FILES: list[Path] = find_files_with_extension("branch_broadcast/", "*.perf.script")

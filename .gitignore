@@ -81,11 +81,7 @@ docs/_build
 
 # logs
 log/
-!data/perf/bin
 
-# serialization
-data/json
-data/tessla
 
 # annotations
 !data/annotations/bin
