@@ -243,7 +243,7 @@ class PacketParser:
             raise NoMatchingElementsError
 
         # I_ATOM_F1 > [I, ATOM, F1] > 1, but atom format 6 can have more elements!
-        format_extracted: str = packet_name.split("_")[-1][-1]
+        format_extracted: str = packet_name.rsplit("_", maxsplit=1)[-1][-1]
         if not ETMAtomPacket.check_format_size(format=int(format_extracted), elements_nb=len(elements)):
             raise WrongSizeAtomPacketError(expected_size=int(format_extracted), size=len(elements))
         return ETMAtomPacket.atom_format(packet_info=packet_info, elements=elements)

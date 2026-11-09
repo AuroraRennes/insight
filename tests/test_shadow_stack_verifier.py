@@ -29,7 +29,7 @@ if TYPE_CHECKING:
                 "\t 100:\t9400000b \tbl 130\n",  # bl #0x2c
                 "\t dummy_func  123/123  [0001]\n",  # break disasm regex
                 "\t0000000000000130 <callee1>:\n",
-                "\t 130:\t9400000b \tbl 150\n"  # bl #0x2c
+                "\t 130:\t9400000b \tbl 150\n",  # bl #0x2c
                 "\t dummy_func  123/123  [0001]\n",  # break disasm regex
                 "\t0000000000000150 <callee2>:\n",
                 "\t 150:\td65f03c0 \tret\n",

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from elftools.elf.elffile import ELFFile
+from elftools.elf.sections import SymbolTableSection
 
 
 @dataclass
@@ -31,7 +32,7 @@ def extract_symbol_dict(elf_file_name: str) -> SymbolDict:
     with Path(elf_file_name).open("rb") as raw_elf_file:
         elf_file: ELFFile = ELFFile(raw_elf_file)
         symtab_data = elf_file.get_section_by_name(".symtab")
-        if not symtab_data:
+        if not isinstance(symtab_data, SymbolTableSection):
             print("[-] symtab section missing, the binary might be stripped.")
             return symbol_dict
 

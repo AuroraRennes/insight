@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import io
 import logging
 import os
@@ -37,7 +37,7 @@ def move_log_file(request: pytest.FixtureRequest) -> None:
     def fin() -> None:
         logger.info("Test run complete 🏁")
         # Set up name format  for test logfiles
-        timestamp = datetime.datetime.now(tz=datetime.UTC).strftime("%Y-%m-%d_%H-%M-%S")
+        timestamp = dt.datetime.now(tz=dt.UTC).strftime("%Y-%m-%d_%H-%M-%S")
         test_log = f"{TEST_LOG_DIR}test_run_{timestamp}.log"
         shutil.copy("log/insight.log", test_log)
         # Keep only 10 newest files

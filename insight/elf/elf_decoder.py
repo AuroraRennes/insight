@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from elftools.elf.elffile import ELFFile
+from elftools.elf.sections import SymbolTableSection
 
 from insight.annotations.annotation_parser import AnnotationParseInfo, AnnotationParser, Assignment
 from insight.exceptions import EmptySectionError, MissingSectionError
@@ -148,7 +149,7 @@ class ELFDecoder:
 
     def decode_func_symbols(self, elf_file: ELFFile) -> SymbolDict | None:
         symtab_data = elf_file.get_section_by_name(".symtab")
-        if not symtab_data:
+        if not isinstance(symtab_data, SymbolTableSection):
             logger.warning("[-] symtab section missing, the binary might be stripped.")
             return None
 

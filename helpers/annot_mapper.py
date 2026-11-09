@@ -55,12 +55,13 @@ if __name__ == "__main__":
         elf = ELFFile(f)
         func_map = get_function_map(elf)
 
+        annot_section = elf.get_section_by_name(".hbngannot")
         annot_data = extract_section_data(elf, ".hbngannot")
-        annot_start_address = elf.get_section_by_name(".hbngannot")["sh_addr"]
         bbt_data = extract_section_data(elf, ".hbngbbt")
 
-        if annot_data is None or bbt_data is None:
+        if annot_section is None or annot_data is None or bbt_data is None:
             sys.exit(1)
+        annot_start_address = annot_section["sh_addr"]
 
         annotations = parse_annotations(annot_data)
 

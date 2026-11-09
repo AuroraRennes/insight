@@ -73,7 +73,7 @@ class ArgParser(argparse.ArgumentParser):
     def parse(self, args: list[str]) -> argparse.Namespace:
         return self.parse_args(args)
 
-    def check_dump_file(self, extension: str, dump_file: None | str) -> None:
+    def check_dump_file(self, extension: str, dump_file: str | None) -> None:
         if extension == ".perf.report" and not dump_file:
             logger.info(
                 "[-] To recover the complete execution trace, the dump file"
