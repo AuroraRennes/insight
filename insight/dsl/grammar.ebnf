@@ -12,20 +12,23 @@
 (* Block framing
    \_____________
 
-   One block of the .hbngannot section, the text of its .ascii lines. The label is the one the
-   block table points to. *)
+   One block of the .hbngannot section, the text of its .ascii lines. The label is the assembler
+   symbol the block table points to, not part of the section's bytes. Blank lines and '#' comments
+   are ignored, as in the statements. *)
 
 block       ::= label NL group+ 'END' NL
 label       ::= 'HBNG_' NAME '_annot:'            (* HBNG_<function>[_n_<block>][_split_<i>] *)
-group       ::= '@' DEC NL (stmt NL)*
+group       ::= '@' DEC NL (stmt? NL)*
 
 (* Not expressed above:
    - the offsets are 0, 4, 8, ...: every instruction of the block has its group, in order,
      empty groups included. A block whose first line is not '@0' is the old format, rejected;
    - a group's send lines are its FIFO entries, in the order the STM emits them:
      'stp a, b, [x18]' is 'send b' then 'send a'. A register may be sent several times;
-   - <Xn> in group k pairs with the latest 'send Xn' in groups <= k (k included) with no write
-     of Xn in between; the paired block form names the i-th send S<i>. *)
+   - <Xn> in group k is Xn at group k's entry. It pairs with a 'send Xn' of the same block that
+     no instruction in between writes Xn: the nearest preceding one (groups <= k, k included),
+     otherwise the nearest following one (a store-exclusive sends after itself, and must not
+     write Xn). The i-th send of the block is S<i>, which replaces <Xn> in the paired form. *)
 
 
 (* Statements
