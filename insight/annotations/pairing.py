@@ -57,15 +57,20 @@ class PairedBlock:
 # \________________
 
 
+def register_number(name: str) -> int | None:
+    """The number of a general register from capstone's name (x0, w0, fp, lr), None for others."""
+    if match := REGISTER_RE.fullmatch(name):
+        return int(match.group(1))
+    return REGISTER_ALIASES.get(name)
+
+
 def register_writes(insn: CsInsn) -> frozenset[int]:
     """The X registers (by number) an instruction writes, write-backs included."""
     written: set[int] = set()
     for reg in insn.regs_access()[1]:
-        name = insn.reg_name(reg)
-        if match := REGISTER_RE.fullmatch(name):
-            written.add(int(match.group(1)))
-        elif name in REGISTER_ALIASES:
-            written.add(REGISTER_ALIASES[name])
+        n = register_number(insn.reg_name(reg))
+        if n is not None:
+            written.add(n)
     if insn.mnemonic in {"bl", "blr"}:
         written |= CALL_WRITES
     elif insn.mnemonic == "svc":
@@ -124,7 +129,7 @@ def pair_sends(block: Block, writes: Sequence[frozenset[int]]) -> PairedBlock:
         for sym in sorted(group.form.symbols(), key=str):
             if not sym.is_register:
                 continue
-            send = _find_send(int(sym.name[2:-1]), k, sends, writes.__getitem__)
+            send = find_send(int(sym.name[2:-1]), k, sends, writes.__getitem__)
             if send is None:
                 msg = f"{sym}: no send of X{sym.name[2:-1]} in the block without a write in between"
                 raise PairingError(msg, block.address, group.offset)
@@ -133,7 +138,7 @@ def pair_sends(block: Block, writes: Sequence[frozenset[int]]) -> PairedBlock:
     return PairedBlock(block, sends, tuple(forms))
 
 
-def _find_send(
+def find_send(
     n: int, k: int, sends: tuple[Send, ...], writes: Callable[[int], frozenset[int]]
 ) -> Send | None:
     """The send that carries Xn at group k's entry: nearest preceding, else nearest following."""
