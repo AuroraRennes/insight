@@ -16,6 +16,9 @@ dependencies = [
     "unicorn",
 ]
 
+[project.scripts]
+insight = "insight.cli:main"
+
 [dependency-groups]
 dev = [
     "mypy",
