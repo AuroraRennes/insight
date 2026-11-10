@@ -4,7 +4,7 @@ from insight.dsl.errors import DslSyntaxError
 from insight.dsl.locations import Mem, Reg, VByte
 from insight.dsl.syntax import parse
 from insight.dsl.terms import Term
-from insight.dsl.transfer import Opaque
+from insight.dsl.transfer import ZERO, Opaque
 
 S0 = Term.sym("S0")
 SP = Term.sym("<SP>")
@@ -146,6 +146,14 @@ def test_fp_reload_send_group():
 
 def test_send_aliases():
     assert parse("send FP\nsend X0").sends == (Reg(29), Reg(0))
+
+
+def test_zero_register_send():
+    t = parse("send X0\nsend XZR")
+    assert t.sends == (Reg(0), ZERO)
+    assert str(t) == "send X0\nsend XZR"
+    with pytest.raises(DslSyntaxError, match="send XZR"):
+        parse("send SP")
 
 
 def test_repeated_sends_keep_fifo_order():

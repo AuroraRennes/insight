@@ -52,11 +52,27 @@ class Opaque:
 
 
 @dataclass(frozen=True)
+class ZeroReg:
+    """The zero register as a send: a FIFO entry of 0, which no value pairs with."""
+
+    @property
+    def n(self) -> int:
+        """Its number in the encoding."""
+        return 31
+
+    def __str__(self) -> str:
+        return "XZR"
+
+
+ZERO = ZeroReg()
+
+
+@dataclass(frozen=True)
 class Transfer:
     tags: Mapping[Loc, Dep] = field(default_factory=dict)
     values: Mapping[ValueReg, Term] = field(default_factory=dict)
     opaque: tuple[Opaque, ...] = ()
-    sends: tuple[Reg, ...] = ()
+    sends: tuple[Reg | ZeroReg, ...] = ()
 
     # Access
     # \_______

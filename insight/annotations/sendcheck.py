@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from capstone.arm64 import ARM64_INS_STP, ARM64_INS_STR, ARM64_OP_MEM, ARM64_OP_REG
 
 from insight.annotations.pairing import register_number, register_writes
+from insight.dsl.transfer import ZERO
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -25,8 +26,10 @@ STM_REGISTER = 18
 
 
 def x_number(insn: CsInsn, reg: int) -> int | None:
-    """The number of an X register (not W, not SP or ZR)."""
+    """The number of an X register as encoded, XZR being 31 (not W, not SP)."""
     name = insn.reg_name(reg)
+    if name == "xzr":
+        return ZERO.n
     return register_number(name) if name.startswith("x") or name in {"fp", "lr"} else None
 
 
@@ -50,7 +53,7 @@ def instruction_sends(insn: CsInsn) -> tuple[int, ...] | None:
 
 
 def sends_text(numbers: Sequence[int]) -> str:
-    return ", ".join(f"send X{n}" for n in numbers) or "no send"
+    return ", ".join("send XZR" if n == ZERO.n else f"send X{n}" for n in numbers) or "no send"
 
 
 def check_sends(block: Block, insns: Sequence[CsInsn]) -> list[tuple[int, str]]:

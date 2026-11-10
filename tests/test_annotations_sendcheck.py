@@ -15,6 +15,7 @@ ENCODINGS = {
     "str x0, [x1]": "200000f9",
     "stp x29, x30, [sp, #-16]!": "fd7bbfa9",
     "ldr x0, [x0]": "000040f9",
+    "stp xzr, x0, [x18]": "5f0200a9",
 }
 
 
@@ -27,6 +28,7 @@ def code(*instructions: str):
     [
         ("str x0, [x18]", (0,)),
         ("stp x1, x0, [x18]", (0, 1)),  # the second register is emitted first
+        ("stp xzr, x0, [x18]", (0, 31)),  # the zero register as an offset
         ("str x0, [x1]", ()),
         ("stp x29, x30, [sp, #-16]!", ()),
         ("ldr x0, [x0]", ()),
@@ -58,6 +60,15 @@ def test_matching_sends():
 def test_send_lines_must_match_the_store(text, message):
     issues = check_sends(read_block(text, 0x1000), code("str x0, [x18]"))
     assert issues == [(0, message)]
+
+
+def test_zero_register_send():
+    block = read_block("@0\nsend X0\nsend XZR\nEND\n", 0x1000)
+    assert check_sends(block, code("stp xzr, x0, [x18]")) == []
+    block = read_block("@0\nsend X0\nEND\n", 0x1000)
+    assert check_sends(block, code("stp xzr, x0, [x18]")) == [
+        (0, "stp xzr, x0, [x18] makes send X0, send XZR, the group lists send X0")
+    ]
 
 
 def test_pair_order_matters():

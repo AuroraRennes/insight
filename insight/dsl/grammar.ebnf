@@ -40,7 +40,7 @@ transfer    ::= (stmt? COMMENT? NL)*
 
 stmt        ::= tag_stmt
               | value_stmt
-              | 'send' reg
+              | 'send' (reg | 'XZR')
               | 'svc'
               | 'unsupported' STRING
 
@@ -49,7 +49,8 @@ value_stmt  ::= ('<SP>' | '<FP>') '<-' term
 
 (* Not expressed above:
    - a location is written by at most one statement, <SP> and <FP> at most once each;
-   - 'send SP' is refused: SP is tracked, never sent;
+   - 'send SP' is refused: SP is tracked, never sent. 'send XZR' is a FIFO entry of 0 (the zero
+     register sent as an offset register), which no value pairs with;
    - 'svc' and 'unsupported' stand alone: no other statement in the transfer;
    - the written loc is never a descending V range;
    - the 'over' locations are sources of the written locations they apply to. *)
