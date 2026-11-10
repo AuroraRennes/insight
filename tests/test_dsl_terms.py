@@ -43,6 +43,12 @@ def test_symbols_and_subst():
     assert rebased == SP - 48 + S1.ext("sxtw", 2)
 
 
+def test_linker_offset():
+    term = Term.sym("<X8>") + Term.sym("LO12") + 8
+    assert str(term) == "<X8> + LO12 + 8"
+    assert not Sym("LO12").is_register
+
+
 def test_unknown_symbol():
     with pytest.raises(ValueError, match="unknown symbol"):
         Term.sym("X1")

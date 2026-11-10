@@ -113,6 +113,8 @@ SYMBOL      ::= '<X' XNUM '>'                     (* Xn's value; instruction gro
               | '<SP>' | '<FP>'                   (* the tracked SP and FP, not <X29> *)
               | 'S' INDEX                         (* the block's i-th send, block forms only *)
               | 'GLOBAL'                          (* the image base *)
+              | 'LO12'                            (* the offset the linker writes into the
+                                                     instruction, ':lo12:sym': its encoding gives it *)
 EXT         ::= 'uxtw' | 'sxtw' | 'uxtx' | 'sxtx'
 
 

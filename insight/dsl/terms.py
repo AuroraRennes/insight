@@ -14,7 +14,7 @@ BITS = 64
 MOD = 1 << BITS
 MASK = MOD - 1
 
-SYMBOL_RE = re.compile(r"<X([0-9]|[12][0-9]|30)>|<SP>|<FP>|S(0|[1-9][0-9]*)|GLOBAL")
+SYMBOL_RE = re.compile(r"<X([0-9]|[12][0-9]|30)>|<SP>|<FP>|S(0|[1-9][0-9]*)|GLOBAL|LO12")
 
 ExtKind = Literal["uxtw", "sxtw"]
 EXT_KINDS: tuple[str, ...] = ("uxtw", "sxtw", "uxtx", "sxtx")

@@ -53,6 +53,12 @@ def test_send_and_value_in_the_same_group():
     assert paired.forms[0].value("FP") == S[0]
 
 
+def test_a_linker_offset_needs_no_send():
+    # send x8; ldr x0, [x8, :lo12:sym]
+    paired = pair("@0\nsend X8\n@4\nX0 <- M[<X8> + LO12 .. +8]\nEND\n")
+    assert paired.forms[1].same_meaning(form("X0 <- M[S0 + LO12 .. +8]"))
+
+
 def test_a_write_in_between_breaks_the_pairing():
     # send x1; ldr x8, [x1], #8 (writes x1 back); a use of <X1>
     text = "@0\nsend X1\n@4\nX8 <- M[<X1> .. +8]\n@8\nX0 <- M[<X1>]\nEND\n"

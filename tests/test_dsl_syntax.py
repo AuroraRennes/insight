@@ -35,6 +35,11 @@ def test_load():
     assert srcs(t, Reg(0)) == {Mem(X1 + 8 + k) for k in range(8)}
 
 
+def test_load_at_a_linker_offset():
+    t = parse("X0 <- M[<X8> + LO12 .. +8]")
+    assert srcs(t, Reg(0)) == {Mem(Term.sym("<X8>") + Term.sym("LO12") + k) for k in range(8)}
+
+
 def test_prologue():
     t = parse("M[<SP> - 16 .. +8] <- FP\nM[<SP> - 8 .. +8] <- LR\n<SP> <- <SP> - 16")
     assert set(t.tags) == {Mem(SP - 16 + k) for k in range(16)}
