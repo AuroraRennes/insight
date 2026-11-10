@@ -3,11 +3,13 @@
 insight check <elf>              check the HBNG annotations of an executable
 insight check --against-r <elf>  also compare each instruction's annotation with R
 insight forms <elf>... -o <json> --origin <text>  add AArch64 executables to a corpus of forms
+insight fliptest <json>          flip tests of R over a corpus
 """
 
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -47,6 +49,12 @@ def arguments() -> argparse.ArgumentParser:
     forms.add_argument(
         "--origin", required=True, help="where the files come from, recorded with each file's sha256"
     )
+    fliptest = commands.add_parser("fliptest", help="flip tests of R over a corpus of forms")
+    fliptest.add_argument("corpus", type=Path, help="a corpus written by 'insight forms'")
+    fliptest.add_argument("--form", help="only the forms matching this regular expression")
+    fliptest.add_argument("--instances", type=int, default=2, help="encodings per form (default 2)")
+    fliptest.add_argument("--jobs", type=int, default=1, help="parallel workers (default 1)")
+    fliptest.add_argument("--verbose", action="store_true", help="also print precision reports and notes")
     return parser
 
 
@@ -82,10 +90,46 @@ def forms(paths: list[Path], output: Path, origin: str) -> int:
     return 0
 
 
+def fliptest(path: Path, form: str | None, instances: int, jobs: int, *, verbose: bool) -> int:
+    from insight.flips.corpus_run import Summary, run_corpus, select  # noqa: PLC0415 (unicorn is slow to load)
+
+    encodings = select(load_corpus(path).forms, form, instances)
+    summary = Summary()
+    out = sys.stdout
+    for report in run_corpus(encodings, jobs):
+        summary.reports.append(report)
+        if report.failures:
+            out.write(f"FAIL {report.text}  [{report.form}]\n")
+            for message in report.failures[:8]:
+                out.write(f"       {message}\n")
+            if len(report.failures) > 8:
+                out.write(f"       ... {len(report.failures) - 8} more\n")
+        if verbose:
+            for message in report.precision + report.untestable + report.notes:
+                out.write(f"  --  {report.text}: {message}\n")
+    skipped: dict[str, int] = {}
+    for report in summary.skipped:
+        reason = re.sub(r"operand \S+ is not a general register", "FP/SIMD operands", report.skipped or "")
+        skipped[reason] = skipped.get(reason, 0) + 1
+    for reason, count in sorted(skipped.items(), key=lambda item: -item[1]):
+        out.write(f"skipped {count:5}  {reason}\n")
+    precise = [r for r in summary.passed if r.precision]
+    out.write(
+        f"{len(summary.reports)} instructions, {len(summary.forms(summary.reports))} forms: "
+        f"{len(summary.passed)} passed ({len(precise)} with precision reports), "
+        f"{len(summary.failed)} failed ({len(summary.forms(summary.failed))} forms), "
+        f"{len(summary.skipped)} skipped; "
+        f"{sum(r.runs for r in summary.reports)} runs, against unicorn, not the A53\n"
+    )
+    return 0 if not summary.failed else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     args = arguments().parse_args(argv)
     if args.command == "check":
         return check(args.elf, args.max_issues, against_r=args.against_r)
     if args.command == "forms":
         return forms(args.elfs, args.output, args.origin)
+    if args.command == "fliptest":
+        return fliptest(args.corpus, args.form, args.instances, args.jobs, verbose=args.verbose)
     return 2
