@@ -184,6 +184,22 @@ class Term:
                 found |= atom.term.symbols()
         return frozenset(found)
 
+    def evaluate(self, env: dict[str, int]) -> int:
+        """The term's value, every symbol given by env (by name), modulo 2^64."""
+        total = self.const
+        for atom, coef in self.coeffs:
+            if isinstance(atom, Sym):
+                value = env[atom.name]
+            elif isinstance(atom, Ext):
+                inner = atom.term.evaluate(env) & 0xFFFFFFFF
+                if atom.kind == "sxtw" and inner & 0x80000000:
+                    inner -= 1 << 32
+                value = inner << atom.shift
+            else:
+                value = atom.term.evaluate(env) & atom.mask
+            total += coef * value
+        return total & MASK
+
     def subst(self, mapping: dict[Sym, Term]) -> Term:
         if not mapping:
             return self
