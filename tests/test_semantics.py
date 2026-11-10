@@ -10,6 +10,7 @@ from insight.annotations.against_r import compare_block, differences
 from insight.annotations.framing import read_blocks
 from insight.annotations.pairing import code_at, decode
 from insight.dsl.syntax import parse
+from insight.flips.forms import load_corpus
 from insight.semantics.operands import UnsupportedFormError
 from insight.semantics.rules import rule
 
@@ -93,3 +94,20 @@ def test_good_elf_against_r():
     assert len(found) == 16
     assert all(message.startswith("stlxp w9, x8, x1, [x0]: annotation M[") for message in found)
     assert "stlxp w9, x8, x1, [x0]: annotation M[<X0>] <- X8, R M[<X0>] <- M[<X0>] | X8" in found
+
+
+CORPUS = Path(__file__).parent.parent / "data" / "flips" / "corpus.json"
+
+
+def test_r_fails_closed_on_the_corpus():
+    """Every encoding of the corpus has a rule, or R names why it has none: nothing else is raised.
+    The forms of a given HBNG binary R must have rules for are checked by 'insight check --against-r'."""
+    ruled = 0
+    for encodings in load_corpus(CORPUS).forms.values():
+        for encoding in encodings:
+            try:
+                rule(insn_of(encoding))
+                ruled += 1
+            except UnsupportedFormError:
+                pass
+    assert ruled > 2000
