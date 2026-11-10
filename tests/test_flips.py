@@ -21,6 +21,11 @@ CORRECT = [
     ("2000829a", "csel x0, x1, x2, eq"),
     ("e0179f1a", "cset w0, eq"),
     ("2000a0f2", "movk x0, #1, lsl #16"),
+    ("000000ca", "eor x0, x0, x0"),
+    ("000000da", "sbc x0, x0, x0"),
+    ("2000014b", "sub w0, w1, w1"),
+    ("200021aa", "orn x0, x1, x1"),
+    ("000400ca", "eor x0, x0, x0, lsl #1"),
     ("40d03bd5", "mrs x0, tpidr_el0"),
     ("208440f8", "ldr x0, [x1], #8"),
     ("00d861b8", "ldr w0, [x0, w1, sxtw #2]"),
@@ -54,6 +59,8 @@ WRONG = [
     ("2000028b", "X0 <- X1 excl X2", "the rule excludes inputs"),
     # movk keeps the other bits: overwriting drops a flow
     ("2000a0f2", "X0 <- 0", "soundness: X0 flows into X0"),
+    # x - x - !C does not depend on x: the union of the sources keeps x's tag
+    ("000000da", "X0 <- X0", "overwrite: the rule keeps X0"),
     # mov of an immediate overwrites: keeping is check 2's failure
     ("200080d2", "X0 <- X0", "overwrite: the rule keeps X0"),
     # a store of the wrong size: the bytes it leaves keep their own value, which the rule drops

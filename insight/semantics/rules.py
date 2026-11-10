@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from capstone import CS_GRP_CALL, CS_GRP_JUMP, CS_GRP_RET
-from capstone.arm64 import ARM64_OP_MEM
+from capstone.arm64 import ARM64_EXT_INVALID, ARM64_OP_MEM, ARM64_SFT_INVALID
 
 from insight.annotations.sendcheck import instruction_sends
 from insight.dsl.locations import SP_INDEX, Loc, Mem, Reg
@@ -39,6 +39,9 @@ UNION = frozenset([
     "mov",
     "csel", "csinc", "csinv", "csneg", "cinc", "cinv", "cneg", "cset", "csetm",
 ])  # fmt: skip
+# With both sources the same register, x - x, x ^ x, x & ~x (0), x ^ ~x, x | ~x (all ones) and
+# x - x - !C (the carry's value) do not depend on it: the destination gets no tag.
+CANCELLING = frozenset({"sub", "subs", "sbc", "sbcs", "eor", "eon", "bic", "bics", "orn"})
 # The destination keeps the bits the instruction does not write: it is also a source.
 KEEP = frozenset({"movk", "bfi", "bfxil", "bfm", "bfc"})
 # The destination gets a constant (an immediate, an address computed from the PC).
@@ -105,12 +108,21 @@ def data_processing(insn: CsInsn) -> Transfer:
     if mnemonic in CONSTANT or (mnemonic == "mov" and not sources):
         srcs: frozenset[Loc] = frozenset()
     elif mnemonic in UNION:
-        srcs = locs(sources)
+        srcs = frozenset() if cancels(insn, sources) else locs(sources)
     elif mnemonic in KEEP:
         srcs = locs([dest, *sources])
     else:
         raise UnsupportedFormError(insn)
     return written(insn, dest, srcs, sources)
+
+
+def cancels(insn: CsInsn, sources: list[GReg]) -> bool:
+    """Both sources are the same register, the second neither shifted nor extended."""
+    if insn.mnemonic not in CANCELLING or len(sources) != 2:
+        return False
+    last = insn.operands[-1]
+    plain = last.ext == ARM64_EXT_INVALID and (last.shift.type == ARM64_SFT_INVALID or last.shift.value == 0)
+    return sources[0] == sources[1] and plain
 
 
 def locs(regs: list[GReg]) -> frozenset[Loc]:
