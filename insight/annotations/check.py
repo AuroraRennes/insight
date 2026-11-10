@@ -6,9 +6,10 @@ format stops the check: the whole executable is then in the old format.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from insight.annotations.against_r import compare_block
 from insight.annotations.framing import (
     ANNOTATION_SECTION,
     BLOCK_TABLE_SECTION,
@@ -47,14 +48,16 @@ class Report:
     sends: int
     issues: tuple[Issue, ...]
     old_format: bool = False
+    unsupported: dict[str, int] = field(default_factory=dict)  # R's missing rules, by reason
 
     @property
     def ok(self) -> bool:
         return not self.issues
 
 
-def check_block(elf: ELFFile, block: Block) -> list[Issue]:
-    """The issues of a framed block: its send lines, then the pairing of its values."""
+def check_block(elf: ELFFile, block: Block, unsupported: dict[str, int] | None = None) -> list[Issue]:
+    """The issues of a framed block: its send lines, then the pairing of its values, then, when
+    unsupported is given, each instruction against R (counting R's missing rules there)."""
     try:
         insns = decode(code_at(elf, block.address, block.size), block.address)
     except ValueError as error:
@@ -64,10 +67,21 @@ def check_block(elf: ELFFile, block: Block) -> list[Issue]:
         pair_sends(block, [register_writes(insn) for insn in insns])
     except PairingError as error:
         issues.append(Issue(error.address, error.offset, error.message))
+    if unsupported is not None:
+        comparison = compare_block(block, insns)
+        issues += [Issue(block.address, offset, f"R: {message}") for offset, message in comparison.mismatches]
+        for _, message in comparison.unsupported:
+            reason = message.split(": ", 1)[1]
+            reason = (
+                "operands outside the general registers (FP/SIMD)"
+                if "general register" in reason
+                else message
+            )
+            unsupported[reason] = unsupported.get(reason, 0) + 1
     return issues
 
 
-def check_elf(elf: ELFFile) -> Report:
+def check_elf(elf: ELFFile, *, against_r: bool = False) -> Report:
     table_section = elf.get_section_by_name(BLOCK_TABLE_SECTION)
     annotation_section = elf.get_section_by_name(ANNOTATION_SECTION)
     if table_section is None or annotation_section is None:
@@ -78,6 +92,7 @@ def check_elf(elf: ELFFile) -> Report:
 
     groups = sends = 0
     issues: list[Issue] = []
+    unsupported: dict[str, int] | None = {} if against_r else None
     for address, text in texts:
         try:
             block = read_block(text, address)
@@ -88,5 +103,5 @@ def check_elf(elf: ELFFile) -> Report:
             continue
         groups += len(block.groups)
         sends += sum(len(group.form.sends) for group in block.groups)
-        issues += check_block(elf, block)
-    return Report(len(texts), groups, sends, tuple(issues))
+        issues += check_block(elf, block, unsupported)
+    return Report(len(texts), groups, sends, tuple(issues), unsupported=unsupported or {})

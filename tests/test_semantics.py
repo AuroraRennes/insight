@@ -1,11 +1,19 @@
 """R on general-register instructions: each rule against the transfer written in the DSL."""
 
+from pathlib import Path
+
 import pytest
 from capstone import CS_ARCH_ARM64, CS_MODE_ARM, Cs
+from elftools.elf.elffile import ELFFile
 
+from insight.annotations.against_r import compare_block, differences
+from insight.annotations.framing import read_blocks
+from insight.annotations.pairing import code_at, decode
 from insight.dsl.syntax import parse
 from insight.semantics.operands import UnsupportedFormError
 from insight.semantics.rules import rule
+
+ELFS = Path(__file__).parent.parent / "data" / "annotations" / "elf"
 
 
 def insn_of(encoding):
@@ -58,9 +66,24 @@ RULES = [
 @pytest.mark.parametrize(("encoding", "text", "expected"), RULES, ids=[text for _, text, _ in RULES])
 def test_rule(encoding, text, expected):
     insn = insn_of(encoding)
-    assert rule(insn).same_meaning(parse(expected)), text
+    assert differences(parse(expected), rule(insn)) == [], text
 
 
 def test_unsupported_fails_closed():
     with pytest.raises(UnsupportedFormError, match="fmov d0, x1"):
         rule(insn_of("2000679e"))
+
+
+def test_good_elf_against_r():
+    """The fixture's store-exclusive pair is annotated as an overwrite; R keeps the bytes' tags
+    too, since the store may fail. Everything else agrees."""
+    with (ELFS / "good.elf").open("rb") as file:
+        elf = ELFFile(file)
+        found = []
+        for block in read_blocks(elf):
+            comparison = compare_block(block, decode(code_at(elf, block.address, block.size), block.address))
+            found += [message for _, message in comparison.mismatches]
+            assert comparison.unsupported == []
+    assert len(found) == 16
+    assert all(message.startswith("stlxp w9, x8, x1, [x0]: annotation M[") for message in found)
+    assert "stlxp w9, x8, x1, [x0]: annotation M[<X0>] <- X8, R M[<X0>] <- M[<X0>] | X8" in found
