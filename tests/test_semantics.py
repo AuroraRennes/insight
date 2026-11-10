@@ -74,6 +74,12 @@ def test_unsupported_fails_closed():
         rule(insn_of("2000679e"))
 
 
+def test_store_of_a_non_register_fails_closed():
+    """SME's ZA array is not a register operand for capstone: the store has no data register."""
+    with pytest.raises(UnsupportedFormError, match="0 general register operands, 1 expected"):
+        rule(insn_of("006220e1"))  # str za[w15, 0], [x16]
+
+
 def test_good_elf_against_r():
     """The fixture's store-exclusive pair is annotated as an overwrite; R keeps the bytes' tags
     too, since the store may fail. Everything else agrees."""

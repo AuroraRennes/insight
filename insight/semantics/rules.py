@@ -154,12 +154,29 @@ def shifted(insn: CsInsn, imm: int) -> int:
 # \_______
 
 
+def data_registers(insn: CsInsn) -> list[GReg]:
+    """The register operands of a load or store besides its address (data, then status), as many
+    as its family has: capstone does not list every operand as a register ('str za[w15, 0], [x16]')."""
+    data = gregs(insn)  # the memory operand's base and index are not register operands
+    mnemonic = insn.mnemonic
+    expected = 0
+    if mnemonic in LOADS or mnemonic in STORES:
+        expected = 1
+    elif mnemonic in LOAD_PAIRS or mnemonic in STORE_PAIRS or mnemonic in STORE_EXCLUSIVES:
+        expected = 2
+    elif mnemonic in STORE_EXCLUSIVE_PAIRS:
+        expected = 3
+    if expected and len(data) != expected:
+        raise UnsupportedFormError(insn, f"{len(data)} general register operands, {expected} expected")
+    return data
+
+
 def memory(insn: CsInsn) -> Transfer:
     sends = instruction_sends(insn)
     if sends:
         return Transfer(sends=tuple(ZERO if n == ZERO.n else Reg(n) for n in sends))
     mnemonic = insn.mnemonic
-    data = gregs(insn)  # the memory operand's base and index are not register operands
+    data = data_registers(insn)
     addr = address(insn)
     tags: dict[Loc, Dep] = {}
     if mnemonic in LOADS:
