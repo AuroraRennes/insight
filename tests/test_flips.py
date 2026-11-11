@@ -36,6 +36,20 @@ CORRECT = [
 ]
 
 
+CORRECT += [
+    ("228440fc", "ldr d2, [x1], #8"),
+    ("e51bffad", "ldp q5, q6, [sp, #-0x20]!"),
+    ("0091400d", "ld1 {v0.s}[1], [x8]"),
+    ("0078c24c", "ld1 {v0.4s}, [x0], x2"),
+    ("0040000c", "st3 {v0.8b, v1.8b, v2.8b}, [x0]"),
+    ("6100679e", "fmov d1, x3"),
+    ("2000ae9e", "fmov x0, v1.d[1]"),
+    ("021ca00e", "mov v2.8b, v0.8b"),
+    ("0004185e", "mov d0, v0.d[1]"),
+    ("2004144e", "dup v0.4s, v1.s[2]"),
+]
+
+
 @pytest.mark.parametrize(("encoding", "text"), CORRECT, ids=[text for _, text in CORRECT])
 def test_rule_passes(encoding, text):
     report = quick(encoding)
@@ -67,6 +81,30 @@ WRONG = [
     ("200080d2", "", "overwrite: the rule keeps X0"),
     # a store of the wrong size: the bytes it leaves keep their own value, which the rule drops
     ("080000b9", "M[<X0> .. +8] <- X8", "soundness: M["),
+    # a scalar load that keeps the upper bytes: the instruction clears them
+    ("228440fc", "V2[0:7] <- M[<X1> .. +8] per 1", "overwrite: the rule keeps V2[8]"),
+    # a lane load that clears the other lanes: they keep their bytes
+    ("0091400d", "V0[4:7] <- M[<X8> .. +4] per 1\nV0[0:3] <- 0", "soundness: V0[0] flows into V0[0]"),
+    # a pair stored in the wrong order
+    (
+        "e51bffad",
+        "V6[0:15] <- M[<SP> - 32 .. +16] per 1\nV5[0:15] <- M[<SP> - 16 .. +16] per 1\n<SP> <- <SP> - 32",
+        "soundness: M[",
+    ),
+    # a register post-index whose register is not a source of the base
+    ("0078c24c", "V0[0:15] <- M[<X0> .. +16] per 1", "soundness: X2 flows into X0"),
+    # st3 written as three registers one after the other, not interleaved
+    (
+        "0040000c",
+        (
+            "M[<X0> .. +8] <- V0[0:7] per 1\n"
+            "M[<X0> + 8 .. +8] <- V1[0:7] per 1\n"
+            "M[<X0> + 16 .. +8] <- V2[0:7] per 1"
+        ),
+        "soundness: V",
+    ),
+    # a dup from the wrong element
+    ("2004144e", "V0[0:15] <- [V1[0:3] V1[0:3] V1[0:3] V1[0:3]]", "soundness: V1[8] flows into V0[0]"),
 ]
 
 
@@ -94,6 +132,13 @@ def test_svc_is_skipped():
 
 def test_unsupported_is_skipped():
     assert quick("2028621e").skipped == "R: FP/SIMD form without a rule"  # fadd d0, d1, d2
+
+
+def test_union_of_an_element_passes_with_precision():
+    """The compiler's union for 'mov d0, v0.d[1]' is sound: the extra flows are precision reports."""
+    report = quick("0004185e", "V0[0:7] <- V0[8:15]\nV0[8:15] <- 0")
+    assert report.ok
+    assert len(report.precision) == 56
 
 
 def test_prologue_and_epilogue_encodings():

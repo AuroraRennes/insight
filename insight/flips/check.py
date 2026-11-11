@@ -37,7 +37,7 @@ from insight.flips.machine import (
     Machine,
     RunError,
 )
-from insight.semantics.operands import UnsupportedFormError, address, gregs
+from insight.semantics.operands import GReg, UnsupportedFormError, VReg, address, gregs, regs
 from insight.semantics.policy import NZCV, STM_REGISTER, TPIDR_EL0, Flag, inputs
 from insight.semantics.rules import STORE_EXCLUSIVE_PAIRS, STORE_EXCLUSIVES, rule, size_of
 
@@ -115,9 +115,13 @@ class Layout:
 
 
 def access_size(insn: CsInsn) -> int:
-    """Bytes accessed, for the window: from the rule's loads and stores, at most 32."""
-    regs = gregs(insn)
-    width = max((reg.width for reg in regs), default=8)
+    """Bytes accessed, for the window: from the rule's loads and stores, at most 32 (64 for the
+    FP/SIMD registers: the bytes they name, an ld4 of four whole registers at most)."""
+    v_data = [op for op in regs(insn) if isinstance(op, VReg)]
+    if v_data:
+        return min(64, sum(reg.width for reg in v_data))
+    general = gregs(insn)
+    width = max((reg.width for reg in general), default=8)
     pairs = 2 if any(m in insn.mnemonic for m in ("ldp", "stp", "ldnp", "stnp", "xp")) else 1
     return min(32, width * pairs)
 
@@ -312,7 +316,9 @@ def observe(  # noqa: PLR0917 (the parts of one layout's run)
     """The observations over one layout's states, and each state with its output."""
     obs = Observation()
     runner = Runner(machine, rng, obs)
-    named = {reg.n for reg in gregs(insn) if reg.loc is not None} - set(layout.fixed)
+    operands = regs(insn)
+    named = {op.n for op in operands if isinstance(op, GReg) and op.loc is not None} - set(layout.fixed)
+    named_v = sorted({op.n for op in operands if isinstance(op, VReg)})
     named_tpidr = TPIDR_EL0.name.lower() in insn.op_str.lower()
     states: list[tuple[bytes, bytes]] = []
     for k in range(states_count):
@@ -332,6 +338,8 @@ def observe(  # noqa: PLR0917 (the parts of one layout's run)
         flips += [Flip(NZCV, ((NZCV_OFFSET + 3, 1 << bit),)) for bit in range(4, 8)]
         if named_tpidr:
             flips += [Flip(TPIDR_EL0, ((TPIDR_OFFSET + bit // 8, 1 << bit % 8),)) for bit in range(64)]
+        for n in named_v:  # whole registers, byte by byte: also the bytes a write clears
+            flips += [f for b in range(16) for f in byte_flips(VByte(n, b), V_OFFSET + 16 * n + b, rng)]
         for addr in layout.window:
             flips += byte_flips(Mem(Term.of(addr)), mem_offset(addr), rng)
         for flip in flips:
@@ -343,7 +351,11 @@ def observe(  # noqa: PLR0917 (the parts of one layout's run)
         ]
         if not named_tpidr:
             members.append(Member(tuple(range(TPIDR_OFFSET, TPIDR_OFFSET + 8))))
-        members += [Member(tuple(range(V_OFFSET + 16 * n, V_OFFSET + 16 * n + 16))) for n in range(32)]
+        members += [
+            Member(tuple(range(V_OFFSET + 16 * n, V_OFFSET + 16 * n + 16)))
+            for n in range(32)
+            if n not in named_v
+        ]
         window = {mem_offset(a) for a in layout.window}
         page = [o for o in range(MEMORY_OFFSET, STATE_SIZE) if o not in window]
         members += [Member(tuple(page[i : i + GROUP_CHUNK])) for i in range(0, len(page), GROUP_CHUNK)]
@@ -533,7 +545,7 @@ def flip_test(
         report.skipped = f"R: {error.reason}"
         return report
     if any(dep.excl for dep in transfer.tags.values()):
-        report.failures.append("the rule excludes inputs, which no general-register family allows")
+        report.failures.append("the rule excludes inputs, which no family of R allows")
     rng = random.Random(seed if seed is not None else int.from_bytes(encoding, "little"))  # noqa: S311
     try:
         pairs = run_layouts(insn, transfer, ins, rng, report, layouts=layouts, states=states)
