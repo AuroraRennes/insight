@@ -3,7 +3,8 @@
 They come from the policy, never from the rule under test, so a wrong rule cannot hide a flow.
 The flags and system registers are not policy locations. Address inputs (bases, indexes, indirect
 branch targets) are held fixed and excluded for the data, except a write-back base, flipped in its
-low bits.
+low bits. The FP/SIMD inputs whose flows carry no tag (a comparison's sources, a select's mask, a
+table lookup's index) are excluded for every output.
 """
 
 from __future__ import annotations
@@ -13,9 +14,9 @@ from typing import TYPE_CHECKING
 
 from capstone.arm64 import ARM64_OP_MEM
 
-from insight.dsl.locations import Reg
-from insight.semantics.operands import address, gregs
-from insight.semantics.rules import STORE_EXCLUSIVE_PAIRS, STORE_EXCLUSIVES, size_of
+from insight.dsl.locations import Reg, VByte
+from insight.semantics.operands import UnsupportedFormError, VReg, address, gregs, regs
+from insight.semantics.rules import STORE_EXCLUSIVE_PAIRS, STORE_EXCLUSIVES, size_of, v_untagged
 
 if TYPE_CHECKING:
     from capstone import CsInsn
@@ -45,11 +46,14 @@ class Inputs:
     address: frozenset[Reg]
     writeback: Reg | None
     lowest_bit: int  # of the write-back base's flips: alignment
+    untagged: frozenset[VByte] = frozenset()
+    dest: int | None = None  # the V register an FP/SIMD instruction writes
 
     def excluded_for(self, out: object) -> frozenset[object]:
-        """The inputs whose flows into out are dropped."""
-        excluded: set[object] = set(NON_LOCATIONS) | set(self.address)
-        if out == self.writeback:
+        """The inputs whose flows into out are dropped. An untagged input that is not the
+        destination keeps its own tag: its flow into itself is not dropped."""
+        excluded: set[object] = set(NON_LOCATIONS) | set(self.address) | set(self.untagged)
+        if out == self.writeback or (isinstance(out, VByte) and out.n != self.dest):
             excluded.discard(out)
         return frozenset(excluded)
 
@@ -60,7 +64,7 @@ def inputs(insn: CsInsn) -> Inputs:
         target = regs[0].loc if regs else Reg(30)
         return Inputs(frozenset({target}) if target else frozenset(), None, 0)
     if not any(op.type == ARM64_OP_MEM for op in insn.operands):
-        return Inputs(frozenset(), None, 0)
+        return Inputs(frozenset(), None, 0, *untagged(insn))
     addr = address(insn)
     writeback = addr.base.loc if addr.mode != "offset" else None
     lowest = 0
@@ -72,3 +76,14 @@ def inputs(insn: CsInsn) -> Inputs:
             size *= 2
         lowest = max(lowest, (size - 1).bit_length())  # exclusives fault when unaligned
     return Inputs(addr.registers, writeback, lowest)
+
+
+def untagged(insn: CsInsn) -> tuple[frozenset[VByte], int | None]:
+    """The bytes of the FP/SIMD inputs whose flows carry no tag, and the destination's V register."""
+    try:
+        data = [op for op in regs(insn) if isinstance(op, VReg)]
+    except UnsupportedFormError:
+        return frozenset(), None
+    if not data:
+        return frozenset(), None
+    return frozenset(byte for reg in v_untagged(insn, data) for byte in reg.bytes()), data[0].n

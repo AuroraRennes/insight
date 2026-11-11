@@ -544,8 +544,11 @@ def flip_test(
     except UnsupportedFormError as error:
         report.skipped = f"R: {error.reason}"
         return report
-    if any(dep.excl for dep in transfer.tags.values()):
-        report.failures.append("the rule excludes inputs, which no family of R allows")
+    report.failures += [
+        f"the rule excludes {src} from {written}, which the policy does not"
+        for written, dep in sorted(transfer.tags.items(), key=lambda item: str(item[0]))
+        for src in sorted(dep.excl - ins.untagged, key=str)
+    ]
     rng = random.Random(seed if seed is not None else int.from_bytes(encoding, "little"))  # noqa: S311
     try:
         pairs = run_layouts(insn, transfer, ins, rng, report, layouts=layouts, states=states)

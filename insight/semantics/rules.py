@@ -9,6 +9,8 @@ tracked FP is a convention of the compiler.
 
 FP/SIMD data processing works on lanes: an arithmetic result lane gets the union of its source
 lanes (the bytes of a lane mix, lanes do not), a bitwise one byte for byte, a permute moves bytes.
+As for the flags, a comparison's result carries no tag (its sources are listed as 'excl'), nor does
+a select's mask or a table lookup's index (no pointer tainting).
 """
 
 from __future__ import annotations
@@ -112,6 +114,11 @@ V_LANEWISE = frozenset([
 V_BITWISE = frozenset({"and", "orr", "orn", "eor", "bic", "mvn", "not"})
 # With both sources the same register: 0 (x - x, x ^ x, x & ~x) or all ones (x | ~x).
 V_CANCELLING = frozenset({"sub", "eor", "bic", "orn"})
+# Lane-wise, the result clean: its sources are 'excl'.
+V_COMPARE = frozenset([
+    "cmeq", "cmge", "cmgt", "cmhi", "cmhs", "cmle", "cmlt", "cmtst",
+    "fcmeq", "fcmge", "fcmgt", "fcmle", "fcmlt", "facge", "facgt",
+])  # fmt: skip
 V_FLAGS_ONLY = frozenset({"fcmp", "fcmpe", "fccmp", "fccmpe"})
 # Lanes twice as wide as the source's ('2': from its upper half), or a wide source lane-wise.
 V_WIDENING = frozenset([
@@ -140,6 +147,8 @@ V_ACCUMULATE = frozenset([
     "mla", "mls", "saba", "uaba", "usra", "ssra", "ursra", "srsra", "sli", "sri", "fmla", "fmls",
     "umlal", "smlal", "umlsl", "smlsl", "sqdmlal", "sqdmlsl", "uabal", "sabal", "uadalp", "sadalp",
 ])  # fmt: skip
+# Byte by byte from the data or a table, the mask or index 'excl' (see v_untagged).
+V_SELECT = frozenset({"bsl", "bit", "bif", "tbl", "tbx"})
 # An FP/SIMD register from or to a general register, converted.
 V_CONVERT_GPR = frozenset([
     "fcvtzs", "fcvtzu", "fcvtas", "fcvtau", "fcvtms", "fcvtmu", "fcvtns", "fcvtnu", "fcvtps", "fcvtpu",
@@ -217,14 +226,17 @@ def v_data(insn: CsInsn, data: list[VReg]) -> Transfer:
     mnemonic = insn.mnemonic
     base = base_name(mnemonic)
     dest, sources = data[0], data[1:]
+    untagged = frozenset(v_untagged(insn, data))
     if dest.index is not None:
         raise fp_simd_unsupported(insn)
+    if base in V_SELECT:
+        return selected(insn, dest, [reg for reg in sources if reg not in untagged], untagged)
     if base in V_ACCUMULATE:
         sources = [dest, *sources]
     if base in V_CANCELLING and len(sources) == 2 and sources[0] == sources[1]:
         return Transfer(v_written(dest, [EMPTY] * dest.width))
-    if base in V_LANEWISE or base in V_BITWISE or base in V_WIDENING:
-        return lanes(insn, dest, sources, byte_lanes=base in V_BITWISE, wide=base in V_WIDENING)
+    if base in V_LANEWISE or base in V_BITWISE or base in V_COMPARE or base in V_WIDENING:
+        return lanes(insn, dest, sources, untagged, byte_lanes=base in V_BITWISE, wide=base in V_WIDENING)
     if base in V_NARROWING:
         return narrowed(insn, dest, sources, upper=mnemonic != base)
     if base in V_PAIRWISE or base in V_REDUCTION:
@@ -239,6 +251,20 @@ def base_name(mnemonic: str) -> str:
     if mnemonic.endswith("2") and mnemonic not in V_PERMUTE and mnemonic[:-1] in V_WIDENING | V_NARROWING:
         return mnemonic[:-1]
     return mnemonic
+
+
+def v_untagged(insn: CsInsn, data: list[VReg]) -> list[VReg]:
+    """The policy's FP/SIMD inputs whose flows carry no tag: a comparison's sources, a table
+    lookup's index (no pointer tainting), a select's mask (BSL: the destination's old value; BIT
+    and BIF: the last register)."""
+    base = base_name(insn.mnemonic)
+    if base in V_COMPARE:
+        return data[1:]
+    if base in {"tbl", "tbx", "bit", "bif"}:
+        return data[-1:]
+    if base == "bsl":
+        return data[:1]
+    return []
 
 
 def masked(insn: CsInsn, dest: VReg) -> Transfer:
@@ -266,17 +292,26 @@ def lane_sources(insn: CsInsn, dest: VReg, reg: VReg, *, wide: bool) -> list[lis
     raise fp_simd_unsupported(insn)
 
 
-def lanes(insn: CsInsn, dest: VReg, sources: list[VReg], *, byte_lanes: bool, wide: bool) -> Transfer:
-    """Each lane of dest from its lane of every source. Bitwise forms work on lanes of one byte."""
+def lanes(
+    insn: CsInsn,
+    dest: VReg,
+    sources: list[VReg],
+    untagged: frozenset[VReg],
+    *,
+    byte_lanes: bool,
+    wide: bool,
+) -> Transfer:
+    """Each lane of dest from its lane of every source; the untagged sources (a comparison's)
+    as 'excl'. Bitwise forms work on lanes of one byte."""
     unit = VReg(dest.n, 1, dest.width) if byte_lanes else dest
-    per_lane: list[set[Loc]] = [set() for _ in range(unit.lanes)]
+    per_lane: list[tuple[set[Loc], set[Loc]]] = [(set(), set()) for _ in range(unit.lanes)]
     for reg in sources:
         src = VReg(reg.n, 1, reg.width) if byte_lanes and reg.index is None else reg
         if byte_lanes and src.width != unit.width:
             raise fp_simd_unsupported(insn)
         for lane, read in zip(per_lane, lane_sources(insn, unit, src, wide=wide), strict=True):
-            lane.update(read)
-    deps = [Dep(frozenset(srcs)) for srcs in per_lane for _ in range(unit.lane)]
+            lane[1 if reg in untagged else 0].update(read)
+    deps = [Dep(frozenset(srcs), frozenset(excl)) for srcs, excl in per_lane for _ in range(unit.lane)]
     return Transfer(v_written_deps(dest, deps))
 
 
@@ -350,6 +385,27 @@ def permuted(insn: CsInsn, dest: VReg, sources: list[VReg]) -> Transfer:
         for i in range(n // 2):
             elems += [a.element(2 * i + odd), b.element(2 * i + odd)]
     return Transfer(v_written(dest, [frozenset({byte}) for elem in elems for byte in elem]))
+
+
+def selected(insn: CsInsn, dest: VReg, data: list[VReg], untagged: frozenset[VReg]) -> Transfer:
+    """Byte k of dest from byte k of the data (bsl: the two sources; bit, bif: dest's old value and
+    the first source), or from any byte of the tables (tbl; tbx also keeps dest's byte k); the
+    mask's or index's byte k 'excl'."""
+    (control,) = untagged
+    if control.width != dest.width or any(reg.index is not None for reg in data):
+        raise fp_simd_unsupported(insn)
+    mnemonic = insn.mnemonic
+    tables = frozenset(byte for reg in data for byte in reg.bytes())
+    deps = []
+    for k in range(dest.width):
+        if mnemonic == "tbl":
+            srcs = tables
+        elif mnemonic == "tbx":
+            srcs = tables | {dest.byte(k)}
+        else:
+            srcs = frozenset(reg.byte(k) for reg in ([dest, data[0]] if mnemonic in {"bit", "bif"} else data))
+        deps.append(Dep(srcs, frozenset({control.byte(k)})))
+    return Transfer(v_written_deps(dest, deps))
 
 
 def converted(insn: CsInsn, operands: list[Operand]) -> Transfer:

@@ -50,6 +50,9 @@ CORRECT += [
     ("201c224e", "and v0.16b, v1.16b, v2.16b"),
     ("201c216e", "eor v0.16b, v1.16b, v1.16b"),
     ("e097076f", "bic v0.8h, #0xff"),
+    ("208ca26e", "cmeq v0.4s, v1.4s, v2.4s"),
+    ("201c626e", "bsl v0.16b, v1.16b, v2.16b"),
+    ("201ca22e", "bit v0.8b, v1.8b, v2.8b"),
     ("2038824e", "zip1 v0.4s, v1.4s, v2.4s"),
     ("2018026e", "ext v0.16b, v1.16b, v2.16b, #3"),
     ("2008600e", "rev64 v0.4h, v1.4h"),
@@ -67,6 +70,7 @@ LANES = [
     ("20a4106f", "ushll2 v0.4s, v1.8h, #0"),
     ("2028214e", "xtn2 v0.16b, v1.8h"),
     ("20bca24e", "addp v0.4s, v1.4s, v2.4s"),
+    ("2020034e", "tbl v0.16b, {v1.16b, v2.16b}, v3.16b"),
 ]
 
 
@@ -96,7 +100,7 @@ WRONG = [
     # the wrong write-back amount for SP
     ("fd7bc1a8", "FP <- M[<SP> .. +8]\nLR <- M[<SP> + 8 .. +8]\n<SP> <- <SP> + 8", "value: SP"),
     # a rule that excludes one of its inputs
-    ("2000028b", "X0 <- X1 excl X2", "the rule excludes inputs"),
+    ("2000028b", "X0 <- X1 excl X2", "the rule excludes X2 from X0, which the policy does not"),
     # movk keeps the other bits: overwriting drops a flow
     ("2000a0f2", "X0 <- 0", "soundness: X0 flows into X0"),
     # x - x - !C does not depend on x: the union of the sources keeps x's tag
@@ -141,8 +145,16 @@ WRONG = [
     ("20a4106f", "V0[0:15] <- V1[0:7] per 2:4", "soundness: V1[8] flows into V0[0]"),
     # xtn2 clearing the lower half it keeps
     ("2028214e", "V0[8:15] <- V1[0:15] per 2:1\nV0[0:7] <- 0", "soundness: V0[0] flows into V0[0]"),
+    # a table lookup taken byte for byte: any table byte may be picked
+    ("2020034e", "V0[0:15] <- V1[0:15] per 1 excl V3[0:15] per 1", "soundness: V"),
     # bic of 0xff keeping the bytes it clears
     ("e097076f", "", "overwrite: the rule keeps V0[0]"),
+    # bsl excluding its data instead of its mask
+    (
+        "201c626e",
+        "V0[0:15] <- V0[0:15] | V2[0:15] per 1 excl V1[0:15] per 1",
+        "the rule excludes V1[0] from V0[0], which the policy does not",
+    ),
 ]
 
 

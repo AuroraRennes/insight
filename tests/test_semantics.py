@@ -143,8 +143,28 @@ V_RULES = [
     ("2034004f", "orr v0.4s, #1, lsl #8", ""),
     ("2014000f", "orr v0.2s, #1", "V0[8:15] <- 0"),
     ("e097076f", "bic v0.8h, #0xff", "\n".join(f"V0[{2 * i}] <- 0" for i in range(8))),
-    # a comparison of FP registers: the flags only
+    # comparisons: clean, the sources 'excl'
+    ("208ca26e", "cmeq v0.4s, v1.4s, v2.4s", "V0[0:15] <- 0 excl V1[0:15] | V2[0:15] per 4"),
+    ("2098200e", "cmeq v0.8b, v1.8b, #0", "V0[0:7] <- 0 excl V1[0:7] per 1\nV0[8:15] <- 0"),
     ("0820601e", "fcmp d0, #0.0", ""),
+    # selects and table lookups: the mask or the index 'excl'
+    ("201c626e", "bsl v0.16b, v1.16b, v2.16b", "V0[0:15] <- V1[0:15] | V2[0:15] per 1 excl V0[0:15] per 1"),
+    (
+        "201ca22e",
+        "bit v0.8b, v1.8b, v2.8b",
+        "V0[0:7] <- V0[0:7] | V1[0:7] per 1 excl V2[0:7] per 1\nV0[8:15] <- 0",
+    ),
+    (
+        "2020034e",
+        "tbl v0.16b, {v1.16b, v2.16b}, v3.16b",
+        "V0[0:15] <- V1[0:15] | V2[0:15] excl V3[0:15] per 1",
+    ),
+    ("0000030e", "tbl v0.8b, {v0.16b}, v3.8b", "V0[0:7] <- V0[0:15] excl V3[0:7] per 1\nV0[8:15] <- 0"),
+    (
+        "2010034e",
+        "tbx v0.16b, {v1.16b}, v3.16b",
+        "\n".join(f"V0[{k}] <- V0[{k}] | V1[0:15] excl V3[{k}]" for k in range(16)),
+    ),
     # widening ('2': the upper half of the source), narrowing ('2': into the upper half)
     ("20a4102f", "ushll v0.4s, v1.4h, #0", "V0[0:15] <- V1[0:7] per 2:4"),
     ("20a4106f", "ushll2 v0.4s, v1.8h, #0", "V0[0:15] <- V1[8:15] per 2:4"),
