@@ -82,12 +82,11 @@ def check_block(elf: ELFFile, block: Block, tally: RTally | None = None) -> list
         tally.jump_table_loads += comparison.jump_table_loads
         issues += [Issue(block.address, offset, f"R: {message}") for offset, message in comparison.mismatches]
         for _, message in comparison.unsupported:
-            reason = message.split(": ", 1)[1]
-            reason = (
-                "operands outside the general registers (FP/SIMD)"
-                if "general register" in reason
-                else message
-            )
+            text, reason = message.split(": ", 1)
+            if reason == "FP/SIMD form without a rule":  # by mnemonic: what R lacks
+                reason = f"FP/SIMD without a rule: {text.split()[0]}"
+            elif "general register" not in reason:
+                reason = message
             tally.unsupported[reason] = tally.unsupported.get(reason, 0) + 1
     return issues
 

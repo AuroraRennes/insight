@@ -1,12 +1,14 @@
 """R, the reference semantics: rule(insn) gives an instruction's transfer in the DSL.
 
-The policy is built in: one tag per X register and per memory byte, none on the flags, no pointer
-tainting. Only the general-register instructions have a rule; others raise UnsupportedFormError.
+The policy is built in: one tag per X register, per V-register byte and per memory byte, none on
+the flags, no pointer tainting. The general-register instructions have a rule, and of the FP/SIMD
+ones the loads and stores (byte for byte, structures included); others raise UnsupportedFormError.
 R gives no <FP> updates: the tracked FP is a convention of the compiler.
 """
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 
 from capstone import CS_GRP_CALL, CS_GRP_JUMP, CS_GRP_RET
@@ -14,15 +16,24 @@ from capstone.arm64 import ARM64_EXT_INVALID, ARM64_OP_MEM, ARM64_SFT_INVALID
 
 from insight.annotations.sendcheck import instruction_sends
 from insight.dsl.locations import SP_INDEX, Loc, Mem, Reg
-from insight.dsl.transfer import ZERO, Dep, Opaque, Transfer
-from insight.semantics.operands import UnsupportedFormError, address, gregs, immediates
+from insight.dsl.transfer import EMPTY, ZERO, Dep, Opaque, Transfer
+from insight.semantics.operands import (
+    GReg,
+    UnsupportedFormError,
+    VReg,
+    address,
+    fp_simd_unsupported,
+    gregs,
+    immediates,
+    regs,
+)
 
 if TYPE_CHECKING:
     from capstone import CsInsn
 
     from insight.dsl.terms import Term
     from insight.dsl.transfer import ValueReg
-    from insight.semantics.operands import GReg
+    from insight.semantics.operands import Address, Operand
 
 LR = Reg(30)
 SP = Reg(SP_INDEX)
@@ -71,6 +82,8 @@ STORES = {
 STORE_PAIRS = {"stp": None, "stnp": None}
 STORE_EXCLUSIVES = {"stxr": None, "stlxr": None, "stxrb": 1, "stlxrb": 1, "stxrh": 2, "stlxrh": 2}
 STORE_EXCLUSIVE_PAIRS = {"stxp": None, "stlxp": None}
+# FP/SIMD: the structure loads and stores ('ld3r' is (ld, 3, r)).
+STRUCTURE = re.compile(r"(ld|st)([1-4])(r?)")
 
 
 def rule(insn: CsInsn) -> Transfer:
@@ -99,12 +112,15 @@ def is_branch(insn: CsInsn) -> bool:
 
 def data_processing(insn: CsInsn) -> Transfer:
     mnemonic = insn.mnemonic
-    regs = gregs(insn)
+    operands = regs(insn)
+    if any(isinstance(op, VReg) for op in operands):
+        raise fp_simd_unsupported(insn)
     if mnemonic in FLAGS_ONLY:
         return Transfer()
-    if not regs:
+    general = gregs(insn)
+    if not general:
         raise UnsupportedFormError(insn)
-    dest, sources = regs[0], regs[1:]
+    dest, sources = general[0], general[1:]
     if mnemonic in CONSTANT or (mnemonic == "mov" and not sources):
         srcs: frozenset[Loc] = frozenset()
     elif mnemonic in UNION:
@@ -116,6 +132,14 @@ def data_processing(insn: CsInsn) -> Transfer:
     return written(insn, dest, srcs, sources)
 
 
+def v_written(dest: VReg, srcs: list[frozenset[Loc]]) -> dict[Loc, Dep]:
+    """Byte k of dest <- srcs[k]; the bytes of the register above dest cleared when it is not an
+    element."""
+    tags: dict[Loc, Dep] = {byte: Dep(src) for byte, src in zip(dest.bytes(), srcs, strict=True)}
+    tags.update((byte, Dep(EMPTY)) for byte in dest.rest())
+    return tags
+
+
 def cancels(insn: CsInsn, sources: list[GReg]) -> bool:
     """Both sources are the same register, the second neither shifted nor extended."""
     if insn.mnemonic not in CANCELLING or len(sources) != 2:
@@ -125,8 +149,8 @@ def cancels(insn: CsInsn, sources: list[GReg]) -> bool:
     return sources[0] == sources[1] and plain
 
 
-def locs(regs: list[GReg]) -> frozenset[Loc]:
-    return frozenset(reg.loc for reg in regs if reg.loc is not None)
+def locs(general: list[GReg]) -> frozenset[Loc]:
+    return frozenset(reg.loc for reg in general if reg.loc is not None)
 
 
 def written(insn: CsInsn, dest: GReg, srcs: frozenset[Loc], sources: list[GReg]) -> Transfer:
@@ -166,10 +190,12 @@ def shifted(insn: CsInsn, imm: int) -> int:
 # \_______
 
 
-def data_registers(insn: CsInsn) -> list[GReg]:
+def data_registers(insn: CsInsn, addr: Address) -> list[GReg]:
     """The register operands of a load or store besides its address (data, then status), as many
     as its family has: capstone does not list every operand as a register ('str za[w15, 0], [x16]')."""
     data = gregs(insn)  # the memory operand's base and index are not register operands
+    if addr.post_reg is not None:
+        data = data[:-1]  # a post-index register is
     mnemonic = insn.mnemonic
     expected = 0
     if mnemonic in LOADS or mnemonic in STORES:
@@ -188,8 +214,13 @@ def memory(insn: CsInsn) -> Transfer:
     if sends:
         return Transfer(sends=tuple(ZERO if n == ZERO.n else Reg(n) for n in sends))
     mnemonic = insn.mnemonic
-    data = data_registers(insn)
     addr = address(insn)
+    operands = regs(insn)
+    if addr.post_reg is not None:
+        operands = operands[:-1]
+    if any(isinstance(op, VReg) for op in operands):
+        return v_memory(insn, operands, addr)
+    data = data_registers(insn, addr)
     tags: dict[Loc, Dep] = {}
     if mnemonic in LOADS:
         (dest,) = data
@@ -219,12 +250,78 @@ def memory(insn: CsInsn) -> Transfer:
         clear(tags, status)
     else:
         raise UnsupportedFormError(insn)
+    return with_writeback(insn, addr, tags)
+
+
+def with_writeback(insn: CsInsn, addr: Address, tags: dict[Loc, Dep]) -> Transfer:
+    """The transfer of a load or store with its base's write-back: SP's new value; a base
+    post-indexed by a register gets that register's tag too, as an add would."""
     values: dict[ValueReg, Term] = {}
-    if addr.mode != "offset" and addr.base.kind == "sp":
-        values["SP"] = addr.written_back()
-    elif addr.mode != "offset" and Reg(addr.base.n) in tags:
+    if addr.mode != "offset" and Reg(addr.base.n) in tags:
         raise UnsupportedFormError(insn, "write-back to a register the instruction also loads")
+    if addr.mode != "offset" and addr.base.kind == "sp":
+        if addr.post_reg is not None:
+            raise UnsupportedFormError(insn, "SP post-indexed by a register")
+        values["SP"] = addr.written_back()
+    elif addr.post_reg is not None and addr.base.loc is not None:
+        tags[addr.base.loc] = Dep(locs([addr.base, addr.post_reg]))
     return Transfer(tags, values)
+
+
+def v_memory(insn: CsInsn, operands: list[Operand], addr: Address) -> Transfer:
+    """FP/SIMD loads and stores, byte for byte: each register byte with its memory byte. A load
+    clears the bytes of the register above the ones it writes, except into an element."""
+    mnemonic = insn.mnemonic
+    data = [op for op in operands if isinstance(op, VReg)]
+    if len(data) != len(operands):
+        raise fp_simd_unsupported(insn)
+    start = addr.start()
+    is_load = mnemonic in LOADS or mnemonic in LOAD_PAIRS or mnemonic.startswith("ld")
+    placed: list[tuple[VReg, list[Term]]] = []
+    plain = LOADS | LOAD_PAIRS | STORES | STORE_PAIRS
+    if mnemonic in plain and plain[mnemonic] is None:
+        expected = 2 if mnemonic in LOAD_PAIRS or mnemonic in STORE_PAIRS else 1
+        if len(data) != expected or any(reg.index is not None or reg.lanes != 1 for reg in data):
+            raise fp_simd_unsupported(insn)
+        offset = 0
+        for reg in data:
+            placed.append((reg, [start + offset + k for k in range(reg.width)]))
+            offset += reg.width
+    elif match := STRUCTURE.fullmatch(mnemonic):
+        placed = structure(insn, data, start, int(match[2]), replicate=bool(match[3]))
+    else:
+        raise fp_simd_unsupported(insn)
+    tags: dict[Loc, Dep] = {}
+    for reg, addrs in placed:
+        if is_load:
+            tags.update(v_written(reg, [frozenset({Mem(a)}) for a in addrs]))
+        else:
+            tags.update((Mem(a), Dep(frozenset({byte}))) for a, byte in zip(addrs, reg.bytes(), strict=True))
+    return with_writeback(insn, addr, tags)
+
+
+def structure(
+    insn: CsInsn, data: list[VReg], start: Term, n: int, *, replicate: bool
+) -> list[tuple[VReg, list[Term]]]:
+    """The address of each byte of each register of an ldN/stN: one register's elements in a row
+    (n = 1, registers one after the other), n registers' elements interleaved, one element per
+    register (a lane), or one element per register repeated in every lane (ldNr)."""
+    first = data[0]
+    if any((reg.lane, reg.lanes, reg.index) != (first.lane, first.lanes, first.index) for reg in data):
+        raise fp_simd_unsupported(insn)
+    if (n > 1 and len(data) != n) or not 1 <= len(data) <= 4:
+        raise fp_simd_unsupported(insn)
+    e = first.lane
+    placed: list[tuple[VReg, list[Term]]] = []
+    for r, reg in enumerate(data):
+        if replicate:
+            addrs = [start + r * e + k % e for k in range(reg.width)]
+        elif reg.index is not None or n > 1:
+            addrs = [start + ((k // e) * n + r) * e + k % e for k in range(reg.width)]
+        else:
+            addrs = [start + r * reg.width + k for k in range(reg.width)]
+        placed.append((reg, addrs))
+    return placed
 
 
 def size_of(size: int | None, reg: GReg) -> int:

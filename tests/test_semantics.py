@@ -76,8 +76,46 @@ def test_rule(encoding, text, expected):
     assert differences(parse(expected), rule(insn)) == [], text
 
 
+# FP/SIMD loads and stores, byte for byte. The texts follow the compiler's annotations.
+V_RULES = [
+    ("2004c03d", "ldr q0, [x1, #0x10]", "V0[0:15] <- M[<X1> + 16 .. +16] per 1"),
+    ("228440fc", "ldr d2, [x1], #8", "V2[0:15] <- [M[<X1> .. +8] 0 0 0 0 0 0 0 0]"),
+    ("2400403d", "ldr b4, [x1]", "V4[0] <- M[<X1>]\nV4[1:15] <- 0"),
+    (
+        "e51bffad",
+        "ldp q5, q6, [sp, #-0x20]!",
+        "V5[0:15] <- M[<SP> - 32 .. +16] per 1\nV6[0:15] <- M[<SP> - 16 .. +16] per 1\n<SP> <- <SP> - 32",
+    ),
+    ("27e01f7c", "stur h7, [x1, #-2]", "M[<X1> - 2 .. +2] <- V7[0:1] per 1"),
+    (
+        "00a0df4c",
+        "ld1 {v0.16b, v1.16b}, [x0], #32",
+        "V0[0:15] <- M[<X0> .. +16] per 1\nV1[0:15] <- M[<X0> + 16 .. +16] per 1",
+    ),
+    ("0091400d", "ld1 {v0.s}[1], [x8]", "V0[4:7] <- M[<X8> .. +4] per 1"),
+    ("0078c24c", "ld1 {v0.4s}, [x0], x2", "V0[0:15] <- M[<X0> .. +16] per 1\nX0 <- X0 | X2"),
+    ("00c4404d", "ld1r {v0.8h}, [x0]", "V0[0:15] <- M[<X0> .. +2 step 0 times 8] per 1"),
+    (
+        "0040000c",
+        "st3 {v0.8b, v1.8b, v2.8b}, [x0]",
+        (
+            "M[<X0> .. +1 step 3 times 8] <- V0[0:7] per 1\n"
+            "M[<X0> + 1 .. +1 step 3 times 8] <- V1[0:7] per 1\n"
+            "M[<X0> + 2 .. +1 step 3 times 8] <- V2[0:7] per 1"
+        ),
+    ),
+]
+
+
+@pytest.mark.parametrize(("encoding", "text", "expected"), V_RULES, ids=[text for _, text, _ in V_RULES])
+def test_fp_simd_rule(encoding, text, expected):
+    insn = insn_of(encoding)
+    assert f"{insn.mnemonic} {insn.op_str}".startswith(text.split(",")[0]), text
+    assert differences(parse(expected), rule(insn)) == [], text
+
+
 def test_unsupported_fails_closed():
-    with pytest.raises(UnsupportedFormError, match="fmov d0, x1"):
+    with pytest.raises(UnsupportedFormError, match="fmov d0, x1: FP/SIMD form without a rule"):
         rule(insn_of("2000679e"))
 
 
