@@ -2,8 +2,9 @@
 
 The policy is built in: one tag per X register, per V-register byte and per memory byte, none on
 the flags, no pointer tainting. The general-register instructions have a rule, and of the FP/SIMD
-ones the loads and stores (byte for byte, structures included); others raise UnsupportedFormError.
-R gives no <FP> updates: the tracked FP is a convention of the compiler.
+ones the loads and stores (byte for byte, structures included) and the moves (an X register has
+one tag: it gives it to every byte it writes, and gets the union of the bytes it reads); others
+raise UnsupportedFormError. R gives no <FP> updates: the tracked FP is a convention of the compiler.
 """
 
 from __future__ import annotations
@@ -82,8 +83,10 @@ STORES = {
 STORE_PAIRS = {"stp": None, "stnp": None}
 STORE_EXCLUSIVES = {"stxr": None, "stlxr": None, "stxrb": 1, "stlxrb": 1, "stxrh": 2, "stlxrh": 2}
 STORE_EXCLUSIVE_PAIRS = {"stxp": None, "stlxp": None}
-# FP/SIMD: the structure loads and stores ('ld3r' is (ld, 3, r)).
+# FP/SIMD: the structure loads and stores ('ld3r' is (ld, 3, r)), and the moves.
 STRUCTURE = re.compile(r"(ld|st)([1-4])(r?)")
+V_CONSTANT = frozenset({"movi", "mvni"})
+V_MOVES = frozenset({"fmov", "mov", "umov", "smov", "ins", "dup"})
 
 
 def rule(insn: CsInsn) -> Transfer:
@@ -114,7 +117,7 @@ def data_processing(insn: CsInsn) -> Transfer:
     mnemonic = insn.mnemonic
     operands = regs(insn)
     if any(isinstance(op, VReg) for op in operands):
-        raise fp_simd_unsupported(insn)
+        return fp_simd(insn, operands)
     if mnemonic in FLAGS_ONLY:
         return Transfer()
     general = gregs(insn)
@@ -130,6 +133,36 @@ def data_processing(insn: CsInsn) -> Transfer:
     else:
         raise UnsupportedFormError(insn)
     return written(insn, dest, srcs, sources)
+
+
+def fp_simd(insn: CsInsn, operands: list[Operand]) -> Transfer:
+    """The FP/SIMD data processing R has a rule for: constants and moves."""
+    mnemonic = insn.mnemonic
+    if mnemonic in V_CONSTANT or (mnemonic == "fmov" and len(operands) == 1):
+        (dest,) = operands
+        if not isinstance(dest, VReg):
+            raise fp_simd_unsupported(insn)
+        return Transfer(v_written(dest, [EMPTY] * dest.width))
+    if mnemonic in V_MOVES and len(operands) == 2:
+        return move(insn, *operands)
+    raise fp_simd_unsupported(insn)
+
+
+def move(insn: CsInsn, dest: Operand, source: Operand) -> Transfer:
+    """A copy between registers: X <- the union of the bytes read; each byte written <- X, or
+    <- its byte of the source (a dup repeats the source element in every lane)."""
+    if isinstance(dest, GReg) and isinstance(source, VReg):
+        return Transfer({dest.loc: Dep(frozenset(source.bytes()))}) if dest.loc is not None else Transfer()
+    if isinstance(dest, VReg) and isinstance(source, GReg):
+        return Transfer(v_written(dest, [locs([source])] * dest.width))
+    if isinstance(dest, VReg) and isinstance(source, VReg):
+        same = source.width == dest.width
+        repeated = insn.mnemonic == "dup" and source.index is not None and dest.width % source.width == 0
+        if same or repeated:
+            return Transfer(
+                v_written(dest, [frozenset({source.byte(k % source.width)}) for k in range(dest.width)])
+            )
+    raise fp_simd_unsupported(insn)
 
 
 def v_written(dest: VReg, srcs: list[frozenset[Loc]]) -> dict[Loc, Dep]:

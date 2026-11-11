@@ -93,7 +93,7 @@ def test_svc_is_skipped():
 
 
 def test_unsupported_is_skipped():
-    assert quick("2000679e").skipped.startswith("R: ")
+    assert quick("2028621e").skipped == "R: FP/SIMD form without a rule"  # fadd d0, d1, d2
 
 
 def test_prologue_and_epilogue_encodings():

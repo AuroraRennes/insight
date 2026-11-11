@@ -76,7 +76,8 @@ def test_rule(encoding, text, expected):
     assert differences(parse(expected), rule(insn)) == [], text
 
 
-# FP/SIMD loads and stores, byte for byte. The texts follow the compiler's annotations.
+# FP/SIMD loads and stores (byte for byte) and moves. The texts follow the compiler's annotations
+# where they agree with R.
 V_RULES = [
     ("2004c03d", "ldr q0, [x1, #0x10]", "V0[0:15] <- M[<X1> + 16 .. +16] per 1"),
     ("228440fc", "ldr d2, [x1], #8", "V2[0:15] <- [M[<X1> .. +8] 0 0 0 0 0 0 0 0]"),
@@ -104,6 +105,22 @@ V_RULES = [
             "M[<X0> + 2 .. +1 step 3 times 8] <- V2[0:7] per 1"
         ),
     ),
+    ("2300669e", "fmov x3, d1", "X3 <- V1[0:7]"),
+    ("6100679e", "fmov d1, x3", "V1[0:15] <- [X3 X3 X3 X3 X3 X3 X3 X3 0 0 0 0 0 0 0 0]"),
+    ("2000ae9e", "fmov x0, v1.d[1]", "X0 <- V1[8:15]"),
+    ("0100af9e", "fmov v1.d[1], x0", "V1[8:15] <- X0"),
+    ("2040601e", "fmov d0, d1", "V0[0:7] <- V1[0:7] per 1\nV0[8:15] <- 0"),
+    ("00106c1e", "fmov d0, #0.5", "V0[0:15] <- 0"),
+    ("00e4006f", "movi v0.2d, #0", "V0[0:15] <- 0"),
+    ("21e4002f", "movi d1, #0xff", "V1[0:15] <- 0"),
+    ("021ca00e", "mov v2.8b, v0.8b", "V2[0:7] <- V0[0:7] per 1\nV2[8:15] <- 0"),
+    ("0004185e", "mov d0, v0.d[1]", "V0[0:7] <- V0[8:15] per 1\nV0[8:15] <- 0"),
+    ("203c140e", "mov w0, v1.s[2]", "X0 <- V1[8:11]"),
+    ("202c0e4e", "smov x0, v1.h[3]", "X0 <- V1[6:7]"),
+    ("001c0b4e", "mov v0.b[5], w0", "V0[5] <- X0"),
+    ("2004186e", "mov v0.d[1], v1.d[0]", "V0[8:15] <- V1[0:7] per 1"),
+    ("000c040e", "dup v0.2s, w0", "V0[0:7] <- X0\nV0[8:15] <- 0"),
+    ("2004144e", "dup v0.4s, v1.s[2]", "V0[0:15] <- [V1[8:11] V1[8:11] V1[8:11] V1[8:11]]"),
 ]
 
 
@@ -114,9 +131,17 @@ def test_fp_simd_rule(encoding, text, expected):
     assert differences(parse(expected), rule(insn)) == [], text
 
 
+def test_union_of_an_element_is_imprecise():
+    """The compiler's 'mov d0, v0.d[1]': each byte gets the whole element (sound, not R's)."""
+    found = differences(parse("V0[0:7] <- V0[8:15]\nV0[8:15] <- 0"), rule(insn_of("0004185e")))
+    assert len(found) == 8
+    union = " | ".join(sorted(f"V0[{b}]" for b in range(8, 16)))
+    assert found[0] == f"annotation V0[0] <- {union}, R V0[0] <- V0[8]"
+
+
 def test_unsupported_fails_closed():
-    with pytest.raises(UnsupportedFormError, match="fmov d0, x1: FP/SIMD form without a rule"):
-        rule(insn_of("2000679e"))
+    with pytest.raises(UnsupportedFormError, match="fadd d0, d1, d2: FP/SIMD form without a rule"):
+        rule(insn_of("2028621e"))
 
 
 def test_store_of_a_non_register_fails_closed():
