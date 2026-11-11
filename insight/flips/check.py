@@ -426,7 +426,10 @@ def check_layout(  # noqa: PLR0917 (the parts of one layout's check)
             return set()
 
     observed_pairs: set[tuple[str, str]] = set()
+    # Every location flipped too: one the instruction clears and the rule leaves out (keeps) is
+    # only seen there, nothing flowing into it.
     outs: set[Loc] = {out for out in obs.flows if not isinstance(out, Flag)} | set(written)
+    outs |= {place for place in obs.flipped if not isinstance(place, Flag)}
     for out in sorted(outs, key=str):
         if out in obs.nondeterministic:
             continue

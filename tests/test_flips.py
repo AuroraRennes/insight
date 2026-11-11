@@ -63,13 +63,17 @@ WRONG = [
     ("000000da", "X0 <- X0", "overwrite: the rule keeps X0"),
     # mov of an immediate overwrites: keeping is check 2's failure
     ("200080d2", "X0 <- X0", "overwrite: the rule keeps X0"),
+    # also when the rule leaves the register out
+    ("200080d2", "", "overwrite: the rule keeps X0"),
     # a store of the wrong size: the bytes it leaves keep their own value, which the rule drops
     ("080000b9", "M[<X0> .. +8] <- X8", "soundness: M["),
 ]
 
 
 @pytest.mark.parametrize(
-    ("encoding", "text", "failure"), WRONG, ids=[f"{e}:{t.splitlines()[0]}" for e, t, _ in WRONG]
+    ("encoding", "text", "failure"),
+    WRONG,
+    ids=[f"{e}:{(t.splitlines() or ['(empty)'])[0]}" for e, t, _ in WRONG],
 )
 def test_wrong_rule_fails(encoding, text, failure):
     report = quick(encoding, text)
