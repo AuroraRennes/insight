@@ -49,15 +49,25 @@ class Report:
     issues: tuple[Issue, ...]
     old_format: bool = False
     unsupported: dict[str, int] = field(default_factory=dict)  # R's missing rules, by reason
+    jump_table_loads: int = 0  # compared with the jump-table convention instead of R
 
     @property
     def ok(self) -> bool:
         return not self.issues
 
 
-def check_block(elf: ELFFile, block: Block, unsupported: dict[str, int] | None = None) -> list[Issue]:
+@dataclass
+class RTally:
+    """What the comparison with R counts besides its issues."""
+
+    unsupported: dict[str, int] = field(default_factory=dict)  # R's missing rules, by reason
+    jump_table_loads: int = 0
+
+
+def check_block(elf: ELFFile, block: Block, tally: RTally | None = None) -> list[Issue]:
     """The issues of a framed block: its send lines, then the pairing of its values, then, when
-    unsupported is given, each instruction against R (counting R's missing rules there)."""
+    tally is given, each instruction against R (counting R's missing rules and the jump-table
+    loads there)."""
     try:
         insns = decode(code_at(elf, block.address, block.size), block.address)
     except ValueError as error:
@@ -67,8 +77,9 @@ def check_block(elf: ELFFile, block: Block, unsupported: dict[str, int] | None =
         pair_sends(block, [register_writes(insn) for insn in insns])
     except PairingError as error:
         issues.append(Issue(error.address, error.offset, error.message))
-    if unsupported is not None:
+    if tally is not None:
         comparison = compare_block(block, insns)
+        tally.jump_table_loads += comparison.jump_table_loads
         issues += [Issue(block.address, offset, f"R: {message}") for offset, message in comparison.mismatches]
         for _, message in comparison.unsupported:
             reason = message.split(": ", 1)[1]
@@ -77,7 +88,7 @@ def check_block(elf: ELFFile, block: Block, unsupported: dict[str, int] | None =
                 if "general register" in reason
                 else message
             )
-            unsupported[reason] = unsupported.get(reason, 0) + 1
+            tally.unsupported[reason] = tally.unsupported.get(reason, 0) + 1
     return issues
 
 
@@ -92,7 +103,7 @@ def check_elf(elf: ELFFile, *, against_r: bool = False) -> Report:
 
     groups = sends = 0
     issues: list[Issue] = []
-    unsupported: dict[str, int] | None = {} if against_r else None
+    tally = RTally() if against_r else None
     for address, text in texts:
         try:
             block = read_block(text, address)
@@ -103,5 +114,14 @@ def check_elf(elf: ELFFile, *, against_r: bool = False) -> Report:
             continue
         groups += len(block.groups)
         sends += sum(len(group.form.sends) for group in block.groups)
-        issues += check_block(elf, block, unsupported)
-    return Report(len(texts), groups, sends, tuple(issues), unsupported=unsupported or {})
+        issues += check_block(elf, block, tally)
+    if tally is None:
+        return Report(len(texts), groups, sends, tuple(issues))
+    return Report(
+        len(texts),
+        groups,
+        sends,
+        tuple(issues),
+        unsupported=tally.unsupported,
+        jump_table_loads=tally.jump_table_loads,
+    )

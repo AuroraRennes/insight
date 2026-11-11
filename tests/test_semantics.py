@@ -7,7 +7,7 @@ from capstone import CS_ARCH_ARM64, CS_MODE_ARM, Cs
 from elftools.elf.elffile import ELFFile
 
 from insight.annotations.against_r import compare_block, differences
-from insight.annotations.framing import read_blocks
+from insight.annotations.framing import Block, Group, read_blocks
 from insight.annotations.pairing import code_at, decode
 from insight.dsl.syntax import parse
 from insight.flips.forms import load_corpus
@@ -100,6 +100,51 @@ def test_good_elf_against_r():
     assert len(found) == 16
     assert all(message.startswith("stlxp w9, x8, x1, [x0]: annotation M[") for message in found)
     assert "stlxp w9, x8, x1, [x0]: annotation M[<X0>] <- X8, R M[<X0>] <- M[<X0>] | X8" in found
+
+
+def block_of(words, forms):
+    """A block of the instructions given by their encodings, annotated with forms, and its decoding."""
+    decoder = Cs(CS_ARCH_ARM64, CS_MODE_ARM)
+    decoder.detail = True
+    code = b"".join(word.to_bytes(4, "little") for word in words)
+    insns = list(decoder.disasm(code, 0x1000))
+    block = Block(0x1000, tuple(Group(4 * i, parse(form)) for i, form in enumerate(forms)))
+    return block, insns
+
+
+ADR_X13 = 0x100000AD  # adr x13, .+20
+ADD_X13_X14 = 0x8B0E09AD  # add x13, x13, x14, lsl #2
+DISPATCHES = [
+    ("ldrh", [ADR_X13, 0x7868798E, ADD_X13_X14], "X14"),  # ldrh w14, [x12, x8, lsl #1]
+    ("ldrb", [ADR_X13, 0x386B6949, 0x8B0909AD], "X9"),  # ldrb w9, [x10, x11]; add x13, x13, x9, lsl #2
+    ("ldrsw", [ADR_X13, 0xB8AB7949, 0x8B0901AD], "X9"),  # ldrsw x9, [x10, x11, lsl #2]; add x13, x13, x9
+]
+
+
+@pytest.mark.parametrize(("words", "entry"), [d[1:] for d in DISPATCHES], ids=[d[0] for d in DISPATCHES])
+def test_jump_table_load_is_a_constant(words, entry):
+    """The compiler's dispatch: its entry load is compared with 'Ws <- 0', not with R's load."""
+    block, insns = block_of(words, ["X13 <- 0", f"{entry} <- 0", f"X13 <- X13 | {entry}"])
+    comparison = compare_block(block, insns)
+    assert comparison.mismatches == []
+    assert comparison.jump_table_loads == 1
+
+
+@pytest.mark.parametrize(
+    "words",
+    [
+        [ADR_X13, 0x7868798E, 0x8B0E09AF],  # the add writes x15, not the adr's x13
+        [ADR_X13, 0x7868698E, ADD_X13_X14],  # ldrh w14, [x12, x8]: the index is not scaled
+        [0x8B0E09AF, 0x7868798E, ADD_X13_X14],  # no adr before the load
+    ],
+    ids=["other-destination", "unscaled-index", "no-adr"],
+)
+def test_near_dispatch_is_an_ordinary_load(words):
+    """Anything but the exact dispatch keeps R's rule: a 'Ws <- 0' on the load is a mismatch."""
+    block, insns = block_of(words, ["X13 <- 0", "X14 <- 0", "X13 <- X13 | X14"])
+    comparison = compare_block(block, insns)
+    assert comparison.jump_table_loads == 0
+    assert any(offset == 4 and message.startswith("ldrh w14") for offset, message in comparison.mismatches)
 
 
 CORPUS = Path(__file__).parent.parent / "data" / "flips" / "corpus.json"

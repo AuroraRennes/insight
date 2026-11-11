@@ -78,6 +78,7 @@ def check(path: Path, max_issues: int, *, against_r: bool) -> int:
         out.write(f"R: {unsupported} instructions without a rule\n")
         for reason, count in sorted(report.unsupported.items(), key=lambda item: -item[1])[:max_issues]:
             out.write(f"  {count:7}  {reason}\n")
+        out.write(f"R: {report.jump_table_loads} jump-table loads taken as constant (read-only tables)\n")
     return 0 if report.ok else 1
 
 

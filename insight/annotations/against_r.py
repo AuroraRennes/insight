@@ -1,7 +1,8 @@
 """The static check of each instruction's annotation against R.
 
 <FP> updates are not compared (a convention of the compiler), and LO12 is replaced by the
-instruction's encoded offset, which is what R reads.
+instruction's encoded offset, which is what R reads. The entry load of a jump-table dispatch
+(adr, ldr, add) is compared with a clear: the table is read-only and starts untagged.
 """
 
 from __future__ import annotations
@@ -9,11 +10,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from capstone.arm64 import ARM64_OP_MEM
+from capstone.arm64 import ARM64_OP_MEM, ARM64_SFT_INVALID, ARM64_SFT_LSL
 
+from insight.dsl.locations import Reg
 from insight.dsl.terms import Sym, Term
-from insight.dsl.transfer import Opaque, Transfer, ZeroReg
-from insight.semantics.operands import UnsupportedFormError
+from insight.dsl.transfer import Dep, Opaque, Transfer, ZeroReg
+from insight.semantics.operands import GReg, UnsupportedFormError, address, gregs
 from insight.semantics.rules import rule
 
 if TYPE_CHECKING:
@@ -22,7 +24,7 @@ if TYPE_CHECKING:
     from capstone import CsInsn
 
     from insight.annotations.framing import Block
-    from insight.dsl.locations import Loc, Reg
+    from insight.dsl.locations import Loc
     from insight.dsl.transfer import ValueReg
 
 LO12 = Sym("LO12")
@@ -34,6 +36,7 @@ class Comparison:
 
     mismatches: list[tuple[int, str]] = field(default_factory=list)
     unsupported: list[tuple[int, str]] = field(default_factory=list)
+    jump_table_loads: int = 0  # loads compared with the jump-table convention, not R
 
 
 def encoded_offset(insn: CsInsn) -> int:
@@ -90,12 +93,52 @@ def without_fp(transfer: Transfer) -> Transfer:
     return Transfer(dict(transfer.tags), values, transfer.opaque, transfer.sends)
 
 
+# The entry load of a dispatch: the view of the register loaded, the index's shift, then the
+# add's shift of the entry.
+JUMP_TABLE_ENTRIES = {"ldrb": ("w", 0, 2), "ldrh": ("w", 1, 2), "ldrsw": ("x", 2, 0)}
+
+
+def shift_of(insn: CsInsn) -> int | None:
+    """The lsl of the last operand (0 without one), None for another shift or an extension."""
+    op = insn.operands[-1]
+    if op.shift.type == ARM64_SFT_INVALID:
+        return 0
+    return op.shift.value if op.shift.type == ARM64_SFT_LSL else None
+
+
+def jump_table_load(adr: CsInsn, load: CsInsn, add: CsInsn) -> Transfer | None:
+    """The convention's transfer of load, Ws <- 0, when the three are a jump-table dispatch."""
+    if (adr.mnemonic, add.mnemonic) != ("adr", "add") or load.mnemonic not in JUMP_TABLE_ENTRIES:
+        return None
+    view, index_shift, entry_shift = JUMP_TABLE_ENTRIES[load.mnemonic]
+    try:
+        (dest,), (entry,), addr = gregs(adr), gregs(load), address(load)
+        sums = gregs(add)
+    except (UnsupportedFormError, ValueError):
+        return None
+    dispatch = (
+        dest.kind == "x"
+        and sums == [dest, dest, GReg("x", entry.n)]
+        and shift_of(add) == entry_shift
+        and addr.mode == "offset"
+        and addr.disp == 0
+        and addr.index is not None
+        and addr.index.kind == "x"
+        and addr.ext == "uxtx"
+        and addr.shift == index_shift
+        and entry.kind == view
+        and entry.n != dest.n
+    )
+    return Transfer({Reg(entry.n): Dep(frozenset())}) if dispatch else None
+
+
 def compare_block(block: Block, insns: Sequence[CsInsn]) -> Comparison:
     result = Comparison()
-    for group, insn in zip(block.groups, insns, strict=True):
+    for i, (group, insn) in enumerate(zip(block.groups, insns, strict=True)):
         text = f"{insn.mnemonic} {insn.op_str}"
+        convention = jump_table_load(insns[i - 1], insn, insns[i + 1]) if 0 < i < len(insns) - 1 else None
         try:
-            reference = rule(insn)
+            reference = rule(insn) if convention is None else convention
         except UnsupportedFormError as error:
             result.unsupported.append((group.offset, f"{text}: {error.reason}"))
             continue
@@ -103,4 +146,5 @@ def compare_block(block: Block, insns: Sequence[CsInsn]) -> Comparison:
         result.mismatches.extend(
             (group.offset, f"{text}: {diff}") for diff in differences(annotation, reference)
         )
+        result.jump_table_loads += convention is not None
     return result
