@@ -3,7 +3,7 @@
 An input flows into an output if flipping it changes that output. Over two address layouts of
 sixteen states each:
 1. every observed flow, minus the policy's exclusions, is in the rule;
-2. the rule's self-dependences match the observed ones;
+2. a location the rule keeps (its only source is itself) is not overwritten by the instruction;
 3. a flow of the rule never observed is reported, not failed;
 4. the rule's memory locations and new <SP>, evaluated on the state, match the run.
 """
@@ -452,7 +452,7 @@ def check_layout(  # noqa: PLR0917 (the parts of one layout's check)
             report.failures.append(
                 f"soundness: {show(src)} flows into {show(out)}, not in the rule ({symbolic})"
             )
-        if out in srcs and out in obs.flipped and out not in seen:
+        if srcs.keys() == {out} and out in obs.flipped and out not in seen:
             report.failures.append(
                 f"overwrite: the rule keeps {show(out)}'s tag, the instruction overwrites it"
             )
