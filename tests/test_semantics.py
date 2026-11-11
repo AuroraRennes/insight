@@ -165,9 +165,26 @@ V_RULES = [
         "tbx v0.16b, {v1.16b}, v3.16b",
         "\n".join(f"V0[{k}] <- V0[{k}] | V1[0:15] excl V3[{k}]" for k in range(16)),
     ),
-    # widening ('2': the upper half of the source), narrowing ('2': into the upper half)
-    ("20a4102f", "ushll v0.4s, v1.4h, #0", "V0[0:15] <- V1[0:7] per 2:4"),
-    ("20a4106f", "ushll2 v0.4s, v1.8h, #0", "V0[0:15] <- V1[8:15] per 2:4"),
+    # widening ('2': the upper half of the source), narrowing ('2': into the upper half); an
+    # extension by whole bytes moves bytes, zeros or copies of the element's top byte above
+    ("20a4132f", "ushll v0.4s, v1.4h, #3", "V0[0:15] <- V1[0:7] per 2:4"),
+    ("20a4102f", "ushll v0.4s, v1.4h, #0", "V0[0:15] <- [V1[0:1] 0 0 V1[2:3] 0 0 V1[4:5] 0 0 V1[6:7] 0 0]"),
+    (
+        "20a4106f",
+        "ushll2 v0.4s, v1.8h, #0",
+        "V0[0:15] <- [V1[8:9] 0 0 V1[10:11] 0 0 V1[12:13] 0 0 V1[14:15] 0 0]",
+    ),
+    (
+        "00a4086f",
+        "ushll2 v0.8h, v0.16b, #0",
+        "V0[0:15] <- [V0[8] 0 V0[9] 0 V0[10] 0 V0[11] 0 V0[12] 0 V0[13] 0 V0[14] 0 V0[15] 0]",
+    ),
+    (
+        "20a4200f",
+        "sshll v0.2d, v1.2s, #0",
+        "V0[0:15] <- [V1[0:3] V1[3] V1[3] V1[3] V1[3:7] V1[7] V1[7] V1[7] V1[7]]",
+    ),
+    ("2038612e", "shll v0.4s, v1.4h, #16", "V0[0:15] <- [0 0 V1[0:1] 0 0 V1[2:3] 0 0 V1[4:5] 0 0 V1[6:7]]"),
     ("20c0a22e", "umull v0.2d, v1.2s, v2.2s", "V0[0:15] <- V1[0:7] | V2[0:7] per 4:8"),
     (
         "2010222e",

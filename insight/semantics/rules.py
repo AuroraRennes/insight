@@ -8,7 +8,8 @@ families of data processing below; others raise UnsupportedFormError. R gives no
 tracked FP is a convention of the compiler.
 
 FP/SIMD data processing works on lanes: an arithmetic result lane gets the union of its source
-lanes (the bytes of a lane mix, lanes do not), a bitwise one byte for byte, a permute moves bytes.
+lanes (the bytes of a lane mix, lanes do not), a bitwise one byte for byte, a permute moves bytes,
+and so does an extension by whole bytes (uxtl: each element's bytes, then zeros).
 As for the flags, a comparison's result carries no tag (its sources are listed as 'excl'), nor does
 a select's mask or a table lookup's index (no pointer tainting).
 """
@@ -121,6 +122,9 @@ V_COMPARE = frozenset([
 ])  # fmt: skip
 V_FLAGS_ONLY = frozenset({"fcmp", "fcmpe", "fccmp", "fccmpe"})
 # Lanes twice as wide as the source's ('2': from its upper half), or a wide source lane-wise.
+# The extensions among them (shll shifts by the element size) move bytes when they shift by whole
+# bytes: signed or not.
+V_EXTENDING = {"ushll": False, "uxtl": False, "shll": False, "sshll": True, "sxtl": True}
 V_WIDENING = frozenset([
     "ushll", "sshll", "shll", "uxtl", "sxtl", "fcvtl", "umull", "smull", "pmull", "sqdmull",
     "uaddl", "saddl", "usubl", "ssubl", "uaddw", "saddw", "usubw", "ssubw", "uabdl", "sabdl",
@@ -235,10 +239,10 @@ def v_data(insn: CsInsn, data: list[VReg]) -> Transfer:
         sources = [dest, *sources]
     if base in V_CANCELLING and len(sources) == 2 and sources[0] == sources[1]:
         return Transfer(v_written(dest, [EMPTY] * dest.width))
-    if base in V_LANEWISE or base in V_BITWISE or base in V_COMPARE or base in V_WIDENING:
-        return lanes(insn, dest, sources, untagged, byte_lanes=base in V_BITWISE, wide=base in V_WIDENING)
-    if base in V_NARROWING:
-        return narrowed(insn, dest, sources, upper=mnemonic != base)
+    if base in V_LANEWISE or base in V_BITWISE or base in V_COMPARE:
+        return lanes(insn, dest, sources, untagged, byte_lanes=base in V_BITWISE, wide=False)
+    if base in V_WIDENING or base in V_NARROWING:
+        return resized(insn, dest, sources)
     if base in V_PAIRWISE or base in V_REDUCTION:
         return pairwise(insn, dest, sources, reduction=base in V_REDUCTION or dest.lanes == 1)
     if base in V_PERMUTE:
@@ -313,6 +317,31 @@ def lanes(
             lane[1 if reg in untagged else 0].update(read)
     deps = [Dep(frozenset(srcs), frozenset(excl)) for srcs, excl in per_lane for _ in range(unit.lane)]
     return Transfer(v_written_deps(dest, deps))
+
+
+def resized(insn: CsInsn, dest: VReg, sources: list[VReg]) -> Transfer:
+    """Widening and narrowing: lane-wise between lanes of two sizes, an extension by whole bytes
+    byte for byte."""
+    base = base_name(insn.mnemonic)
+    if base in V_NARROWING:
+        return narrowed(insn, dest, sources, upper=insn.mnemonic != base)
+    shift = (immediates(insn) or [0])[0]
+    if base in V_EXTENDING and len(sources) == 1 and shift % 8 == 0:
+        return extended(insn, dest, sources[0], shift // 8, signed=V_EXTENDING[base])
+    return lanes(insn, dest, sources, frozenset(), byte_lanes=False, wide=True)
+
+
+def extended(insn: CsInsn, dest: VReg, source: VReg, by: int, *, signed: bool) -> Transfer:
+    """Each element widened to its lane and shifted up by whole bytes: byte j of lane i from byte
+    j - by of element i; the bytes below are 0, those above 0 or, signed, the element's top byte."""
+    srcs: list[frozenset[Loc]] = []
+    for element in lane_sources(insn, dest, source, wide=True):
+        for j in range(dest.lane):
+            if j < by or (j - by >= len(element) and not signed):
+                srcs.append(EMPTY)
+            else:
+                srcs.append(frozenset({element[min(j - by, len(element) - 1)]}))
+    return Transfer(v_written(dest, srcs))
 
 
 def narrowed(insn: CsInsn, dest: VReg, sources: list[VReg], *, upper: bool) -> Transfer:

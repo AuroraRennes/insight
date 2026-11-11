@@ -58,6 +58,10 @@ CORRECT += [
     ("2008600e", "rev64 v0.4h, v1.4h"),
     ("20a8316e", "uminv b0, v1.16b"),
     ("2000629e", "scvtf d0, x1"),
+    ("20a4106f", "ushll2 v0.4s, v1.8h, #0"),
+    ("00a4086f", "ushll2 v0.8h, v0.16b, #0"),
+    ("20a4200f", "sshll v0.2d, v1.2s, #0"),
+    ("2038612e", "shll v0.4s, v1.4h, #16"),
 ]
 
 # Lane-wise unions: sound, and less precise than the bits (a sum's low byte does not depend on
@@ -67,7 +71,7 @@ LANES = [
     ("2080a24f", "mul v0.4s, v1.4s, v2.s[1]"),
     ("20147d6f", "usra v0.2d, v1.2d, #3"),
     ("200c421f", "fmadd d0, d1, d2, d3"),
-    ("20a4106f", "ushll2 v0.4s, v1.8h, #0"),
+    ("20a4132f", "ushll v0.4s, v1.4h, #3"),
     ("2028214e", "xtn2 v0.16b, v1.8h"),
     ("20bca24e", "addp v0.4s, v1.4s, v2.4s"),
     ("2020034e", "tbl v0.16b, {v1.16b, v2.16b}, v3.16b"),
@@ -143,6 +147,12 @@ WRONG = [
     ("20bca24e", "V0[0:15] <- V1[0:15] | V2[0:15] per 4", "soundness: V1[4] flows into V0[0]"),
     # ushll2 from the lower half
     ("20a4106f", "V0[0:15] <- V1[0:7] per 2:4", "soundness: V1[8] flows into V0[0]"),
+    # sxtl taken as a zero-extension: the bytes above copy the top one
+    (
+        "20a4200f",
+        "V0[0:15] <- [V1[0:3] 0 0 0 0 V1[4:7] 0 0 0 0]",
+        "soundness: V1[3] flows into V0[4]",
+    ),
     # xtn2 clearing the lower half it keeps
     ("2028214e", "V0[8:15] <- V1[0:15] per 2:1\nV0[0:7] <- 0", "soundness: V0[0] flows into V0[0]"),
     # a table lookup taken byte for byte: any table byte may be picked
