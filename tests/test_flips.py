@@ -47,6 +47,26 @@ CORRECT += [
     ("021ca00e", "mov v2.8b, v0.8b"),
     ("0004185e", "mov d0, v0.d[1]"),
     ("2004144e", "dup v0.4s, v1.s[2]"),
+    ("201c224e", "and v0.16b, v1.16b, v2.16b"),
+    ("201c216e", "eor v0.16b, v1.16b, v1.16b"),
+    ("e097076f", "bic v0.8h, #0xff"),
+    ("2038824e", "zip1 v0.4s, v1.4s, v2.4s"),
+    ("2018026e", "ext v0.16b, v1.16b, v2.16b, #3"),
+    ("2008600e", "rev64 v0.4h, v1.4h"),
+    ("20a8316e", "uminv b0, v1.16b"),
+    ("2000629e", "scvtf d0, x1"),
+]
+
+# Lane-wise unions: sound, and less precise than the bits (a sum's low byte does not depend on
+# its high one), so they pass with precision reports.
+LANES = [
+    ("2084a24e", "add v0.4s, v1.4s, v2.4s"),
+    ("2080a24f", "mul v0.4s, v1.4s, v2.s[1]"),
+    ("20147d6f", "usra v0.2d, v1.2d, #3"),
+    ("200c421f", "fmadd d0, d1, d2, d3"),
+    ("20a4106f", "ushll2 v0.4s, v1.8h, #0"),
+    ("2028214e", "xtn2 v0.16b, v1.8h"),
+    ("20bca24e", "addp v0.4s, v1.4s, v2.4s"),
 ]
 
 
@@ -55,6 +75,12 @@ def test_rule_passes(encoding, text):
     report = quick(encoding)
     assert report.ok, (text, report.failures)
     assert report.precision == []
+
+
+@pytest.mark.parametrize(("encoding", "text"), LANES, ids=[text for _, text in LANES])
+def test_lane_rule_passes(encoding, text):
+    report = quick(encoding)
+    assert report.ok, (text, report.failures)
 
 
 WRONG = [
@@ -105,6 +131,18 @@ WRONG = [
     ),
     # a dup from the wrong element
     ("2004144e", "V0[0:15] <- [V1[0:3] V1[0:3] V1[0:3] V1[0:3]]", "soundness: V1[8] flows into V0[0]"),
+    # zip1 with its sources swapped
+    ("2038824e", "V0[0:15] <- [V2[0:3] V1[0:3] V2[4:7] V1[4:7]]", "soundness: V1[0] flows into V0[0]"),
+    # ext by the wrong amount
+    ("2018026e", "V0[0:15] <- [V1[2:15] V2[0:1]]", "soundness: V1[3] flows into V0[0]"),
+    # addp taken lane-wise, not pairwise
+    ("20bca24e", "V0[0:15] <- V1[0:15] | V2[0:15] per 4", "soundness: V1[4] flows into V0[0]"),
+    # ushll2 from the lower half
+    ("20a4106f", "V0[0:15] <- V1[0:7] per 2:4", "soundness: V1[8] flows into V0[0]"),
+    # xtn2 clearing the lower half it keeps
+    ("2028214e", "V0[8:15] <- V1[0:15] per 2:1\nV0[0:7] <- 0", "soundness: V0[0] flows into V0[0]"),
+    # bic of 0xff keeping the bytes it clears
+    ("e097076f", "", "overwrite: the rule keeps V0[0]"),
 ]
 
 
@@ -131,7 +169,7 @@ def test_svc_is_skipped():
 
 
 def test_unsupported_is_skipped():
-    assert quick("2028621e").skipped == "R: FP/SIMD form without a rule"  # fadd d0, d1, d2
+    assert quick("2048284e").skipped == "R: FP/SIMD form without a rule"  # aese v0.16b, v1.16b
 
 
 def test_union_of_an_element_passes_with_precision():

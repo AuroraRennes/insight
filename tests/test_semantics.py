@@ -76,8 +76,8 @@ def test_rule(encoding, text, expected):
     assert differences(parse(expected), rule(insn)) == [], text
 
 
-# FP/SIMD loads and stores (byte for byte) and moves. The texts follow the compiler's annotations
-# where they agree with R.
+# FP/SIMD loads and stores (byte for byte), moves and data processing. The texts follow the
+# compiler's annotations where they agree with R.
 V_RULES = [
     ("2004c03d", "ldr q0, [x1, #0x10]", "V0[0:15] <- M[<X1> + 16 .. +16] per 1"),
     ("228440fc", "ldr d2, [x1], #8", "V2[0:15] <- [M[<X1> .. +8] 0 0 0 0 0 0 0 0]"),
@@ -121,6 +121,62 @@ V_RULES = [
     ("2004186e", "mov v0.d[1], v1.d[0]", "V0[8:15] <- V1[0:7] per 1"),
     ("000c040e", "dup v0.2s, w0", "V0[0:7] <- X0\nV0[8:15] <- 0"),
     ("2004144e", "dup v0.4s, v1.s[2]", "V0[0:15] <- [V1[8:11] V1[8:11] V1[8:11] V1[8:11]]"),
+    # lane-wise: lane i from lane i of every source (an element: the same one for every lane)
+    ("2084a24e", "add v0.4s, v1.4s, v2.4s", "V0[0:15] <- V1[0:15] | V2[0:15] per 4"),
+    ("2084a20e", "add v0.2s, v1.2s, v2.2s", "V0[0:7] <- V1[0:7] | V2[0:7] per 4\nV0[8:15] <- 0"),
+    ("200c421f", "fmadd d0, d1, d2, d3", "V0[0:7] <- V1[0:7] | V2[0:7] | V3[0:7]\nV0[8:15] <- 0"),
+    ("2094a24e", "mla v0.4s, v1.4s, v2.4s", "V0[0:15] <- V0[0:15] | V1[0:15] | V2[0:15] per 4"),
+    ("20147d6f", "usra v0.2d, v1.2d, #3", "V0[0:15] <- V0[0:15] | V1[0:15] per 8"),
+    (
+        "2080a24f",
+        "mul v0.4s, v1.4s, v2.s[1]",
+        "\n".join(f"V0[{4 * i}:{4 * i + 3}] <- V1[{4 * i}:{4 * i + 3}] | V2[4:7]" for i in range(4)),
+    ),
+    ("200c621e", "fcsel d0, d1, d2, eq", "V0[0:7] <- V1[0:7] | V2[0:7]\nV0[8:15] <- 0"),
+    ("2058200e", "cnt v0.8b, v1.8b", "V0[0:7] <- V1[0:7] per 1\nV0[8:15] <- 0"),
+    # bitwise: byte for byte; x ^ x, x - x clear; orr and bic of an immediate set or clear the
+    # bytes where it is all ones
+    ("201c224e", "and v0.16b, v1.16b, v2.16b", "V0[0:15] <- V1[0:15] | V2[0:15] per 1"),
+    ("2058202e", "mvn v0.8b, v1.8b", "V0[0:7] <- V1[0:7] per 1\nV0[8:15] <- 0"),
+    ("201c216e", "eor v0.16b, v1.16b, v1.16b", "V0[0:15] <- 0"),
+    ("2084a16e", "sub v0.4s, v1.4s, v1.4s", "V0[0:15] <- 0"),
+    ("2034004f", "orr v0.4s, #1, lsl #8", ""),
+    ("2014000f", "orr v0.2s, #1", "V0[8:15] <- 0"),
+    ("e097076f", "bic v0.8h, #0xff", "\n".join(f"V0[{2 * i}] <- 0" for i in range(8))),
+    # a comparison of FP registers: the flags only
+    ("0820601e", "fcmp d0, #0.0", ""),
+    # widening ('2': the upper half of the source), narrowing ('2': into the upper half)
+    ("20a4102f", "ushll v0.4s, v1.4h, #0", "V0[0:15] <- V1[0:7] per 2:4"),
+    ("20a4106f", "ushll2 v0.4s, v1.8h, #0", "V0[0:15] <- V1[8:15] per 2:4"),
+    ("20c0a22e", "umull v0.2d, v1.2s, v2.2s", "V0[0:15] <- V1[0:7] | V2[0:7] per 4:8"),
+    (
+        "2010222e",
+        "uaddw v0.8h, v1.8h, v2.8b",
+        "\n".join(f"V0[{2 * i}:{2 * i + 1}] <- V1[{2 * i}:{2 * i + 1}] | V2[{i}]" for i in range(8)),
+    ),
+    ("2028210e", "xtn v0.8b, v1.8h", "V0[0:7] <- V1[0:15] per 2:1\nV0[8:15] <- 0"),
+    ("2028214e", "xtn2 v0.16b, v1.8h", "V0[8:15] <- V1[0:15] per 2:1"),
+    # pairwise and reductions
+    ("20bca24e", "addp v0.4s, v1.4s, v2.4s", "V0[0:7] <- V1[0:15] per 8:4\nV0[8:15] <- V2[0:15] per 8:4"),
+    ("00bca10e", "addp v0.2s, v0.2s, v1.2s", "V0[0:3] <- V0[0:7]\nV0[4:7] <- V1[0:7]\nV0[8:15] <- 0"),
+    ("20b8f15e", "addp d0, v1.2d", "V0[0:7] <- V1[0:15]\nV0[8:15] <- 0"),
+    ("2068606e", "uadalp v0.4s, v1.8h", "V0[0:15] <- V0[0:15] | V1[0:15] per 4"),
+    ("2038306e", "uaddlv h0, v1.16b", "V0[0:1] <- V1[0:15]\nV0[2:15] <- 0"),
+    # permutes: byte maps
+    ("2038824e", "zip1 v0.4s, v1.4s, v2.4s", "V0[0:15] <- [V1[0:3] V2[0:3] V1[4:7] V2[4:7]]"),
+    (
+        "2018424e",
+        "uzp1 v0.8h, v1.8h, v2.8h",
+        "V0[0:15] <- [V1[0:1] V1[4:5] V1[8:9] V1[12:13] V2[0:1] V2[4:5] V2[8:9] V2[12:13]]",
+    ),
+    ("2068824e", "trn2 v0.4s, v1.4s, v2.4s", "V0[0:15] <- [V1[4:7] V2[4:7] V1[12:15] V2[12:15]]"),
+    ("2018026e", "ext v0.16b, v1.16b, v2.16b, #3", "V0[0:15] <- [V1[3:15] V2[0:2]]"),
+    ("2008206e", "rev32 v0.16b, v1.16b", "V0[0:15] <- [V1[3:0] V1[7:4] V1[11:8] V1[15:12]]"),
+    ("2008600e", "rev64 v0.4h, v1.4h", "V0[0:7] <- [V1[6:7] V1[4:5] V1[2:3] V1[0:1]]\nV0[8:15] <- 0"),
+    # conversions
+    ("2000781e", "fcvtzs w0, d1", "X0 <- V1[0:7]"),
+    ("2000629e", "scvtf d0, x1", "V0[0:7] <- X1\nV0[8:15] <- 0"),
+    ("20c0221e", "fcvt d0, s1", "V0[0:7] <- V1[0:3]\nV0[8:15] <- 0"),
 ]
 
 
@@ -140,8 +196,8 @@ def test_union_of_an_element_is_imprecise():
 
 
 def test_unsupported_fails_closed():
-    with pytest.raises(UnsupportedFormError, match="fadd d0, d1, d2: FP/SIMD form without a rule"):
-        rule(insn_of("2028621e"))
+    with pytest.raises(UnsupportedFormError, match=r"aese v0\.16b, v1\.16b: FP/SIMD form without a rule"):
+        rule(insn_of("2048284e"))
 
 
 def test_store_of_a_non_register_fails_closed():
