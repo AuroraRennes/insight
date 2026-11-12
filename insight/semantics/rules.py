@@ -68,7 +68,7 @@ KEEP = frozenset({"movk", "bfi", "bfxil", "bfm", "bfc"})
 CONSTANT = frozenset({"adr", "adrp", "movz", "movn"})
 # Flags only: no tag written, the flags carry none.
 FLAGS_ONLY = frozenset({"cmp", "cmn", "tst", "ccmp", "ccmn"})
-NOTHING = frozenset({"nop", "dmb", "dsb", "isb", "clrex", "yield", "prfm", "prfum", "hint"})
+NOTHING = frozenset({"nop", "dmb", "dsb", "isb", "clrex", "yield", "prfm", "prfum", "hint", "brk", "hlt"})
 # System registers carry no tag: reading one gives a clean value, writing one drops the tag.
 SYSTEM_READ = frozenset({"tpidr_el0", "fpcr", "fpsr", "ctr_el0", "dczid_el0"})
 SYSTEM_WRITE = frozenset({"tpidr_el0", "fpcr", "fpsr"})
