@@ -92,7 +92,8 @@ POINTER_AUTH: dict[str, tuple[Reg, frozenset[Loc]]] = {
 }
 # System registers carry no tag: reading one gives a clean value, writing one drops the tag.
 SYSTEM_READ = frozenset({"tpidr_el0", "fpcr", "fpsr", "ctr_el0", "dczid_el0", "nzcv"})
-SYSTEM_WRITE = frozenset({"tpidr_el0", "fpcr", "fpsr", "nzcv"})
+# Nor do the exception masks an immediate sets or clears (not spsel: it changes which register sp is).
+SYSTEM_WRITE = frozenset({"tpidr_el0", "fpcr", "fpsr", "nzcv", "daifset", "daifclr"})
 
 # Loads and stores: bytes per register, from the mnemonic (None: from the register's width).
 LOADS = {
