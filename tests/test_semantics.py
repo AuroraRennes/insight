@@ -167,6 +167,12 @@ V_RULES = [
         "tbx v0.16b, {v1.16b}, v3.16b",
         "\n".join(f"V0[{k}] <- V0[{k}] | V1[0:15] excl V3[{k}]" for k in range(16)),
     ),
+    (
+        "2030030e",
+        "tbx v0.8b, {v1.16b, v2.16b}, v3.8b",
+        "\n".join(f"V0[{k}] <- V0[{k}] | V1[0:15] | V2[0:15] excl V3[{k}]" for k in range(8))
+        + "\nV0[8:15] <- 0",
+    ),
     # widening ('2': the upper half of the source), narrowing ('2': into the upper half); an
     # extension by whole bytes moves bytes, zeros or copies of the element's top byte above
     ("20a4132f", "ushll v0.4s, v1.4h, #3", "V0[0:15] <- V1[0:7] per 2:4"),
