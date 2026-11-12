@@ -78,6 +78,7 @@ LANES = [
     ("20147b5f", "ssra d0, d1, #5"),
     ("20943b5f", "sqshrn s0, d1, #5"),
     ("2068a06e", "uadalp v0.2d, v1.4s"),
+    ("2038a04e", "suqadd v0.4s, v1.4s"),
     ("2020034e", "tbl v0.16b, {v1.16b, v2.16b}, v3.16b"),
 ]
 

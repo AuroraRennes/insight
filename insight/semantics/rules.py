@@ -151,6 +151,7 @@ V_PERMUTE = frozenset({"zip1", "zip2", "uzp1", "uzp2", "trn1", "trn2", "ext", "r
 V_ACCUMULATE = frozenset([
     "mla", "mls", "saba", "uaba", "usra", "ssra", "ursra", "srsra", "sli", "sri", "fmla", "fmls",
     "umlal", "smlal", "umlsl", "smlsl", "sqdmlal", "sqdmlsl", "uabal", "sabal", "uadalp", "sadalp",
+    "suqadd", "usqadd",
 ])  # fmt: skip
 # Byte by byte from the data or a table, the mask or index 'excl' (see v_untagged).
 V_SELECT = frozenset({"bsl", "bit", "bif", "tbl", "tbx"})
