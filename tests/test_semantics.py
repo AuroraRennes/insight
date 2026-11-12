@@ -194,6 +194,7 @@ V_RULES = [
         "\n".join(f"V0[{2 * i}:{2 * i + 1}] <- V1[{2 * i}:{2 * i + 1}] | V2[{i}]" for i in range(8)),
     ),
     ("2028210e", "xtn v0.8b, v1.8h", "V0[0:7] <- V1[0:15] per 2:1\nV0[8:15] <- 0"),
+    ("20943b5f", "sqshrn s0, d1, #5", "V0[0:3] <- V1[0:7] per 8:4\nV0[4:15] <- 0"),
     ("2028214e", "xtn2 v0.16b, v1.8h", "V0[8:15] <- V1[0:15] per 2:1"),
     # pairwise and reductions
     ("20bca24e", "addp v0.4s, v1.4s, v2.4s", "V0[0:7] <- V1[0:15] per 8:4\nV0[8:15] <- V2[0:15] per 8:4"),
@@ -203,6 +204,13 @@ V_RULES = [
     ("0028600e", "saddlp v0.2s, v0.4h", "V0[0:7] <- V0[0:7] per 4\nV0[8:15] <- 0"),
     ("2068606e", "uadalp v0.4s, v1.8h", "V0[0:15] <- V0[0:15] | V1[0:15] per 4"),
     ("2038306e", "uaddlv h0, v1.16b", "V0[0:1] <- V1[0:15]\nV0[2:15] <- 0"),
+    # scalar forms with an immediate (shifts, fixed-point conversions): one lane of 8 bytes
+    ("2054435f", "shl d0, d1, #3", "V0[0:7] <- V1[0:7] per 8\nV0[8:15] <- 0"),
+    ("20147b5f", "ssra d0, d1, #5", "V0[0:7] <- V0[0:7] | V1[0:7] per 8\nV0[8:15] <- 0"),
+    ("2054477f", "sli d0, d1, #7", "V0[0:7] <- V0[0:7] | V1[0:7] per 8\nV0[8:15] <- 0"),
+    ("2064437f", "sqshlu d0, d1, #3", "V0[0:7] <- V1[0:7] per 8\nV0[8:15] <- 0"),
+    ("20e47d5f", "scvtf d0, d1, #3", "V0[0:7] <- V1[0:7] per 8\nV0[8:15] <- 0"),
+    ("20fc7d5f", "fcvtzs d0, d1, #3", "V0[0:7] <- V1[0:7] per 8\nV0[8:15] <- 0"),
     # permutes: byte maps
     ("2038824e", "zip1 v0.4s, v1.4s, v2.4s", "V0[0:15] <- [V1[0:3] V2[0:3] V1[4:7] V2[4:7]]"),
     (
