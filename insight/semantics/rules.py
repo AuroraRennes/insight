@@ -141,10 +141,12 @@ V_PAIRWISE = frozenset([
     "addp", "faddp", "smaxp", "sminp", "umaxp", "uminp", "fmaxp", "fminp", "fmaxnmp", "fminnmp",
     "uaddlp", "saddlp", "uadalp", "sadalp",
 ])  # fmt: skip
-# Every byte written from every byte read (fcvt: one scalar to another of another size).
+# Every byte written from every byte read (fcvt: one scalar to another of another size; AES and SHA).
 V_REDUCTION = frozenset([
     "addv", "smaxv", "sminv", "umaxv", "uminv", "saddlv", "uaddlv", "fmaxv", "fminv", "fmaxnmv",
     "fminnmv", "fcvt",
+    "aese", "aesd", "aesmc", "aesimc", "sha1h", "sha1c", "sha1p", "sha1m", "sha1su0", "sha1su1",
+    "sha256h", "sha256h2", "sha256su0", "sha256su1",
 ])  # fmt: skip
 V_PERMUTE = frozenset({"zip1", "zip2", "uzp1", "uzp2", "trn1", "trn2", "ext", "rev16", "rev32", "rev64"})
 # The destination is also a source: accumulations, shift-and-insert.
@@ -152,6 +154,8 @@ V_ACCUMULATE = frozenset([
     "mla", "mls", "saba", "uaba", "usra", "ssra", "ursra", "srsra", "sli", "sri", "fmla", "fmls",
     "umlal", "smlal", "umlsl", "smlsl", "sqdmlal", "sqdmlsl", "uabal", "sabal", "uadalp", "sadalp",
     "suqadd", "usqadd",
+    "aese", "aesd", "sha1c", "sha1p", "sha1m", "sha1su0", "sha1su1", "sha256h", "sha256h2", "sha256su0",
+    "sha256su1",
 ])  # fmt: skip
 # Byte by byte from the data or a table, the mask or index 'excl' (see v_untagged).
 V_SELECT = frozenset({"bsl", "bit", "bif", "tbl", "tbx"})

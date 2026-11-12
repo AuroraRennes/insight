@@ -173,6 +173,12 @@ V_RULES = [
         "\n".join(f"V0[{k}] <- V0[{k}] | V1[0:15] | V2[0:15] excl V3[{k}]" for k in range(8))
         + "\nV0[8:15] <- 0",
     ),
+    # AES and SHA: every byte written from every byte read
+    ("2048284e", "aese v0.16b, v1.16b", "V0[0:15] <- V0[0:15] | V1[0:15]"),
+    ("2078284e", "aesimc v0.16b, v1.16b", "V0[0:15] <- V1[0:15]"),
+    ("2008285e", "sha1h s0, s1", "V0[0:3] <- V1[0:3]\nV0[4:15] <- 0"),
+    ("2000025e", "sha1c q0, s1, v2.4s", "V0[0:15] <- V0[0:15] | V1[0:3] | V2[0:15]"),
+    ("2060025e", "sha256su1 v0.4s, v1.4s, v2.4s", "V0[0:15] <- V0[0:15] | V1[0:15] | V2[0:15]"),
     # widening ('2': the upper half of the source), narrowing ('2': into the upper half); an
     # extension by whole bytes moves bytes, zeros or copies of the element's top byte above
     ("20a4132f", "ushll v0.4s, v1.4h, #3", "V0[0:15] <- V1[0:7] per 2:4"),
@@ -278,8 +284,8 @@ def test_union_of_an_element_is_imprecise():
 
 
 def test_unsupported_fails_closed():
-    with pytest.raises(UnsupportedFormError, match=r"aese v0\.16b, v1\.16b: FP/SIMD form without a rule"):
-        rule(insn_of("2048284e"))
+    with pytest.raises(UnsupportedFormError, match=r"eor3 v0\.16b, v1\.16b, .*: FP/SIMD form without a rule"):
+        rule(insn_of("200c02ce"))
 
 
 def test_store_of_a_non_register_fails_closed():
