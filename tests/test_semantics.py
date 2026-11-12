@@ -238,6 +238,14 @@ V_RULES = [
     ("2018026e", "ext v0.16b, v1.16b, v2.16b, #3", "V0[0:15] <- [V1[3:15] V2[0:2]]"),
     ("2008206e", "rev32 v0.16b, v1.16b", "V0[0:15] <- [V1[3:0] V1[7:4] V1[11:8] V1[15:12]]"),
     ("2008600e", "rev64 v0.4h, v1.4h", "V0[0:7] <- [V1[6:7] V1[4:5] V1[2:3] V1[0:1]]\nV0[8:15] <- 0"),
+    # scalar forms of three registers, frecpx, the scalar fcvtxn: one lane of the scalar's size
+    ("20dc625e", "fmulx d0, d1, d2", "V0[0:7] <- V1[0:7] | V2[0:7] per 8\nV0[8:15] <- 0"),
+    ("20fc225e", "frecps s0, s1, s2", "V0[0:3] <- V1[0:3] | V2[0:3] per 4\nV0[4:15] <- 0"),
+    ("20d4e27e", "fabd d0, d1, d2", "V0[0:7] <- V1[0:7] | V2[0:7] per 8\nV0[8:15] <- 0"),
+    ("20f8e15e", "frecpx d0, d1", "V0[0:7] <- V1[0:7] per 8\nV0[8:15] <- 0"),
+    ("20e4625e", "fcmeq d0, d1, d2", "V0[0:7] <- 0 excl V1[0:7] | V2[0:7] per 8\nV0[8:15] <- 0"),
+    ("20eca27e", "facgt s0, s1, s2", "V0[0:3] <- 0 excl V1[0:3] | V2[0:3] per 4\nV0[4:15] <- 0"),
+    ("2068617e", "fcvtxn s0, d1", "V0[0:3] <- V1[0:7] per 8:4\nV0[4:15] <- 0"),
     # conversions
     ("2000781e", "fcvtzs w0, d1", "X0 <- V1[0:7]"),
     ("2000629e", "scvtf d0, x1", "V0[0:7] <- X1\nV0[8:15] <- 0"),
