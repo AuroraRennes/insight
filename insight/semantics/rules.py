@@ -57,6 +57,7 @@ UNION = frozenset([
     "sxtb", "sxth", "sxtw", "uxtb", "uxth", "ubfx", "sbfx", "ubfiz", "sbfiz", "ubfm", "sbfm",
     "mov",
     "csel", "csinc", "csinv", "csneg", "cinc", "cinv", "cneg", "cset", "csetm",
+    "crc32b", "crc32h", "crc32w", "crc32x", "crc32cb", "crc32ch", "crc32cw", "crc32cx",
 ])  # fmt: skip
 # With both sources the same register, x - x, x ^ x, x & ~x (0), x ^ ~x, x | ~x (all ones) and
 # x - x - !C (the carry's value) do not depend on it: the destination gets no tag.

@@ -29,6 +29,8 @@ STLXR_BYTES = "\n".join(f"M[<X8> + {i}] <- M[<X8> + {i}] | X9" for i in range(8)
 RULES = [
     ("2000028b", "add x0, x1, x2", "X0 <- X1 | X2"),
     ("2000829a", "csel x0, x1, x2, eq", "X0 <- X1 | X2"),
+    ("0841ca1a", "crc32b w8, w8, w10", "X8 <- X8 | X10"),
+    ("2058c21a", "crc32cw w0, w1, w2", "X0 <- X1 | X2"),
     ("e0179f1a", "cset w0, eq", "X0 <- 0"),
     ("1f0c00f1", "cmp x0, #3", ""),
     ("000000ca", "eor x0, x0, x0", "X0 <- 0"),

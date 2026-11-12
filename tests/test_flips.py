@@ -20,6 +20,7 @@ CORRECT = [
     ("2000028b", "add x0, x1, x2"),
     ("2000829a", "csel x0, x1, x2, eq"),
     ("e0179f1a", "cset w0, eq"),
+    ("214cc49a", "crc32x w1, w1, x4"),
     ("2000a0f2", "movk x0, #1, lsl #16"),
     ("000000ca", "eor x0, x0, x0"),
     ("000000da", "sbc x0, x0, x0"),
