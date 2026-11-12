@@ -91,8 +91,8 @@ POINTER_AUTH: dict[str, tuple[Reg, frozenset[Loc]]] = {
     "autib1716": (X17, frozenset({X17, X16})),
 }
 # System registers carry no tag: reading one gives a clean value, writing one drops the tag.
-SYSTEM_READ = frozenset({"tpidr_el0", "fpcr", "fpsr", "ctr_el0", "dczid_el0"})
-SYSTEM_WRITE = frozenset({"tpidr_el0", "fpcr", "fpsr"})
+SYSTEM_READ = frozenset({"tpidr_el0", "fpcr", "fpsr", "ctr_el0", "dczid_el0", "nzcv"})
+SYSTEM_WRITE = frozenset({"tpidr_el0", "fpcr", "fpsr", "nzcv"})
 
 # Loads and stores: bytes per register, from the mnemonic (None: from the register's width).
 LOADS = {
