@@ -68,7 +68,28 @@ KEEP = frozenset({"movk", "bfi", "bfxil", "bfm", "bfc"})
 CONSTANT = frozenset({"adr", "adrp", "movz", "movn"})
 # Flags only: no tag written, the flags carry none.
 FLAGS_ONLY = frozenset({"cmp", "cmn", "tst", "ccmp", "ccmn"})
-NOTHING = frozenset({"nop", "dmb", "dsb", "isb", "clrex", "yield", "prfm", "prfum", "hint", "brk", "hlt"})
+NOTHING = frozenset({
+    "nop", "dmb", "dsb", "isb", "clrex", "yield", "prfm", "prfum", "hint", "bti", "pacm", "brk", "hlt",
+})  # fmt: skip
+# Pointer authentication, in the hint space (a NOP without PAC, as on the Cortex-A53): the
+# pointer signed, authenticated or stripped, from the pointer and the modifier.
+X16, X17 = Reg(16), Reg(17)
+# The register written and its sources.
+POINTER_AUTH: dict[str, tuple[Reg, frozenset[Loc]]] = {
+    "paciasp": (LR, frozenset({LR, SP})),
+    "pacibsp": (LR, frozenset({LR, SP})),
+    "autiasp": (LR, frozenset({LR, SP})),
+    "autibsp": (LR, frozenset({LR, SP})),
+    "paciaz": (LR, frozenset({LR})),
+    "pacibz": (LR, frozenset({LR})),
+    "autiaz": (LR, frozenset({LR})),
+    "autibz": (LR, frozenset({LR})),
+    "xpaclri": (LR, frozenset({LR})),
+    "pacia1716": (X17, frozenset({X17, X16})),
+    "pacib1716": (X17, frozenset({X17, X16})),
+    "autia1716": (X17, frozenset({X17, X16})),
+    "autib1716": (X17, frozenset({X17, X16})),
+}
 # System registers carry no tag: reading one gives a clean value, writing one drops the tag.
 SYSTEM_READ = frozenset({"tpidr_el0", "fpcr", "fpsr", "ctr_el0", "dczid_el0"})
 SYSTEM_WRITE = frozenset({"tpidr_el0", "fpcr", "fpsr"})
@@ -171,8 +192,8 @@ def rule(insn: CsInsn) -> Transfer:
     mnemonic = insn.mnemonic
     if mnemonic == "svc":
         return Transfer(opaque=(Opaque("svc"),))
-    if mnemonic in NOTHING:
-        return Transfer()
+    if mnemonic in NOTHING or mnemonic in POINTER_AUTH:
+        return hint(mnemonic)
     if mnemonic in {"mrs", "msr"}:
         return system(insn)
     if is_branch(insn):
@@ -180,6 +201,14 @@ def rule(insn: CsInsn) -> Transfer:
     if any(op.type == ARM64_OP_MEM for op in insn.operands):
         return memory(insn)
     return data_processing(insn)
+
+
+def hint(mnemonic: str) -> Transfer:
+    """A barrier, hint or trap writes nothing; a pointer authentication writes its pointer."""
+    if mnemonic not in POINTER_AUTH:
+        return Transfer()
+    dest, srcs = POINTER_AUTH[mnemonic]
+    return Transfer({dest: Dep(srcs)})
 
 
 def is_branch(insn: CsInsn) -> bool:
