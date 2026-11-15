@@ -9,6 +9,7 @@ import bisect
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from elftools.elf.constants import P_FLAGS
 from elftools.elf.elffile import ELFFile
 from elftools.elf.sections import SymbolTableSection
 
@@ -32,6 +33,7 @@ if TYPE_CHECKING:
     from insight.replay.trace import Record
 
 INSTRUCTION = 4
+NOP = bytes.fromhex("1f2003d5")
 EVENTS = frozenset("YLCM")
 GLOBAL = Sym("GLOBAL")
 
@@ -58,6 +60,9 @@ class Result:
     alarms: list[Alarm] = field(default_factory=list)
     skipped_before_start: int = 0  # instructions run before tracking started
     sends_left: int = 0
+    padding: int = 0  # nops run outside the table
+    readonly_loads: int = 0  # loads from read-only segments the annotations do not name
+    discarded_loads: int = 0  # loads into the zero register
 
 
 @dataclass(frozen=True)
@@ -68,6 +73,7 @@ class Group:
     needs: int  # highest send index the group refers to or emits, -1 if none
     writes: tuple[tuple[Loc, tuple[Loc, ...]], ...]
     mems: tuple[Term, ...]  # every memory byte the group names
+    discards: bool = False  # a load into the zero register: no tag changes, nothing to name
 
 
 @dataclass(frozen=True)
@@ -89,6 +95,12 @@ def compile_block(block: Block, insns: list[CsInsn], image_base: int = 0) -> Com
         own = tuple(send.index for send in paired.sends if send.group == k)
         refs = [int(sym.name[1:]) for sym in form.symbols() if sym.name.startswith("S")]
         mems = [loc.addr for loc in form.locations() if isinstance(loc, Mem)]
+        insn = insns[k]
+        discards = (
+            insn.mnemonic.startswith("ld")
+            and bool(insn.operands)
+            and insn.reg_name(insn.operands[0].reg) in {"xzr", "wzr"}
+        )
         groups.append(
             Group(
                 address=block.address + INSTRUCTION * k,
@@ -97,6 +109,7 @@ def compile_block(block: Block, insns: list[CsInsn], image_base: int = 0) -> Com
                 needs=max([*own, *refs], default=-1),
                 writes=tuple((loc, tuple(dep.srcs)) for loc, dep in form.tags.items()),
                 mems=tuple(dict.fromkeys(mems)),
+                discards=discards,
             )
         )
     return Compiled(block, tuple(groups))
@@ -137,9 +150,13 @@ class Replay:
         blocks: Iterable[Block],
         insns: Callable[[Block], list[CsInsn]],
         symbols: Symbols | None = None,
+        word: Callable[[int], bytes] | None = None,
+        readonly: Iterable[tuple[int, int]] = (),
     ) -> None:
         self.blocks = {block.address: block for block in blocks}
         self.insns = insns
+        self.word = word or (lambda _: b"")
+        self.readonly = sorted(readonly)  # (start, end) of the image's read-only segments
         self.symbols = symbols or Symbols([])
         self.compiled: dict[int, Compiled] = {}
         self.state = State()
@@ -211,7 +228,8 @@ class Replay:
         for i in range(n):
             addr = pc + INSTRUCTION * i
             group = self.enter(addr, sp, fp, audit=i == 0)
-            self.run_group(stream, group)
+            if group is not None:
+                self.run_group(stream, group)
             self.drain_events(stream)
 
     def skip(self, stream: Stream, n: int) -> None:
@@ -224,15 +242,18 @@ class Replay:
             if record[0] in EVENTS:
                 self.event(record)
 
-    def enter(self, addr: int, sp: int, fp: int, *, audit: bool) -> Group:
-        """The group of the instruction at addr: the next of the current block, or the first of
-        a block entered."""
+    def enter(self, addr: int, sp: int, fp: int, *, audit: bool) -> Group | None:
+        """The group at addr: the current block's next, or a new block's first. None for an
+        alignment nop between blocks, run when a block falls through it."""
         cur = self.current
         if cur is not None and not cur.finished and cur.code.groups[cur.next_group].address == addr:
             group = cur.code.groups[cur.next_group]
             cur.next_group += 1
             return group
         if addr not in self.blocks:
+            if (cur is None or cur.finished) and self.word(addr) == NOP:
+                self.result.padding += 1
+                return None
             msg = f"block outside the table entered at {self.where(addr)}"
             raise self.fail(msg)
         if cur is not None and not cur.finished:
@@ -302,8 +323,15 @@ class Replay:
         real: set[int] = set()
         while (record := stream.peek()) is not None and record[0] == "A" and record[1] == group.address:
             stream.next()
-            _, _, base, size, _ = record
+            _, _, base, size, store = record
             self.result.accesses += 1
+            if not store and base not in named and self.is_readonly(base, size):
+                # Constant data (jump tables, literals): clean, the annotation need not name it
+                self.result.readonly_loads += 1
+                continue
+            if not store and group.discards and not named:
+                self.result.discarded_loads += 1
+                continue
             real.update((base + i) & MASK64 for i in range(size))
         if real != named:
             msg = (
@@ -311,6 +339,10 @@ class Replay:
                 f" annotated {describe(named)}"
             )
             raise self.fail(msg, group)
+
+    def is_readonly(self, addr: int, size: int) -> bool:
+        i = bisect.bisect_right(self.readonly, (addr, MASK64)) - 1
+        return i >= 0 and self.readonly[i][0] <= addr and addr + size <= self.readonly[i][1]
 
     # KSight's events
     # \_______________
@@ -386,5 +418,12 @@ def replay_file(elf_path: Path, trace_path: Path) -> Result:
         def insns(block: Block) -> list[CsInsn]:
             return decode(code_at(elf, block.address, block.size), block.address)
 
-        replay = Replay(read_blocks(elf), insns, elf_symbols(elf))
+        readonly = [
+            (seg["p_vaddr"], seg["p_vaddr"] + seg["p_memsz"])
+            for seg in elf.iter_segments()
+            if seg["p_type"] == "PT_LOAD" and not seg["p_flags"] & P_FLAGS.PF_W
+        ]
+        replay = Replay(
+            read_blocks(elf), insns, elf_symbols(elf), lambda addr: code_at(elf, addr, INSTRUCTION), readonly
+        )
         return replay.run(Stream(trace.records))
