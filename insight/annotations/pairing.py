@@ -30,6 +30,9 @@ REGISTER_ALIASES = {"fp": 29, "lr": 30}
 # A call may change every caller-saved register; svc writes X0 and not LR (capstone lists LR).
 CALL_WRITES = frozenset([*range(18), 30])
 SVC_WRITES = frozenset({0})
+# Compares write only NZCV (they are subs, adds and ands into XZR); capstone lists their first
+# operand as written.
+COMPARES = frozenset({"cmp", "cmn", "tst"})
 
 
 class PairingError(Exception):
@@ -67,6 +70,8 @@ def register_number(name: str) -> int | None:
 
 def register_writes(insn: CsInsn) -> frozenset[int]:
     """The X registers (by number) an instruction writes, write-backs included."""
+    if insn.mnemonic in COMPARES:
+        return frozenset()
     written: set[int] = set()
     for reg in insn.regs_access()[1]:
         n = register_number(insn.reg_name(reg))

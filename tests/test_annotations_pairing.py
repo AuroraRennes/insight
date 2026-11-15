@@ -124,6 +124,13 @@ def test_writes_count_must_match():
         ("e9079f1a", {9}),  # cset w9, ne
         ("010000d4", {0}),  # svc #0
         ("00000094", {*range(18), 30}),  # bl
+        ("1f0400f1", set()),  # cmp x0, #1
+        ("7f100031", set()),  # cmn w3, #4
+        ("1f0040f2", set()),  # tst x0, #1
+        ("1f0001eb", set()),  # cmp x0, x1
+        ("5f0003ea", set()),  # tst x2, x3
+        ("1f4021eb", set()),  # cmp x0, w1, uxtw
+        ("020400f1", {2}),  # subs x2, x0, #1
     ],
 )
 def test_register_writes(encoding, written):
