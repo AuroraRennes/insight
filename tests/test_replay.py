@@ -9,17 +9,26 @@ from elftools.elf.sections import SymbolTableSection
 
 from insight.dsl.locations import Mem, Reg, VByte
 from insight.dsl.terms import Term
+from insight.replay.replay import ReplayError, replay_file
 from insight.replay.state import PAGE, Shadow, State
-from insight.replay.trace import HEADER, MAGIC, Stream, TraceError, TraceFile, parse_header, parse_records
+from insight.replay.trace import (
+    FORMATS,
+    HEADER,
+    MAGIC,
+    Stream,
+    TraceError,
+    TraceFile,
+    parse_header,
+    parse_records,
+)
 
 FIXTURES = Path(__file__).parent.parent / "data" / "replay"
 
 
 @pytest.fixture(scope="session")
 def tiny(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """tiny.s built and traced by flowsight-qemu (data/replay/build.sh), in a temporary directory.
-    Needs HBNG_BIN (clang), MEASURE (flowsight-qemu's plugin) and qemu-aarch64; skipped without
-    them."""
+    """tiny.s built and traced by flowsight-qemu in a temporary directory; skipped without
+    HBNG_BIN (clang), MEASURE (the plugin) and qemu-aarch64."""
     missing = [name for name in ("HBNG_BIN", "MEASURE") if not os.environ.get(name)]
     if not shutil.which("qemu-aarch64"):
         missing.append("qemu-aarch64 on the PATH")
@@ -140,3 +149,32 @@ def test_state_tags_by_location():
     assert state.tag(VByte(2, 14), {}) == 0
     assert state.tag(Mem(addr), {addr: 0x2000}) == 1
     assert state.mem.get(0x2001) == 0
+
+
+# Replay
+# \________
+
+
+def test_replay_tiny(tiny: Path):
+    """tiny's trace replayed: every address and SP/FP audited, no alarm (no source)."""
+    result = replay_file(tiny / "tiny.elf", tiny / "tiny.trace")
+    assert (result.blocks, result.groups, result.sends, result.accesses, result.syscalls) == (1, 17, 1, 4, 2)
+    assert result.skipped_before_start == 4
+    assert result.sends_left == 0
+    assert result.alarms == []
+
+
+def test_replay_stops_at_a_wrong_address(tiny: Path, tmp_path: Path):
+    """The same trace with the store's address moved by 8: the audit stops the replay there."""
+    with TraceFile(tiny / "tiny.trace") as trace:
+        header = trace.header
+        records = list(trace.records)
+    i = next(k for k, record in enumerate(records) if record[0] == "A")
+    records[i] = (*records[i][:2], records[i][2] + 8, *records[i][3:])
+    data = HEADER.pack(MAGIC, 1, 0, header.chan, header.chan_size) + b"".join(
+        record[0].encode() + FORMATS[ord(record[0])].pack(*record[1:]) for record in records
+    )
+    path = tmp_path / "wrong.trace"
+    subprocess.run(["zstd", "-q", "-o", path], input=data, check=True)  # noqa: S603, S607
+    with pytest.raises(ReplayError, match="addresses differ"):
+        replay_file(tiny / "tiny.elf", path)
