@@ -7,6 +7,9 @@ import pytest
 from elftools.elf.elffile import ELFFile
 from elftools.elf.sections import SymbolTableSection
 
+from insight.dsl.locations import Mem, Reg, VByte
+from insight.dsl.terms import Term
+from insight.replay.state import PAGE, Shadow, State
 from insight.replay.trace import HEADER, MAGIC, Stream, TraceError, TraceFile, parse_header, parse_records
 
 FIXTURES = Path(__file__).parent.parent / "data" / "replay"
@@ -93,3 +96,47 @@ def test_plugin_trace(tiny: Path):
         (sp - 16, 16, 0),
     ]
     assert [r[1] for r in records if r[0] == "Y"] == [64, 94]
+
+
+# Tag state
+# \___________
+
+
+def test_clean_memory_allocates_no_page():
+    shadow = Shadow()
+    shadow.set(0x1000, 0)
+    shadow.fill(0x2000, 0x3000, 0)
+    assert shadow.pages == {}
+    assert shadow.get(0x1000) == 0
+
+
+def test_fill_and_count_across_pages():
+    shadow = Shadow()
+    shadow.fill(PAGE - 0x10, 0x20, 1)
+    assert len(shadow.pages) == 2
+    assert shadow.count(PAGE - 0x40, 0x80) == (0x20, PAGE - 0x10)
+    assert shadow.count(0, 0x100) == (0, None)
+    shadow.fill(PAGE - 0x10, 0x10, 0)
+    assert shadow.count(PAGE - 0x40, 0x80) == (0x10, PAGE)
+
+
+def test_move_copies_the_tags():
+    shadow = Shadow()
+    shadow.fill(0x100, 4, 1)
+    shadow.move(0x5000, 0xFE, 8)
+    assert [shadow.get(0x5000 + i) for i in range(8)] == [0, 0, 1, 1, 1, 1, 0, 0]
+    assert shadow.count(0x100, 4) == (4, 0x100)
+
+
+def test_state_tags_by_location():
+    state = State()
+    addr = Term.of(0x2000)
+    state.set_tag(Reg(3), 1, {})
+    state.set_tag(VByte(2, 15), 1, {})
+    state.set_tag(Mem(addr), 1, {addr: 0x2000})
+    assert state.tag(Reg(3), {}) == 1
+    assert state.tag(Reg(4), {}) == 0
+    assert state.tag(VByte(2, 15), {}) == 1
+    assert state.tag(VByte(2, 14), {}) == 0
+    assert state.tag(Mem(addr), {addr: 0x2000}) == 1
+    assert state.mem.get(0x2001) == 0
