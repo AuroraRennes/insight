@@ -26,8 +26,8 @@ FIXTURES = Path(__file__).parent.parent / "data" / "replay"
 
 
 @pytest.fixture(scope="session")
-def tiny(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """tiny.s built and traced by flowsight-qemu in a temporary directory; skipped without
+def traced(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """The fixtures built and traced by flowsight-qemu in a temporary directory; skipped without
     HBNG_BIN (clang), MEASURE (the plugin) and qemu-aarch64."""
     missing = [name for name in ("HBNG_BIN", "MEASURE") if not os.environ.get(name)]
     if not shutil.which("qemu-aarch64"):
@@ -84,13 +84,13 @@ def test_send_look_ahead_keeps_the_records_passed():
     assert stream.next() is None
 
 
-def test_plugin_trace(tiny: Path):
+def test_plugin_trace(traced: Path):
     """A trace written by flowsight-qemu: the format both sides agree on."""
-    with (tiny / "tiny.elf").open("rb") as f:
+    with (traced / "tiny.elf").open("rb") as f:
         symtab = ELFFile(f).get_section_by_name(".symtab")
         assert isinstance(symtab, SymbolTableSection)
         (chan,) = (sym["st_value"] for sym in symtab.iter_symbols() if sym.name == "__hbng_chan")
-    with TraceFile(tiny / "tiny.trace") as trace:
+    with TraceFile(traced / "tiny.trace") as trace:
         records = list(trace.records)
         assert (trace.header.chan, trace.header.chan_size) == (chan, 0x10000)
     kinds = "".join(record[0] for record in records)
@@ -155,18 +155,18 @@ def test_state_tags_by_location():
 # \________
 
 
-def test_replay_tiny(tiny: Path):
+def test_replay_tiny(traced: Path):
     """tiny's trace replayed: every address and SP/FP audited, no alarm (no source)."""
-    result = replay_file(tiny / "tiny.elf", tiny / "tiny.trace")
+    result = replay_file(traced / "tiny.elf", traced / "tiny.trace")
     assert (result.blocks, result.groups, result.sends, result.accesses, result.syscalls) == (1, 17, 1, 4, 2)
     assert result.skipped_before_start == 4
     assert result.sends_left == 0
     assert result.alarms == []
 
 
-def test_replay_stops_at_a_wrong_address(tiny: Path, tmp_path: Path):
+def test_replay_stops_at_a_wrong_address(traced: Path, tmp_path: Path):
     """The same trace with the store's address moved by 8: the audit stops the replay there."""
-    with TraceFile(tiny / "tiny.trace") as trace:
+    with TraceFile(traced / "tiny.trace") as trace:
         header = trace.header
         records = list(trace.records)
     i = next(k for k, record in enumerate(records) if record[0] == "A")
@@ -177,4 +177,11 @@ def test_replay_stops_at_a_wrong_address(tiny: Path, tmp_path: Path):
     path = tmp_path / "wrong.trace"
     subprocess.run(["zstd", "-q", "-o", path], input=data, check=True)  # noqa: S603, S607
     with pytest.raises(ReplayError, match="addresses differ"):
-        replay_file(tiny / "tiny.elf", path)
+        replay_file(traced / "tiny.elf", path)
+
+
+def test_replay_signal_through_ucontext(traced: Path):
+    """signal.s: the handler stores the secret into the saved x19, and the reloaded x19 leaks it."""
+    result = replay_file(traced / "signal.elf", traced / "signal.trace")
+    assert (result.blocks, result.signals, result.syscalls) == (2, 1, 8)
+    assert [(alarm.syscall, alarm.fd, alarm.tagged) for alarm in result.alarms] == [(64, 1, 8)]

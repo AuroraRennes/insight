@@ -35,6 +35,14 @@ if TYPE_CHECKING:
 INSTRUCTION = 4
 NOP = bytes.fromhex("1f2003d5")
 EVENTS = frozenset("YLCM")
+SIGRETURN = 139  # rt_sigreturn
+RESTORER_SIZE = 8  # the C library's restorer: mov x8, #139; svc 0
+# The signal frame at the handler's SP: siginfo (128 bytes), then the ucontext, whose mcontext (at
+# 176) holds the fault address then x0-x30, and whose first record after sp, pc and pstate holds
+# fpsr, fpcr and the V registers.
+FRAME_X = 128 + 176 + 8
+FRAME_V = FRAME_X + 8 * 31 + 8 * 3 + 8 + 16
+FRAME_END = FRAME_V + 16 * 32
 GLOBAL = Sym("GLOBAL")
 
 
@@ -60,6 +68,7 @@ class Result:
     alarms: list[Alarm] = field(default_factory=list)
     skipped_before_start: int = 0  # instructions run before tracking started
     sends_left: int = 0
+    signals: int = 0  # signals delivered and returned from
     padding: int = 0  # nops run outside the table
     readonly_loads: int = 0  # loads from read-only segments the annotations do not name
     discarded_loads: int = 0  # loads into the zero register
@@ -144,6 +153,18 @@ class Instance:
         return self.next_group == len(self.code.groups)
 
 
+@dataclass
+class Frame:
+    """What a signal delivery interrupts, resumed at rt_sigreturn: the block being run and the
+    tracked SP and FP; address is the signal frame's, which holds the saved registers."""
+
+    instance: Instance | None
+    sp: int
+    fp: int
+    restorer: int
+    address: int
+
+
 class Replay:
     def __init__(
         self,
@@ -163,6 +184,7 @@ class Replay:
         self.result = Result()
         self.current: Instance | None = None
         self.tracking = False
+        self.frames: list[Frame] = []  # signals being handled
         self.syscall = 0  # number of the syscall whose events come
         self.alarm_syscall = -1  # index of the syscall the last alarm belongs to
 
@@ -199,7 +221,9 @@ class Replay:
                 self.run_tb(stream, record[1], record[2])
             elif kind in EVENTS:
                 self.event(record)
-            elif kind == "A" and not self.tracking:
+            elif kind == "G" and self.tracking:
+                self.deliver(record[2], record[3], record[4])
+            elif kind == "G" or (kind == "A" and not self.tracking):
                 continue
             else:
                 msg = f"unexpected record {record[0]} outside a block"
@@ -225,6 +249,9 @@ class Replay:
             self.state.sp = stream.sends.popleft()
             self.state.fp = stream.sends.popleft()
             self.tracking = True
+        if self.frames and self.frames[-1].restorer <= pc < self.frames[-1].restorer + RESTORER_SIZE:
+            self.skip(stream, n)  # its rt_sigreturn restores the interrupted context
+            return
         for i in range(n):
             addr = pc + INSTRUCTION * i
             group = self.enter(addr, sp, fp, audit=i == 0)
@@ -233,8 +260,8 @@ class Replay:
             self.drain_events(stream)
 
     def skip(self, stream: Stream, n: int) -> None:
-        """A block run untracked (the start code): its accesses are not audited, its events
-        apply."""
+        """A block run untracked (the start code, a signal's restorer): its accesses are not
+        audited, its events apply."""
         if not self.tracking:
             self.result.skipped_before_start += n
         while (record := stream.peek()) is not None and (record[0] == "A" or record[0] in EVENTS):
@@ -352,6 +379,42 @@ class Replay:
             stream.next()
             self.event(record)
 
+    def deliver(self, restorer: int, sp: int, fp: int) -> None:
+        """A signal delivered: the register tags go where the kernel saves the registers, the rest
+        of the frame is clean, and the handler starts with clean x0-x2 and x30."""
+        state, mem = self.state, self.state.mem
+        self.frames.append(Frame(self.current, state.sp, state.fp, restorer, sp))
+        mem.fill(sp, FRAME_END, 0)
+        for n in range(31):
+            mem.fill(sp + FRAME_X + 8 * n, 8, state.x[n])
+        for n in range(32):
+            for b in range(16):
+                mem.set(sp + FRAME_V + 16 * n + b, state.v[n][b])
+        # The frame record x29 points at: the interrupted x29 and x30
+        mem.fill(fp, 8, state.x[29])
+        mem.fill(fp + 8, 8, state.x[30])
+        state.sp, state.fp = sp, fp
+        for n in (0, 1, 2, 30):
+            state.x[n] = 0
+        self.current = None
+
+    def sigreturn(self) -> None:
+        """The kernel reloads the registers from the frame, which the handler may have changed:
+        their tags come from the frame's memory."""
+        frame = self.frames.pop()
+        state, mem = self.state, self.state.mem
+        for n in range(31):
+            tag = 0
+            for i in range(8):
+                tag |= mem.get(frame.address + FRAME_X + 8 * n + i)
+            state.x[n] = tag
+        for n in range(32):
+            for b in range(16):
+                state.v[n][b] = mem.get(frame.address + FRAME_V + 16 * n + b)
+        self.current = frame.instance
+        state.sp, state.fp = frame.sp, frame.fp
+        self.result.signals += 1
+
     def event(self, record: Record) -> None:
         """One of KSight's events: a label sets the tags of a range, a move carries them along, and
         a check before an output syscall raises an alarm when a checked byte is tagged."""
@@ -360,6 +423,8 @@ class Replay:
         if kind == "Y":
             self.result.syscalls += 1
             self.syscall = record[1]
+            if self.syscall == SIGRETURN and self.frames:
+                self.sigreturn()
         elif kind == "L":
             _, addr, length, tag = record
             mem.fill(addr, length, tag)

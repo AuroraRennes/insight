@@ -1,2 +1,3 @@
-tiny.elf
-tiny.trace
+*.elf
+*.trace
+secret.txt
