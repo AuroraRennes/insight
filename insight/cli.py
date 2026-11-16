@@ -4,6 +4,7 @@ insight check <elf>              check the HBNG annotations of an executable
 insight check --against-r <elf>  also compare each instruction's annotation with R
 insight forms <elf>... -o <json> --origin <text>  add AArch64 executables to a corpus of forms
 insight fliptest <json>          flip tests of R over a corpus
+insight replay <elf> <trace>     replay a flowsight-qemu trace of the executable: addresses audited, alarms
 """
 
 from __future__ import annotations
@@ -55,6 +56,12 @@ def arguments() -> argparse.ArgumentParser:
     fliptest.add_argument("--instances", type=int, default=2, help="encodings per form (default 2)")
     fliptest.add_argument("--jobs", type=int, default=1, help="parallel workers (default 1)")
     fliptest.add_argument("--verbose", action="store_true", help="also print precision reports and notes")
+    replay = commands.add_parser(
+        "replay",
+        help="run the annotations on a flowsight-qemu trace: addresses and SP/FP audited, alarms",
+    )
+    replay.add_argument("elf", type=Path, help="the HBNG executable that was traced")
+    replay.add_argument("trace", type=Path, help="the trace (zstd-compressed)")
     return parser
 
 
@@ -125,6 +132,33 @@ def fliptest(path: Path, form: str | None, instances: int, jobs: int, *, verbose
     return 0 if not summary.failed else 1
 
 
+def replay(elf: Path, trace: Path) -> int:
+    from insight.replay.replay import ReplayError, replay_file  # noqa: PLC0415
+
+    out = sys.stdout
+    try:
+        result = replay_file(elf, trace)
+    except ReplayError as e:
+        out.write(f"{trace}: replay stopped: {e}\n")
+        return 1
+    for alarm in result.alarms:
+        out.write(
+            f"alarm: syscall {alarm.syscall} fd {alarm.fd}: {alarm.tagged} bytes tagged"
+            f" (first at {alarm.first:#x})\n"
+        )
+    out.write(
+        f"{trace}: {result.blocks} blocks, {result.groups} instructions, {result.sends} sends, "
+        f"{result.accesses} accesses ({result.readonly_loads} read-only loads not named, "
+        f"{result.discarded_loads} into the zero register), "
+        f"{result.syscalls} syscalls, {result.signals} signals, {result.padding} padding nops, "
+        f"{result.skipped_before_start} instructions before tracking; alarms={len(result.alarms)}\n"
+    )
+    if result.sends_left:
+        out.write(f"{trace}: {result.sends_left} sends left over at the end\n")
+        return 1
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = arguments().parse_args(argv)
     if args.command == "check":
@@ -133,4 +167,6 @@ def main(argv: list[str] | None = None) -> int:
         return forms(args.elfs, args.output, args.origin)
     if args.command == "fliptest":
         return fliptest(args.corpus, args.form, args.instances, args.jobs, verbose=args.verbose)
+    if args.command == "replay":
+        return replay(args.elf, args.trace)
     return 2

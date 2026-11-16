@@ -23,12 +23,20 @@ git clone git@github.com:QDucasse/insight.git
 cd insight
 uv sync
 
-# Tests
+# Tests (the replay tests need HBNG_BIN, MEASURE and flowsight-qemu's qemu-aarch64 on the PATH, else they are skipped)
 uv run pytest
 
 # Lint, format and type checks (as in CI; drop --check to reformat)
 uv run ruff check
 uv run ruff format --check
 uv run mypy .
+```
+
+## Usage
+
+```bash
+uv run insight --help
+uv run insight check <elf>              # check the HBNG annotations of an executable
+uv run insight replay <elf> <trace>     # replay a flowsight-qemu trace: addresses and SP/FP audited, alarms
 ```
 
