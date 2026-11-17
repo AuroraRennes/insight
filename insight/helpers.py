@@ -83,13 +83,3 @@ def format_to_aligned(value: int, size: int) -> int:
 
 def align(value: int, alignment: int) -> int:
     return (value // alignment) * alignment
-
-
-# Logging
-# \_______
-
-COLOG = {
-    "success": "\033[92m[+]\033[0m",  # Green
-    "failure": "\033[91m[!]\033[0m",  # Red
-    "warning": "\033[93m[~]\033[0m",  # Orange/Yellow
-}
