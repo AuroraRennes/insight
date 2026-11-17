@@ -19,8 +19,9 @@ from insight.annotations.framing import annotation_texts, read_block
 from insight.annotations.pairing import code_at, decode, pair_sends, register_writes
 from insight.dsl.locations import Mem
 from insight.dsl.terms import Sym, Term
+from insight.replay.codegen import generate
 from insight.replay.state import MASK64, State
-from insight.replay.trace import Stream, TraceFile
+from insight.replay.trace import NOT_PEEKED, Stream, TraceFile
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Mapping
@@ -29,7 +30,6 @@ if TYPE_CHECKING:
     from capstone import CsInsn
 
     from insight.annotations.framing import Block
-    from insight.dsl.locations import Loc
     from insight.dsl.transfer import Transfer
     from insight.replay.trace import Record
 
@@ -88,8 +88,10 @@ class Group:
     form: Transfer
     sends: tuple[int, ...]  # indices of the block's sends this group emits
     needs: int  # highest send index the group refers to or emits, -1 if none
-    writes: tuple[tuple[Loc, tuple[Loc, ...]], ...]
     mems: tuple[Term, ...]  # every memory byte the group names
+    where: Callable[..., tuple[tuple[tuple[int, int], ...], tuple[int, ...]]]  # their runs (codegen.py)
+    apply: Callable[..., tuple[int, int]]  # the tags, then SP and FP (codegen.py)
+    unsupported: str | None = None  # the text of an unsupported instruction
     discards: bool = False  # a load into the zero register: no tag changes, nothing to name
 
 
@@ -118,14 +120,19 @@ def compile_block(block: Block, insns: list[CsInsn], image_base: int = 0) -> Com
             and bool(insn.operands)
             and insn.reg_name(insn.operands[0].reg) in {"xzr", "wzr"}
         )
+        unique = tuple(dict.fromkeys(mems))
+        where, apply = generate(form, unique)
+        unsupported = next((opaque.text for opaque in form.opaque if opaque.kind == "unsupported"), None)
         groups.append(
             Group(
                 address=block.address + INSTRUCTION * k,
                 form=form,
                 sends=own,
                 needs=max([*own, *refs], default=-1),
-                writes=tuple((loc, tuple(dep.srcs)) for loc, dep in form.tags.items()),
-                mems=tuple(dict.fromkeys(mems)),
+                mems=unique,
+                where=where,
+                apply=apply,
+                unsupported=unsupported,
                 discards=discards,
             )
         )
@@ -317,32 +324,20 @@ class Replay:
         if cur is None:
             msg = "a group outside a block"
             raise self.fail(msg)
-        self.take_sends(stream, cur, group)
+        if len(cur.sent) <= group.needs:
+            self.take_sends(stream, cur, group)
         state = self.state
-        env = {"<SP>": state.sp, "<FP>": state.fp}
-        for i, value in enumerate(cur.sent):
-            env[f"S{i}"] = value
-        addrs = {term: term.evaluate(env) for term in group.mems}
-        self.audit(stream, group, addrs)
-        for opaque in group.form.opaque:
-            if opaque.kind == "unsupported":
-                msg = f"unsupported instruction run at {self.where(group.address)}: {opaque.text}"
-                raise self.fail(msg, group)
-
-        # Tags: a written location gets the OR of its sources' tags, all read at the group's entry
-        new = []
-        for loc, srcs in group.writes:
-            tag = 0
-            for src in srcs:
-                tag |= state.tag(src, addrs)
-            new.append((loc, tag))
-        for loc, tag in new:
-            state.set_tag(loc, tag, addrs)
-        values = group.form.values
-        if "SP" in values:
-            state.sp = values["SP"].evaluate(env)
-        if "FP" in values:
-            state.fp = values["FP"].evaluate(env)
+        sent = cur.sent
+        named, addrs = group.where(state.sp, state.fp, sent)
+        head = stream.peek()
+        if named or (head is not None and head[0] == "A" and head[1] == group.address):
+            self.audit(stream, group, named)
+        if group.unsupported is not None:
+            msg = f"unsupported instruction run at {self.where(group.address)}: {group.unsupported}"
+            raise self.fail(msg, group)
+        state.sp, state.fp = group.apply(
+            addrs, state.sp, state.fp, sent, state.x, state.v, state.mem.pages, state.mem.set
+        )
         self.result.groups += 1
 
     def take_sends(self, stream: Stream, cur: Instance, group: Group) -> None:
@@ -356,31 +351,40 @@ class Replay:
             cur.sent.append(value)
             self.result.sends += 1
 
-    def audit(self, stream: Stream, group: Group, addrs: dict[Term, int]) -> None:
-        """The memory bytes the group names against the instruction's real accesses."""
-        named = set(addrs.values())
-        real: set[int] = set()
-        while (record := stream.peek()) is not None and record[0] == "A" and record[1] == group.address:
-            stream.next()
+    def audit(self, stream: Stream, group: Group, named: tuple[tuple[int, int], ...]) -> None:
+        """The memory bytes the group names, as runs (start, length), against the instruction's
+        real accesses: compared as runs, and as bytes when the runs are cut differently."""
+        real: list[tuple[int, int]] = []
+        address = group.address
+        result = self.result
+        while (record := stream.peek()) is not None and record[0] == "A" and record[1] == address:
+            stream.head = NOT_PEEKED  # taken
             _, _, base, size, store = record
-            self.result.accesses += 1
-            if not store and base not in named and self.is_readonly(base, size):
+            result.accesses += 1
+            if not store and not covers(named, base) and self.is_readonly(base, size):
                 # Constant data (jump tables, literals): clean, the annotation need not name it
-                self.result.readonly_loads += 1
+                result.readonly_loads += 1
                 continue
             if not store and group.discards and not named:
-                self.result.discarded_loads += 1
+                result.discarded_loads += 1
                 continue
-            real.update((base + i) & MASK64 for i in range(size))
-        if real < named and stream.peek() is None:
-            self.result.fault = self.where(group.address)
+            if real and real[-1][0] + real[-1][1] == base:
+                real[-1] = (real[-1][0], real[-1][1] + size)
+            else:
+                real.append((base, size))
+        if tuple(real) == named or sorted(real) == sorted(named):
+            return
+        real_bytes, named_bytes = run_bytes(real), run_bytes(named)
+        if real_bytes == named_bytes:
+            return
+        if real_bytes < named_bytes and record is None:
+            result.fault = self.where(group.address)
             raise FatalFault
-        if real != named:
-            msg = (
-                f"addresses differ at {self.where(group.address)}: real {describe(real)},"
-                f" annotated {describe(named)}"
-            )
-            raise self.fail(msg, group)
+        msg = (
+            f"addresses differ at {self.where(group.address)}: real {describe(real_bytes)},"
+            f" annotated {describe(named_bytes)}"
+        )
+        raise self.fail(msg, group)
 
     def is_readonly(self, addr: int, size: int) -> bool:
         i = bisect.bisect_right(self.readonly, (addr, MASK64)) - 1
@@ -458,6 +462,17 @@ class Replay:
                 else:
                     alarms.append(Alarm(self.syscall, fd, tagged, addr if first is None else first))
                     self.alarm_syscall = self.result.syscalls
+
+
+def covers(runs: Iterable[tuple[int, int]], addr: int) -> bool:
+    return any(start <= addr < start + n for start, n in runs)
+
+
+def run_bytes(runs: Iterable[tuple[int, int]]) -> set[int]:
+    found: set[int] = set()
+    for start, n in runs:
+        found.update((start + i) & MASK64 for i in range(n))
+    return found
 
 
 def describe(addrs: set[int]) -> str:
