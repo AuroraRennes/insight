@@ -22,9 +22,8 @@ from typing import TYPE_CHECKING
 from capstone import CS_GRP_CALL, CS_GRP_JUMP, CS_GRP_RET
 from capstone.arm64 import ARM64_EXT_INVALID, ARM64_OP_IMM, ARM64_OP_MEM, ARM64_SFT_INVALID, ARM64_SFT_LSL
 
-from insight.annotations.sendcheck import instruction_sends
 from insight.dsl.locations import SP_INDEX, Loc, Mem, Reg, VByte
-from insight.dsl.transfer import EMPTY, ZERO, Dep, Opaque, Transfer
+from insight.dsl.transfer import EMPTY, Dep, Opaque, Transfer
 from insight.semantics.operands import (
     GReg,
     UnsupportedFormError,
@@ -585,9 +584,6 @@ def data_registers(insn: CsInsn, addr: Address) -> list[GReg]:
 
 
 def memory(insn: CsInsn) -> Transfer:
-    sends = instruction_sends(insn)
-    if sends:
-        return Transfer(sends=tuple(ZERO if n == ZERO.n else Reg(n) for n in sends))
     mnemonic = insn.mnemonic
     addr = address(insn)
     operands = regs(insn)

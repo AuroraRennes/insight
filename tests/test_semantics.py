@@ -7,8 +7,8 @@ from capstone import CS_ARCH_ARM64, CS_MODE_ARM, Cs
 from elftools.elf.elffile import ELFFile
 
 from insight.annotations.against_r import compare_block, differences
-from insight.annotations.framing import Block, Group, read_blocks
-from insight.annotations.pairing import code_at, decode
+from insight.annotations.check import check_elf
+from insight.annotations.framing import Block, Group
 from insight.dsl.syntax import parse
 from insight.flips.forms import load_corpus
 from insight.semantics.operands import UnsupportedFormError
@@ -80,8 +80,6 @@ RULES = [
     ("fd030091", "mov x29, sp", "FP <- SP"),
     ("3fe57a92", "and sp, x9, #-64", "SP <- X9\n<SP> <- (<X9> & -64)"),
     ("bf4300d1", "sub sp, x29, #16", "SP <- FP\n<SP> <- <FP> - 16"),
-    ("5d0200f9", "str x29, [x18]", "send X29"),
-    ("410200a9", "stp x1, x0, [x18]", "send X0\nsend X1"),
     ("00013fd6", "blr x8", "LR <- 0"),
     ("c0035fd6", "ret", ""),
     ("010000d4", "svc #0", "svc"),
@@ -312,14 +310,11 @@ def test_store_of_a_non_register_fails_closed():
 
 def test_good_elf_against_r(annotation_elfs):
     """The fixture's store-exclusive pair is annotated as an overwrite; R keeps the bytes' tags
-    too, since the store may fail. Everything else agrees."""
+    too, since the store may fail. Everything else agrees, the sends compared as sends."""
     with (annotation_elfs / "good.elf").open("rb") as file:
-        elf = ELFFile(file)
-        found = []
-        for block in read_blocks(elf):
-            comparison = compare_block(block, decode(code_at(elf, block.address, block.size), block.address))
-            found += [message for _, message in comparison.mismatches]
-            assert comparison.unsupported == []
+        report = check_elf(ELFFile(file), against_r=True)
+    assert report.unsupported == {}
+    found = [issue.message.removeprefix("R: ") for issue in report.issues]
     assert len(found) == 16
     assert all(message.startswith("stlxp w9, x8, x1, [x0]: annotation M[") for message in found)
     assert "stlxp w9, x8, x1, [x0]: annotation M[<X0>] <- X8, R M[<X0>] <- M[<X0>] | X8" in found

@@ -23,8 +23,9 @@ group       ::= '@' DEC NL (stmt? NL)*
 (* Not expressed above:
    - the offsets are 0, 4, 8, ...: every instruction of the block has its group, in order,
      empty groups included. A block whose first line is not '@0' is the old format, rejected;
-   - a group's send lines are its FIFO entries, in the order the STM emits them:
-     'stp a, b, [x18]' is 'send b' then 'send a'. A register may be sent several times;
+   - a group's send lines are its channel entries, in the order the channel receives them:
+     a send 'stp a, b' to the channel page is 'send b' then 'send a'. A register may be sent
+     several times;
    - <Xn> in group k is Xn at group k's entry. It pairs with a 'send Xn' of the same block that
      no instruction in between writes Xn: the nearest preceding one (groups <= k, k included),
      otherwise the nearest following one (a store-exclusive sends after itself, and must not

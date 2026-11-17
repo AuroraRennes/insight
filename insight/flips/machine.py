@@ -18,7 +18,6 @@ LANDING = TEST + 0x800  # where every branch under test goes: a branch to the ep
 EPILOGUE = CODE + 0x4000  # the epilogue, then a branch to STOP
 STOP = CODE + 0x6000
 DATA = 0x2000_0000
-SENDS = 0x3000_0000
 STATE = 0x4000_0000
 PAGE = 0x1000
 
@@ -32,7 +31,6 @@ REGISTERS_SIZE = 800
 MEMORY_OFFSET = REGISTERS_SIZE
 STATE_SIZE = REGISTERS_SIZE + PAGE
 
-STM_REGISTER = 18
 SCRATCH = 30  # the register holding the state block's address in the prologue and epilogue
 
 
@@ -205,7 +203,7 @@ class Machine:
         encoding = retarget(encoding)
         self.uc = Uc(UC_ARCH_ARM64, UC_MODE_ARM)
         self.uc.ctl_set_cpu_model(UC_CPU_ARM64_A53)
-        for base in (CODE, TEST, EPILOGUE, STOP, DATA, SENDS, STATE):
+        for base in (CODE, TEST, EPILOGUE, STOP, DATA, STATE):
             self.uc.mem_map(base, PAGE)
         self.uc.mem_write(CODE, words(pro))
         self.uc.mem_write(TEST, encoding + words([branch(TEST + 4, EPILOGUE)]))

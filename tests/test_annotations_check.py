@@ -6,9 +6,9 @@ from insight.annotations.check import Report, check_elf
 
 @pytest.fixture
 def report_of(annotation_elfs):
-    def report(name: str) -> Report:
+    def report(name: str, *, against_r: bool = False) -> Report:
         with (annotation_elfs / f"{name}.elf").open("rb") as file:
-            return check_elf(ELFFile(file))
+            return check_elf(ELFFile(file), against_r=against_r)
 
     return report
 
@@ -16,20 +16,22 @@ def report_of(annotation_elfs):
 def test_good(report_of):
     report = report_of("good")
     assert report.ok
-    assert (report.blocks, report.groups, report.sends) == (3, 11, 4)
+    assert (report.blocks, report.groups, report.sends) == (3, 13, 4)
+    assert report.page_origins == {"from entry": 1}  # the pair's x16, set before its block
 
 
 def test_bad_reports_every_block(report_of):
     report = report_of("bad")
     messages = [(issue.offset, issue.message.split(":")[0]) for issue in report.issues]
     assert messages == [
-        (0, "str x0, [x18] makes send X0, the group lists no send"),
-        (4, "<X0>"),
+        (0, "ldr x0, [x0]"),
+        (4, "str x0, [x16]"),
         (0, "<X1>"),
         (None, "line 2"),
-        (0, "mov x18, x0"),
         (0, "line 1"),
     ]
+    assert "lists send X0 but is not a send" in report.issues[0].message
+    assert "x16 does not hold the channel page" in report.issues[1].message
     assert len({issue.address for issue in report.issues}) == 5
 
 

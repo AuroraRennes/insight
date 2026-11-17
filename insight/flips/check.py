@@ -28,7 +28,6 @@ from insight.flips.machine import (
     MEMORY_OFFSET,
     NZCV_OFFSET,
     PAGE,
-    SENDS,
     SP_OFFSET,
     STATE_SIZE,
     TPIDR_OFFSET,
@@ -38,7 +37,7 @@ from insight.flips.machine import (
     RunError,
 )
 from insight.semantics.operands import GReg, UnsupportedFormError, VReg, address, gregs, regs
-from insight.semantics.policy import NZCV, STM_REGISTER, TPIDR_EL0, Flag, inputs
+from insight.semantics.policy import NZCV, TPIDR_EL0, Flag, inputs
 from insight.semantics.rules import STORE_EXCLUSIVE_PAIRS, STORE_EXCLUSIVES, rule, size_of
 
 if TYPE_CHECKING:
@@ -128,9 +127,8 @@ def access_size(insn: CsInsn) -> int:
 
 def make_layout(insn: CsInsn, ins: Inputs, rng: random.Random) -> Layout:
     """The address inputs' values: the base and index put the access in the middle of the data
-    page, an indirect branch's target register points to the landing page, x18 to its own."""
+    page, an indirect branch's target register points to the landing page."""
     layout = Layout()
-    layout.fixed[STM_REGISTER.n] = SENDS + 0x100
     if insn.mnemonic in {"br", "blr", "ret"}:
         for reg in ins.address:
             layout.fixed[reg.n] = LANDING
@@ -147,8 +145,6 @@ def make_layout(insn: CsInsn, ins: Inputs, rng: random.Random) -> Layout:
         value = (rng.getrandbits(32) << 32 | low & 0xFFFF_FFFF) if addr.ext in {"uxtw", "sxtw"} else low
         layout.fixed[addr.index.n] = value & MASK
         index = Term.sym("<X0>").ext(addr.ext or "uxtx", addr.shift).evaluate({"<X0>": value})
-    if addr.base.n == STM_REGISTER.n:
-        return layout  # a send: x18 stays on its page
     base = target if addr.mode == "post" else target - addr.disp - index
     if addr.base.kind == "sp":
         base &= ~15

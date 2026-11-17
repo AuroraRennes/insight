@@ -2,7 +2,9 @@
 
 <FP> updates are not compared (a convention of the compiler), and LO12 is replaced by the
 instruction's encoded offset, which is what R reads. The entry load of a jump-table dispatch
-(adr, ldr, add) is compared with a clear: the table is read-only and starts untagged.
+(adr, ldr, add) is compared with a clear: the table is read-only and starts untagged. A send (a
+store to the channel page, as the send check found it) is compared with its sends: the channel is
+not tracked memory.
 """
 
 from __future__ import annotations
@@ -12,9 +14,10 @@ from typing import TYPE_CHECKING
 
 from capstone.arm64 import ARM64_OP_MEM, ARM64_SFT_INVALID, ARM64_SFT_LSL
 
+from insight.annotations.sendcheck import send_shape
 from insight.dsl.locations import Reg
 from insight.dsl.terms import Sym, Term
-from insight.dsl.transfer import Dep, Opaque, Transfer, ZeroReg
+from insight.dsl.transfer import ZERO, Dep, Opaque, Transfer, ZeroReg
 from insight.semantics.operands import GReg, UnsupportedFormError, address, gregs
 from insight.semantics.rules import rule
 
@@ -132,11 +135,26 @@ def jump_table_load(adr: CsInsn, load: CsInsn, add: CsInsn) -> Transfer | None:
     return Transfer({Reg(entry.n): Dep(frozenset())}) if dispatch else None
 
 
-def compare_block(block: Block, insns: Sequence[CsInsn]) -> Comparison:
+def send_transfer(insn: CsInsn) -> Transfer:
+    """What a send does: its registers go to the channel, nothing tracked changes."""
+    shape = send_shape(insn)
+    if shape is None:
+        msg = f"{insn.mnemonic} {insn.op_str} is not a send"
+        raise ValueError(msg)
+    return Transfer(sends=tuple(ZERO if n == ZERO.n else Reg(n) for n in shape[1]))
+
+
+def compare_block(block: Block, insns: Sequence[CsInsn], sends: set[int] | None = None) -> Comparison:
+    """Each group against R; sends are the indices of the instructions that are sends."""
     result = Comparison()
     for i, (group, insn) in enumerate(zip(block.groups, insns, strict=True)):
         text = f"{insn.mnemonic} {insn.op_str}"
-        convention = jump_table_load(insns[i - 1], insn, insns[i + 1]) if 0 < i < len(insns) - 1 else None
+        if sends and i in sends:
+            convention: Transfer | None = send_transfer(insn)
+        elif 0 < i < len(insns) - 1:
+            convention = jump_table_load(insns[i - 1], insn, insns[i + 1])
+        else:
+            convention = None
         try:
             reference = rule(insn) if convention is None else convention
         except UnsupportedFormError as error:
@@ -146,5 +164,5 @@ def compare_block(block: Block, insns: Sequence[CsInsn]) -> Comparison:
         result.mismatches.extend(
             (group.offset, f"{text}: {diff}") for diff in differences(annotation, reference)
         )
-        result.jump_table_loads += convention is not None
+        result.jump_table_loads += convention is not None and not (sends and i in sends)
     return result

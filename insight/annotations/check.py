@@ -6,6 +6,7 @@ format stops the check: the whole executable is then in the old format.
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -20,7 +21,7 @@ from insight.annotations.framing import (
     read_block,
 )
 from insight.annotations.pairing import PairingError, code_at, decode, pair_sends, register_writes
-from insight.annotations.sendcheck import check_sends
+from insight.annotations.sendcheck import channel_page, check_sends
 
 if TYPE_CHECKING:
     from elftools.elf.elffile import ELFFile
@@ -50,6 +51,7 @@ class Report:
     old_format: bool = False
     unsupported: dict[str, int] = field(default_factory=dict)  # R's missing rules, by reason
     jump_table_loads: int = 0  # compared with the jump-table convention instead of R
+    page_origins: dict[str, int] = field(default_factory=dict)  # sends whose page is not followed
 
     @property
     def ok(self) -> bool:
@@ -64,21 +66,30 @@ class RTally:
     jump_table_loads: int = 0
 
 
-def check_block(elf: ELFFile, block: Block, tally: RTally | None = None) -> list[Issue]:
-    """The issues of a framed block: its send lines, then the pairing of its values, then, when
-    tally is given, each instruction against R (counting R's missing rules and the jump-table
-    loads there)."""
+def check_block(
+    elf: ELFFile,
+    block: Block,
+    page: int,
+    tally: RTally | None = None,
+    origins: Counter[str] | None = None,
+) -> list[Issue]:
+    """The issues of a framed block, page being the channel's: its send lines, then the pairing
+    of its values, then, when tally is given, each instruction against R (counting R's missing
+    rules and the jump-table loads there). origins counts the sends whose page is not followed."""
     try:
         insns = decode(code_at(elf, block.address, block.size), block.address)
     except ValueError as error:
         return [Issue(block.address, None, str(error))]
-    issues = [Issue(block.address, offset, message) for offset, message in check_sends(block, insns)]
+    sends = check_sends(block, insns, page)
+    if origins is not None:
+        origins.update(sends.origins)
+    issues = [Issue(block.address, offset, message) for offset, message in sends.issues]
     try:
         pair_sends(block, [register_writes(insn) for insn in insns])
     except PairingError as error:
         issues.append(Issue(error.address, error.offset, error.message))
     if tally is not None:
-        comparison = compare_block(block, insns)
+        comparison = compare_block(block, insns, sends.sends)
         tally.jump_table_loads += comparison.jump_table_loads
         issues += [Issue(block.address, offset, f"R: {message}") for offset, message in comparison.mismatches]
         for _, message in comparison.unsupported:
@@ -99,10 +110,12 @@ def check_elf(elf: ELFFile, *, against_r: bool = False) -> Report:
         raise ValueError(msg)
     table = block_table(table_section.data())
     texts = block_texts(table, annotation_section.data(), annotation_section["sh_addr"])
+    page: int | None = None  # looked up at the first block in the current format
 
     groups = sends = 0
     issues: list[Issue] = []
     tally = RTally() if against_r else None
+    origins: Counter[str] = Counter()
     for address, text in texts:
         try:
             block = read_block(text, address)
@@ -111,11 +124,13 @@ def check_elf(elf: ELFFile, *, against_r: bool = False) -> Report:
         except FramingError as error:
             issues.append(Issue(error.address, error.offset, error.message))
             continue
+        if page is None:
+            page = channel_page(elf)
         groups += len(block.groups)
         sends += sum(len(group.form.sends) for group in block.groups)
-        issues += check_block(elf, block, tally)
+        issues += check_block(elf, block, page, tally, origins)
     if tally is None:
-        return Report(len(texts), groups, sends, tuple(issues))
+        return Report(len(texts), groups, sends, tuple(issues), page_origins=dict(origins))
     return Report(
         len(texts),
         groups,
@@ -123,4 +138,5 @@ def check_elf(elf: ELFFile, *, against_r: bool = False) -> Report:
         tuple(issues),
         unsupported=tally.unsupported,
         jump_table_loads=tally.jump_table_loads,
+        page_origins=dict(origins),
     )

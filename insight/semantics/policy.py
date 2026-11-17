@@ -35,7 +35,6 @@ class Flag:
 NZCV = Flag("NZCV")
 TPIDR_EL0 = Flag("TPIDR_EL0")
 NON_LOCATIONS = frozenset({NZCV, TPIDR_EL0})
-STM_REGISTER = Reg(18)
 INDIRECT_BRANCHES = frozenset({"br", "blr", "ret"})
 
 
