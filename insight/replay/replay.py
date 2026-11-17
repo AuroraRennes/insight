@@ -15,7 +15,7 @@ from elftools.elf.elffile import ELFFile
 from elftools.elf.sections import SymbolTableSection
 
 from insight.annotations.against_r import LO12, encoded_offset
-from insight.annotations.framing import read_blocks
+from insight.annotations.framing import annotation_texts, read_block
 from insight.annotations.pairing import code_at, decode, pair_sends, register_writes
 from insight.dsl.locations import Mem
 from insight.dsl.terms import Sym, Term
@@ -23,7 +23,7 @@ from insight.replay.state import MASK64, State
 from insight.replay.trace import Stream, TraceFile
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable
+    from collections.abc import Callable, Iterable, Mapping
     from pathlib import Path
 
     from capstone import CsInsn
@@ -176,13 +176,13 @@ class Frame:
 class Replay:
     def __init__(
         self,
-        blocks: Iterable[Block],
+        blocks: Mapping[int, str],
         insns: Callable[[Block], list[CsInsn]],
         symbols: Symbols | None = None,
         word: Callable[[int], bytes] | None = None,
         readonly: Iterable[tuple[int, int]] = (),
     ) -> None:
-        self.blocks = {block.address: block for block in blocks}
+        self.blocks = blocks  # each block's annotation text, parsed when first entered
         self.insns = insns
         self.word = word or (lambda _: b"")
         self.readonly = sorted(readonly)  # (start, end) of the image's read-only segments
@@ -218,7 +218,7 @@ class Replay:
     def code(self, addr: int) -> Compiled:
         code = self.compiled.get(addr)
         if code is None:
-            block = self.blocks[addr]
+            block = read_block(self.blocks[addr], addr)
             code = self.compiled[addr] = compile_block(block, self.insns(block))
         return code
 
@@ -503,7 +503,9 @@ def replay_file(elf_path: Path, trace_path: Path) -> Result:
             for seg in elf.iter_segments()
             if seg["p_type"] == "PT_LOAD" and not seg["p_flags"] & P_FLAGS.PF_W
         ]
-        replay = Replay(
-            read_blocks(elf), insns, elf_symbols(elf), lambda addr: code_at(elf, addr, INSTRUCTION), readonly
-        )
+
+        def word(addr: int) -> bytes:
+            return code_at(elf, addr, INSTRUCTION)
+
+        replay = Replay(annotation_texts(elf), insns, elf_symbols(elf), word, readonly)
         return replay.run(Stream(trace.records))

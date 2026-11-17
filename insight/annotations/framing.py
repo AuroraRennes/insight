@@ -135,11 +135,15 @@ def block_texts(table: list[tuple[int, int]], annotations: bytes, base: int) -> 
 
 def read_blocks(elf: ELFFile) -> list[Block]:
     """Every annotated block of an executable."""
+    return [read_block(text, address) for address, text in annotation_texts(elf).items()]
+
+
+def annotation_texts(elf: ELFFile) -> dict[int, str]:
+    """Every annotated block's text, by address, not parsed yet."""
     table_section = elf.get_section_by_name(BLOCK_TABLE_SECTION)
     annotation_section = elf.get_section_by_name(ANNOTATION_SECTION)
     if table_section is None or annotation_section is None:
         msg = f"no {BLOCK_TABLE_SECTION} or {ANNOTATION_SECTION} section: not built with the HBNG compiler"
         raise ValueError(msg)
     table = block_table(table_section.data())
-    texts = block_texts(table, annotation_section.data(), annotation_section["sh_addr"])
-    return [read_block(text, address) for address, text in texts]
+    return dict(block_texts(table, annotation_section.data(), annotation_section["sh_addr"]))
