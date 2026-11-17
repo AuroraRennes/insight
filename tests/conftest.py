@@ -3,6 +3,7 @@ import logging
 import os
 import random
 import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -64,6 +65,22 @@ def log_test(request, caplog):
         caplog.set_level(logging.CRITICAL, logger="insight")
 
     request.addfinalizer(fin)
+
+
+# Annotated executables
+# \_______________________
+
+
+@pytest.fixture(scope="session")
+def annotation_elfs(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """The directory of good.elf, bad.elf and old.elf, built from data/annotations/elf in a
+    temporary directory; skipped without HBNG_BIN (the HBNG toolchain's bin directory)."""
+    if not os.environ.get("HBNG_BIN"):
+        pytest.skip("no annotated executables without HBNG_BIN")
+    out = tmp_path_factory.mktemp("elf")
+    build = Path(__file__).parent.parent / "data" / "annotations" / "elf" / "build.sh"
+    subprocess.run([build, out], check=True)
+    return out
 
 
 # Capstone Disassembler

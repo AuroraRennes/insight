@@ -85,3 +85,5 @@ log/
 
 # annotations
 !data/annotations/bin
+# built by data/annotations/elf/build.sh
+data/annotations/elf/*.elf

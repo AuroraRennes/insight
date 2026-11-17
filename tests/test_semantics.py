@@ -14,8 +14,6 @@ from insight.flips.forms import load_corpus
 from insight.semantics.operands import UnsupportedFormError
 from insight.semantics.rules import rule
 
-ELFS = Path(__file__).parent.parent / "data" / "annotations" / "elf"
-
 
 def insn_of(encoding):
     decoder = Cs(CS_ARCH_ARM64, CS_MODE_ARM)
@@ -312,10 +310,10 @@ def test_store_of_a_non_register_fails_closed():
         rule(insn_of("006220e1"))  # str za[w15, 0], [x16]
 
 
-def test_good_elf_against_r():
+def test_good_elf_against_r(annotation_elfs):
     """The fixture's store-exclusive pair is annotated as an overwrite; R keeps the bytes' tags
     too, since the store may fail. Everything else agrees."""
-    with (ELFS / "good.elf").open("rb") as file:
+    with (annotation_elfs / "good.elf").open("rb") as file:
         elf = ELFFile(file)
         found = []
         for block in read_blocks(elf):
