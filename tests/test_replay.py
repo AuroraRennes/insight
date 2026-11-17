@@ -35,7 +35,7 @@ def traced(tmp_path_factory: pytest.TempPathFactory) -> Path:
     if missing:
         pytest.skip(f"no flowsight-qemu trace without {', '.join(missing)}")
     out = tmp_path_factory.mktemp("replay")
-    subprocess.run([FIXTURES / "build.sh", out], check=True)  # noqa: S603
+    subprocess.run([FIXTURES / "build.sh", out], check=True)
     return out
 
 
@@ -175,7 +175,7 @@ def test_replay_stops_at_a_wrong_address(traced: Path, tmp_path: Path):
         record[0].encode() + FORMATS[ord(record[0])].pack(*record[1:]) for record in records
     )
     path = tmp_path / "wrong.trace"
-    subprocess.run(["zstd", "-q", "-o", path], input=data, check=True)  # noqa: S603, S607
+    subprocess.run(["zstd", "-q", "-o", path], input=data, check=True)
     with pytest.raises(ReplayError, match="addresses differ"):
         replay_file(traced / "tiny.elf", path)
 

@@ -95,7 +95,7 @@ def _random_transfer(rng) -> Transfer:
 
 
 def test_dump_roundtrip_random():
-    rng = random.Random(20261109)  # noqa: S311 (reproducible test data)
+    rng = random.Random(20261109)  # reproducible test data
     for _ in range(300):
         t = _random_transfer(rng)
         assert parse(dump(t)) == t, dump(t)

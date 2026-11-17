@@ -110,8 +110,10 @@ flake8-unused-arguments.ignore-variadic-names = true
 [tool.ruff.lint.extend-per-file-ignores]
 "tests/*.py" = [
     "PT021",
-    "ANN001", "ANN201", # Typing annotations not necessary
+    "ANN", # Typing annotations not necessary
     "S101", # Asserts allowed in tests
+    "S311", # random for test data, not cryptography
+    "S603", "S607", # subprocess running the fixtures' builds
     "ARG", # Unused function args -> fixtures nevertheless are functionally relevant
     "FBT", # Don't care about booleans as positional arguments in tests, e.g. via @pytest.mark.parametrize()
 ]
