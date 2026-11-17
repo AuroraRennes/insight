@@ -8,7 +8,8 @@ from capstone import CS_ARCH_ARM64, CS_MODE_ARM, Cs
 
 from insight.dsl.syntax import parse
 from insight.flips.check import flip_test
-from insight.flips.forms import form_of
+from insight.flips.corpus_run import select
+from insight.flips.forms import alias_variants, form_of
 from insight.flips.machine import Exclusive, epilogue, prologue, words
 
 
@@ -253,3 +254,42 @@ def test_forms():
     decoder.detail = True
     forms = [form_of(insn) for insn in decoder.disasm(bytes.fromhex("208440f8fd7bbea900d861b82000829a"), 0)]
     assert forms == ["ldr x, [x] post, #", "stp x, x, [sp, #]!", "ldr w, [x, w sxtw #]", "csel cc x, x, x"]
+
+
+# Variants with registers forced to alias
+# \_________________________________________
+
+
+def disassembled(encodings):
+    decoder = Cs(CS_ARCH_ARM64, CS_MODE_ARM)
+    insns = [insn for e in encodings for insn in decoder.disasm(bytes.fromhex(e), 0)]
+    return [f"{insn.mnemonic} {insn.op_str}" for insn in insns]
+
+
+def test_alias_variants_most_aliased_first():
+    # add x0, x1, x2
+    assert disassembled(alias_variants("2000028b")) == [
+        "add x2, x2, x2",
+        "add x0, x0, x2",
+        "add x0, x1, x0",
+        "add x0, x1, x1",
+    ]
+    assert disassembled(alias_variants("2000028b", limit=1)) == ["add x2, x2, x2"]
+
+
+@pytest.mark.parametrize(
+    ("encoding", "variants"),
+    [
+        ("400440a9", ["ldp x0, x1, [x0]", "ldp x0, x2, [x2]"]),  # ldp x0, x1, [x2]: never x0 twice
+        ("417c00c8", ["stxr w0, x1, [x1]"]),  # stxr w0, x1, [x2]: the status is never an input
+        ("208440f8", []),  # ldr x0, [x1], #8: the write-back base is never the destination
+    ],
+)
+def test_alias_variants_leave_out_the_unpredictable(encoding, variants):
+    assert disassembled(alias_variants(encoding)) == variants
+
+
+def test_select_adds_the_alias_variants_of_the_first_instance():
+    corpus = {"add Xd, Xn, Xm": ["2000028b", "4100038b"], "ldr Xt, [Xn], #imm": ["208440f8"]}
+    assert select(corpus, None, 1) == ["2000028b", "208440f8"]
+    assert select(corpus, None, 1, aliases=2) == ["2000028b", *alias_variants("2000028b", 2), "208440f8"]

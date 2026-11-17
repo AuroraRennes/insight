@@ -54,6 +54,9 @@ def arguments() -> argparse.ArgumentParser:
     fliptest.add_argument("corpus", type=Path, help="a corpus written by 'insight forms'")
     fliptest.add_argument("--form", help="only the forms matching this regular expression")
     fliptest.add_argument("--instances", type=int, default=2, help="encodings per form (default 2)")
+    fliptest.add_argument(
+        "--aliases", type=int, default=2, help="variants per form with registers forced to alias (default 2)"
+    )
     fliptest.add_argument("--jobs", type=int, default=1, help="parallel workers (default 1)")
     fliptest.add_argument("--verbose", action="store_true", help="also print precision reports and notes")
     replay = commands.add_parser(
@@ -101,10 +104,10 @@ def forms(paths: list[Path], output: Path, origin: str) -> int:
     return 0
 
 
-def fliptest(path: Path, form: str | None, instances: int, jobs: int, *, verbose: bool) -> int:
+def fliptest(path: Path, form: str | None, instances: int, aliases: int, jobs: int, *, verbose: bool) -> int:
     from insight.flips.corpus_run import Summary, run_corpus, select  # noqa: PLC0415 (unicorn is slow to load)
 
-    encodings = select(load_corpus(path).forms, form, instances)
+    encodings = select(load_corpus(path).forms, form, instances, aliases)
     summary = Summary()
     out = sys.stdout
     for report in run_corpus(encodings, jobs):
@@ -171,7 +174,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "forms":
         return forms(args.elfs, args.output, args.origin)
     if args.command == "fliptest":
-        return fliptest(args.corpus, args.form, args.instances, args.jobs, verbose=args.verbose)
+        return fliptest(args.corpus, args.form, args.instances, args.aliases, args.jobs, verbose=args.verbose)
     if args.command == "replay":
         return replay(args.elf, args.trace)
     return 2

@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from insight.flips.check import Report, flip_test
+from insight.flips.forms import alias_variants
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -33,14 +34,18 @@ class Summary:
         return {r.form for r in reports}
 
 
-def select(corpus: dict[str, list[str]], pattern: str | None, instances: int) -> list[str]:
+def select(corpus: dict[str, list[str]], pattern: str | None, instances: int, aliases: int = 0) -> list[str]:
+    """The first instances of each form matching pattern, then the variants of its first instance
+    with registers forced to alias."""
     regex = re.compile(pattern) if pattern else None
-    return [
-        encoding
-        for form, encodings in corpus.items()
-        if regex is None or regex.search(form)
-        for encoding in encodings[:instances]
-    ]
+    selected = []
+    for form, encodings in corpus.items():
+        if regex is not None and not regex.search(form):
+            continue
+        selected += encodings[:instances]
+        if aliases and encodings:
+            selected += [v for v in alias_variants(encodings[0], aliases) if v not in encodings[:instances]]
+    return selected
 
 
 def one(encoding: str) -> Report:
