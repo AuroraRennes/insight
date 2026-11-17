@@ -17,7 +17,7 @@ from capstone.arm64 import ARM64_OP_MEM, ARM64_SFT_INVALID, ARM64_SFT_LSL
 from insight.annotations.sendcheck import send_shape
 from insight.dsl.locations import Reg
 from insight.dsl.terms import Sym, Term
-from insight.dsl.transfer import ZERO, Dep, Opaque, Transfer, ZeroReg
+from insight.dsl.transfer import Dep, Opaque, Transfer
 from insight.semantics.operands import GReg, UnsupportedFormError, address, gregs
 from insight.semantics.rules import rule
 
@@ -56,7 +56,7 @@ def comparable(
     dict[Loc, tuple[frozenset[Loc], frozenset[Loc]]],
     Term | None,
     tuple[Opaque, ...],
-    tuple[Reg | ZeroReg, ...],
+    tuple[Reg, ...],
 ]:
     """The parts compared: tags without over, <SP>, opaque statements, sends."""
     normal = transfer.normalized()
@@ -141,7 +141,7 @@ def send_transfer(insn: CsInsn) -> Transfer:
     if shape is None:
         msg = f"{insn.mnemonic} {insn.op_str} is not a send"
         raise ValueError(msg)
-    return Transfer(sends=tuple(ZERO if n == ZERO.n else Reg(n) for n in shape[1]))
+    return Transfer(sends=tuple(Reg(n) for n in shape[1]))
 
 
 def compare_block(block: Block, insns: Sequence[CsInsn], sends: set[int] | None = None) -> Comparison:

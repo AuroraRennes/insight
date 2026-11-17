@@ -12,7 +12,7 @@ from typing import NoReturn
 from insight.dsl.errors import DslSyntaxError
 from insight.dsl.locations import SP_INDEX, Loc, Mem, Reg, VByte
 from insight.dsl.terms import EXT_KINDS, SYMBOL_RE, Term
-from insight.dsl.transfer import EMPTY, ZERO, Dep, Opaque, Transfer, ValueReg, ZeroReg
+from insight.dsl.transfer import EMPTY, Dep, Opaque, Transfer, ValueReg
 
 TOKEN_RE = re.compile(
     r"""\s*(?:
@@ -59,7 +59,7 @@ class Builder:
     tags: dict[Loc, Dep] = field(default_factory=dict)
     values: dict[ValueReg, Term] = field(default_factory=dict)
     opaque: list[Opaque] = field(default_factory=list)
-    sends: list[Reg | ZeroReg] = field(default_factory=list)
+    sends: list[Reg] = field(default_factory=list)
     statements: int = 0
 
 
@@ -229,17 +229,11 @@ class Parser:
         first = self.text()
         if first == "send":
             self.take()
-            sent: Reg | ZeroReg
-            if self.at("XZR"):
-                self.take()
-                sent = ZERO
-            else:
-                reg = self.register()
-                if reg is None or reg.n == SP_INDEX:
-                    self.fail("expected send X<n> or send XZR")
-                sent = reg
+            reg = self.register()
+            if reg is None or reg.n == SP_INDEX:
+                self.fail("expected send X<n>")
             self.end()
-            out.sends.append(sent)
+            out.sends.append(reg)
         elif first == "svc":
             self.take()
             self.end()

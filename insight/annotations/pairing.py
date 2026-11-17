@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from insight.annotations.framing import Block
     from insight.dsl.locations import Reg
     from insight.dsl.terms import Sym
-    from insight.dsl.transfer import Transfer, ZeroReg
+    from insight.dsl.transfer import Transfer
 
 REGISTER_RE = re.compile(r"[xw]([0-9]|[12][0-9]|30)")
 REGISTER_ALIASES = {"fp": 29, "lr": 30}
@@ -47,7 +47,7 @@ class PairingError(Exception):
 class Send:
     index: int  # S<index>
     group: int  # the index of the group that sends it
-    reg: Reg | ZeroReg  # XZR sends 0: no value pairs with it
+    reg: Reg
 
 
 @dataclass(frozen=True)

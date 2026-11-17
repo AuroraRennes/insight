@@ -17,7 +17,6 @@ from capstone.arm64 import (
 from elftools.elf.sections import SymbolTableSection
 
 from insight.annotations.pairing import register_number, register_writes
-from insight.dsl.transfer import ZERO
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -47,10 +46,10 @@ def channel_page(elf: ELFFile) -> int:
 
 
 def x_number(insn: CsInsn, reg: int) -> int | None:
-    """The number of an X register as encoded, XZR being 31 (not W, not SP)."""
+    """The number of an X register as encoded (not W, not SP, not XZR)."""
     name = insn.reg_name(reg)
     if name == "xzr":
-        return ZERO.n
+        return None
     return register_number(name) if name.startswith("x") or name in {"fp", "lr"} else None
 
 
@@ -65,7 +64,7 @@ def send_shape(insn: CsInsn) -> tuple[int, tuple[int, ...]] | None:
         return None
     numbers = [x_number(insn, reg) for reg in data]
     base = x_number(insn, memory[0].base)
-    if base is None or base == ZERO.n or any(n is None for n in numbers):
+    if base is None or any(n is None for n in numbers):
         return None
     sent = tuple(n for n in numbers if n is not None)
     if insn.id == ARM64_INS_STR and len(sent) == 1:
@@ -93,7 +92,7 @@ def page_origin(insns: Sequence[CsInsn], k: int, base: int, page: int) -> str | 
 
 
 def sends_text(numbers: Sequence[int]) -> str:
-    return ", ".join("send XZR" if n == ZERO.n else f"send X{n}" for n in numbers) or "no send"
+    return ", ".join(f"send X{n}" for n in numbers) or "no send"
 
 
 @dataclass

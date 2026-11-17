@@ -33,7 +33,7 @@ def code(*instructions: str):
     [
         ("str x0, [x16]", (16, (0,))),
         ("stp x1, x0, [x16]", (16, (0, 1))),  # the second register reaches the channel first
-        ("stp xzr, x0, [x16]", (16, (0, 31))),  # the zero register as an offset
+        ("stp xzr, x0, [x16]", None),  # the zero register is never sent
         ("str w0, [x16]", None),
         ("str x0, [x16, #8]", None),
         ("str x0, [x16], #8", None),
@@ -98,9 +98,11 @@ def test_send_lines_must_match_the_store(text, message):
     assert result.issues == [(0, message)]
 
 
-def test_zero_register_send():
-    block = read_block("@0\nsend X0\nsend XZR\nEND\n", 0x1000)
-    assert check_sends(block, code("stp xzr, x0, [x16]"), PAGE).issues == []
+def test_zero_register_is_not_sent():
+    block = read_block("@0\nsend X0\nEND\n", 0x1000)
+    assert check_sends(block, code("stp xzr, x0, [x16]"), PAGE).issues == [
+        (0, "stp xzr, x0, [x16]: lists send X0 but is not a send")
+    ]
 
 
 def test_pair_order_matters():
