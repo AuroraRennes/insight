@@ -32,6 +32,7 @@ from insight.flips.machine import (
     STATE_SIZE,
     TPIDR_OFFSET,
     V_OFFSET,
+    Exceptional,
     Exclusive,
     Machine,
     RunError,
@@ -548,6 +549,9 @@ def flip_test(
     rng = random.Random(seed if seed is not None else int.from_bytes(encoding, "little"))  # noqa: S311
     try:
         pairs = run_layouts(insn, transfer, ins, rng, report, layouts=layouts, states=states)
+    except Exceptional:
+        report.skipped = "raises an exception on the A53: a trap, or a later architecture's instruction"
+        return report
     except RunError as error:
         report.failures.append(f"run: {error}")
         return report

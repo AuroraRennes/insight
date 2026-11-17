@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from unicorn import UC_ARCH_ARM64, UC_MODE_ARM, Uc, UcError
+from unicorn import UC_ARCH_ARM64, UC_ERR_EXCEPTION, UC_MODE_ARM, Uc, UcError
 from unicorn.arm64_const import UC_CPU_ARM64_A53
 
 CODE = 0x1000_0000  # the prologue
@@ -166,6 +166,11 @@ class RunError(Exception):
     """The instruction faulted (an unmapped or misaligned access, an undefined instruction)."""
 
 
+class Exceptional(RunError):  # noqa: N818 (an outcome of the instruction)
+    """The instruction raises an exception whatever the state: a trap (brk, hlt, udf), or an
+    instruction of a later architecture, which the A53 does not implement."""
+
+
 # Direct branches: (mask, value, low bit, width) of their offset field, in words.
 DIRECT_BRANCHES = (
     (0x7C000000, 0x14000000, 0, 26),  # b, bl
@@ -217,5 +222,7 @@ class Machine:
         try:
             self.uc.emu_start(CODE, STOP)
         except UcError as error:
+            if error.errno == UC_ERR_EXCEPTION:
+                raise Exceptional(str(error)) from error
             raise RunError(str(error)) from error
         return bytes(self.uc.mem_read(STATE, REGISTERS_SIZE) + self.uc.mem_read(DATA, PAGE))

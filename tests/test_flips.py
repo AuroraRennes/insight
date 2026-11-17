@@ -198,6 +198,18 @@ def test_svc_is_skipped():
     assert quick("010000d4").skipped.startswith("system call")
 
 
+@pytest.mark.parametrize(
+    "encoding",
+    [
+        "007d20d4",  # brk #0x3e8
+        "000040d4",  # hlt #0
+        "08804099",  # ldapur w8, [x0, #8]: ARMv8.4
+    ],
+)
+def test_exceptions_are_skipped(encoding):
+    assert quick(encoding).skipped.startswith("raises an exception on the A53")
+
+
 def test_unsupported_is_skipped():
     # eor3 v0.16b, v1.16b, v2.16b, v3.16b
     assert quick("200c02ce").skipped == "R: FP/SIMD form without a rule"
