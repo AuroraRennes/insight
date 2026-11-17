@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import bisect
 import contextlib
+import functools
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -271,12 +272,27 @@ class Replay:
         if self.frames and self.frames[-1].restorer <= pc < self.frames[-1].restorer + RESTORER_SIZE:
             self.skip(stream, n)  # its rt_sigreturn restores the interrupted context
             return
-        for i in range(n):
-            addr = pc + INSTRUCTION * i
-            group = self.enter(addr, sp, fp, audit=i == 0)
+        i = 0
+        while i < n:
+            group = self.enter(pc + INSTRUCTION * i, sp, fp, audit=i == 0)
+            i += 1
             if group is not None:
                 self.run_group(stream, group)
             self.drain_events(stream)
+            # The rest of the block follows group by group, as long as it is the current one (a
+            # signal's return changes it)
+            cur = self.current
+            if group is None or cur is None:
+                continue
+            groups = cur.code.groups
+            while i < n and cur.next_group < len(groups) and self.current is cur:
+                group = groups[cur.next_group]
+                cur.next_group += 1
+                i += 1
+                self.run_group(stream, group)
+                head = stream.peek()
+                if head is not None and head[0] in EVENTS:
+                    self.drain_events(stream)
 
     def skip(self, stream: Stream, n: int) -> None:
         """A block run untracked (the start code, a signal's restorer): its accesses are not
@@ -518,9 +534,6 @@ def replay_file(elf_path: Path, trace_path: Path) -> Result:
             for seg in elf.iter_segments()
             if seg["p_type"] == "PT_LOAD" and not seg["p_flags"] & P_FLAGS.PF_W
         ]
-
-        def word(addr: int) -> bytes:
-            return code_at(elf, addr, INSTRUCTION)
-
+        word = functools.cache(lambda addr: code_at(elf, addr, INSTRUCTION))  # the padding is revisited
         replay = Replay(annotation_texts(elf), insns, elf_symbols(elf), word, readonly)
         return replay.run(Stream(trace.records))
