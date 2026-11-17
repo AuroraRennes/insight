@@ -12,5 +12,6 @@ corpus is committed, so none of the binaries below is needed to run the tests.
 | `/usr/bin/gdb`, `/usr/bin/perf`, `/usr/lib/libpython3.12.so.1.0`, `/usr/lib/libgmp.so.10` | PetaLinux 2024.2+release-S11061705 (Yocto scarthgap, built with GCC) |
 | `/usr/aarch64-linux-gnu/lib/libc.so.6`, `libm.so.6` | Debian package `libc6-arm64-cross` 2.41-11cross1 |
 | `extra-forms.o` | `extra-forms.s`, assembled with GNU as 2.44 (Debian `binutils-aarch64-linux-gnu`) |
+| `lit-tests.o` | the compiler's `hbng-*.ll` lit tests, each compiled by `llc` with its first RUN line's options, linked with `ld.lld -r` |
 
-The binaries were chosen for the forms they add: `gdb` alone gives most forms R has a rule for, `perf` and `libm` add FP/SIMD forms, `libgmp` carry chains, glibc hand-written string routines. `extra-forms.s` holds the forms of the HBNG builds that none of them has: clang's uses of the zero register and their aliases, and musl's write of the thread pointer. Together they cover every general-register form of the HBNG nginx.
+The binaries were chosen for the forms they add: `gdb` alone gives most forms R has a rule for, `perf` and `libm` add FP/SIMD forms, `libgmp` carry chains, glibc hand-written string routines. `extra-forms.s` holds the forms of the HBNG builds that none of them has: clang's uses of the zero register and their aliases, and musl's write of the thread pointer. Together they cover every general-register form of the HBNG nginx. The lit tests add every form a compiler rule is written for.
