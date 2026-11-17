@@ -84,6 +84,18 @@ def test_send_look_ahead_keeps_the_records_passed():
     assert stream.next() is None
 
 
+def test_a_peeked_record_comes_before_those_a_send_look_ahead_passes():
+    stream = Stream([("A", 1, 2, 8, 0), ("Y", 63), ("S", 5), ("Y", 64)])
+    assert stream.peek() == ("A", 1, 2, 8, 0)
+    assert stream.next_send() == 5
+    assert [stream.next(), stream.next(), stream.next(), stream.next()] == [
+        ("A", 1, 2, 8, 0),
+        ("Y", 63),
+        ("Y", 64),
+        None,
+    ]
+
+
 def test_plugin_trace(traced: Path):
     """A trace written by flowsight-qemu: the format both sides agree on."""
     with (traced / "tiny.elf").open("rb") as f:

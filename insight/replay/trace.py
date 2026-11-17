@@ -79,19 +79,22 @@ def parse_header(data: bytes) -> Header:
 def parse_records(chunks: Iterable[bytes]) -> Iterator[Record]:
     """The records of a stream of bytes cut anywhere. A record cut by the end is dropped (a
     killed process leaves a prefix)."""
+    # By type byte: the letter, the unpacker and the record's size with its type byte
+    kinds = {code: (chr(code), fmt.unpack_from, 1 + fmt.size) for code, fmt in FORMATS.items()}
     rest = b""
     for chunk in chunks:
         data = rest + chunk
         pos, end = 0, len(data)
         while pos < end:
-            fmt = FORMATS.get(data[pos])
-            if fmt is None:
+            kind = kinds.get(data[pos])
+            if kind is None:
                 msg = f"unknown record type {data[pos]:#x}"
                 raise TraceError(msg)
-            if pos + 1 + fmt.size > end:
+            letter, unpack, size = kind
+            if pos + size > end:
                 break
-            yield (chr(data[pos]), *fmt.unpack_from(data, pos + 1))
-            pos += 1 + fmt.size
+            yield (letter, *unpack(data, pos + 1))
+            pos += size
         rest = data[pos:]
 
 
@@ -126,28 +129,40 @@ class TraceFile:
         self.close()
 
 
+NOT_PEEKED = ("",)  # Stream.head when no record is held
+
+
 class Stream:
     """The records in order, with look-ahead for sends: next_send() takes the next send further
-    on, keeping the records it passes for next()."""
+    on, keeping the records it passes for next(). peek() holds the next record in head, so that
+    looking and then taking costs one read."""
 
     def __init__(self, records: Iterable[Record]) -> None:
         self.records = iter(records)
         self.pending: deque[Record] = deque()
         self.sends: deque[int] = deque()  # sends seen in passing, not yet taken
+        self.head: Record | None = NOT_PEEKED  # the record peek() returned, None at the end
+
+    def fetch(self) -> Record | None:
+        pending, sends = self.pending, self.sends
+        while True:
+            record = pending.popleft() if pending else next(self.records, None)
+            if record is None or record[0] != "S":
+                return record
+            sends.append(record[1])
 
     def next(self) -> Record | None:
         """The next record other than a send (sends go to next_send's queue)."""
-        while True:
-            record = self.pending.popleft() if self.pending else next(self.records, None)
-            if record is None or record[0] != "S":
-                return record
-            self.sends.append(record[1])
+        record = self.head
+        if record is NOT_PEEKED:
+            return self.fetch()
+        self.head = NOT_PEEKED
+        return record
 
     def peek(self) -> Record | None:
-        record = self.next()
-        if record is not None:
-            self.pending.appendleft(record)
-        return record
+        if self.head is NOT_PEEKED:
+            self.head = self.fetch()
+        return self.head
 
     def next_send(self) -> int | None:
         """The next send value in channel order, None at the end of the trace."""
