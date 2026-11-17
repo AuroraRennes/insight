@@ -180,6 +180,22 @@ def test_replay_stops_at_a_wrong_address(traced: Path, tmp_path: Path):
         replay_file(traced / "tiny.elf", path)
 
 
+def test_replay_ends_at_a_fatal_fault(traced: Path):
+    """fault.s: the load from the null page kills the process; the trace ends at it, with no
+    access, and the replay ends there instead of stopping on the audit."""
+    result = replay_file(traced / "fault.elf", traced / "fault.trace")
+    assert (result.blocks, result.groups, result.sends, result.accesses) == (1, 3, 1, 0)
+    with (traced / "fault.elf").open("rb") as f:
+        symtab = ELFFile(f).get_section_by_name(".symtab")
+        assert isinstance(symtab, SymbolTableSection)
+        symbols = symtab.get_symbol_by_name("main")
+        assert symbols
+        main = symbols[0]["st_value"]
+    assert result.fault is not None
+    assert result.fault.startswith(f"{main + 12:#x} ")  # the ldr
+    assert result.sends_left == 0
+
+
 def test_replay_signal_through_ucontext(traced: Path):
     """signal.s: the handler stores the secret into the saved x19, and the reloaded x19 leaks it."""
     result = replay_file(traced / "signal.elf", traced / "signal.trace")

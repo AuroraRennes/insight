@@ -156,6 +156,8 @@ def replay(elf: Path, trace: Path) -> int:
         f"{result.syscalls} syscalls, {result.signals} signals, {result.padding} padding nops, "
         f"{result.skipped_before_start} instructions before tracking; alarms={len(result.alarms)}\n"
     )
+    if result.fault is not None:
+        out.write(f"{trace}: ended by a fatal fault at {result.fault} (no access, nothing after)\n")
     if result.sends_left:
         out.write(f"{trace}: {result.sends_left} sends left over at the end\n")
         return 1

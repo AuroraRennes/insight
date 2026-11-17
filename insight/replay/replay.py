@@ -6,6 +6,7 @@ value would be wrong.
 from __future__ import annotations
 
 import bisect
+import contextlib
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -50,6 +51,12 @@ class ReplayError(Exception):
     """An audit mismatch or a block the replay cannot run: the replay stops."""
 
 
+class FatalFault(Exception):  # noqa: N818 (an outcome, not an error)
+    """The trace ends at an instruction that faulted: the process died there. The instruction made
+    only some of its accesses (none for a load from an unmapped page) and nothing follows; its
+    group's tags are not applied, as it did not complete."""
+
+
 @dataclass(frozen=True)
 class Alarm:
     syscall: int
@@ -72,6 +79,7 @@ class Result:
     padding: int = 0  # nops run outside the table
     readonly_loads: int = 0  # loads from read-only segments the annotations do not name
     discarded_loads: int = 0  # loads into the zero register
+    fault: str | None = None  # where the instruction whose fatal fault ended the trace is
 
 
 @dataclass(frozen=True)
@@ -215,6 +223,15 @@ class Replay:
         return code
 
     def run(self, stream: Stream) -> Result:
+        with contextlib.suppress(FatalFault):  # the result records where
+            self.run_records(stream)
+        left = 0
+        while stream.next_send() is not None:
+            left += 1
+        self.result.sends_left = left
+        return self.result
+
+    def run_records(self, stream: Stream) -> None:
         while (record := stream.next()) is not None:
             kind = record[0]
             if kind == "B":
@@ -228,11 +245,6 @@ class Replay:
             else:
                 msg = f"unexpected record {record[0]} outside a block"
                 raise self.fail(msg)
-        left = 0
-        while stream.next_send() is not None:
-            left += 1
-        self.result.sends_left = left
-        return self.result
 
     def run_tb(self, stream: Stream, pc: int, n: int) -> None:
         """A block of n instructions from pc. Tracking starts at the first annotated block after the
@@ -360,6 +372,9 @@ class Replay:
                 self.result.discarded_loads += 1
                 continue
             real.update((base + i) & MASK64 for i in range(size))
+        if real < named and stream.peek() is None:
+            self.result.fault = self.where(group.address)
+            raise FatalFault
         if real != named:
             msg = (
                 f"addresses differ at {self.where(group.address)}: real {describe(real)},"
