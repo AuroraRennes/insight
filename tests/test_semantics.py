@@ -187,6 +187,17 @@ V_RULES = [
         "\n".join(f"V0[{k}] <- V0[{k}] | V1[0:15] | V2[0:15] excl V3[{k}]" for k in range(8))
         + "\nV0[8:15] <- 0",
     ),
+    # a mask or index register that is also data is data: no 'excl'
+    ("201ca16e", "bit v0.16b, v1.16b, v1.16b", "V0[0:15] <- V0[0:15] | V1[0:15] per 1"),
+    ("001c606e", "bsl v0.16b, v0.16b, v0.16b", "V0[0:15] <- V0[0:15] per 1"),
+    ("201c606e", "bsl v0.16b, v1.16b, v0.16b", "V0[0:15] <- V0[0:15] | V1[0:15] per 1"),
+    ("001ce02e", "bif v0.8b, v0.8b, v0.8b", "V0[0:15] <- [V0[0:7] 0 0 0 0 0 0 0 0]"),
+    ("2000014e", "tbl v0.16b, {v1.16b}, v1.16b", "V0[0:15] <- V1[0:15]"),
+    (
+        "2010004e",
+        "tbx v0.16b, {v1.16b}, v0.16b",
+        "\n".join(f"V0[{k}] <- V0[{k}] | V1[0:15]" for k in range(16)),
+    ),
     # AES and SHA: every byte written from every byte read
     ("2048284e", "aese v0.16b, v1.16b", "V0[0:15] <- V0[0:15] | V1[0:15]"),
     ("2078284e", "aesimc v0.16b, v1.16b", "V0[0:15] <- V1[0:15]"),

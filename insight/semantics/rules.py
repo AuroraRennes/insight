@@ -269,7 +269,10 @@ def v_data(insn: CsInsn, data: list[VReg]) -> Transfer:
     if dest.index is not None:
         raise fp_simd_unsupported(insn)
     if base in V_SELECT:
-        return selected(insn, dest, [reg for reg in sources if reg not in untagged], untagged)
+        # The mask or index by position (bsl: dest, the others: the last source), not by register:
+        # a register that is also data stays data
+        control = dest if base == "bsl" else sources[-1]
+        return selected(insn, dest, sources if base == "bsl" else sources[:-1], control)
     if base in V_ACCUMULATE:
         sources = [dest, *sources]
     if base in V_CANCELLING and len(sources) == 2 and sources[0] == sources[1]:
@@ -295,14 +298,17 @@ def base_name(mnemonic: str) -> str:
 def v_untagged(insn: CsInsn, data: list[VReg]) -> list[VReg]:
     """The policy's FP/SIMD inputs whose flows carry no tag: a comparison's sources, a table
     lookup's index (no pointer tainting), a select's mask (BSL: the destination's old value; BIT
-    and BIF: the last register)."""
+    and BIF: the last register). A mask or index that is also data (bit v0, v1, v1) is data: its
+    flows carry its tag."""
     base = base_name(insn.mnemonic)
     if base in V_COMPARE:
         return data[1:]
     if base in {"tbl", "tbx", "bit", "bif"}:
-        return data[-1:]
+        # The data: the tables (tbx also keeps dest), or dest's old value and the first source
+        values = data[1:-1] if base == "tbl" else data[:-1]
+        return [] if data[-1] in values else data[-1:]
     if base == "bsl":
-        return data[:1]
+        return [] if data[0] in data[1:] else data[:1]
     return []
 
 
@@ -451,11 +457,10 @@ def permuted(insn: CsInsn, dest: VReg, sources: list[VReg]) -> Transfer:
     return Transfer(v_written(dest, [frozenset({byte}) for elem in elems for byte in elem]))
 
 
-def selected(insn: CsInsn, dest: VReg, data: list[VReg], untagged: frozenset[VReg]) -> Transfer:
+def selected(insn: CsInsn, dest: VReg, data: list[VReg], control: VReg) -> Transfer:
     """Byte k of dest from byte k of the data (bsl: the two sources; bit, bif: dest's old value and
     the first source), or from any byte of the tables (tbl; tbx also keeps dest's byte k); the
-    mask's or index's byte k 'excl'."""
-    (control,) = untagged
+    mask's or index's byte k 'excl', unless the same register is also data (bit v0, v1, v1)."""
     if control.width != dest.width or any(reg.index is not None for reg in data):
         raise fp_simd_unsupported(insn)
     mnemonic = insn.mnemonic
@@ -468,7 +473,7 @@ def selected(insn: CsInsn, dest: VReg, data: list[VReg], untagged: frozenset[VRe
             srcs = tables | {dest.byte(k)}
         else:
             srcs = frozenset(reg.byte(k) for reg in ([dest, data[0]] if mnemonic in {"bit", "bif"} else data))
-        deps.append(Dep(srcs, frozenset({control.byte(k)})))
+        deps.append(Dep(srcs, frozenset({control.byte(k)}) - srcs))
     return Transfer(v_written_deps(dest, deps))
 
 

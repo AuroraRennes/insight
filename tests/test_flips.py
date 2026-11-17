@@ -81,6 +81,13 @@ LANES = [
     ("2038a04e", "suqadd v0.4s, v1.4s"),
     ("2020034e", "tbl v0.16b, {v1.16b, v2.16b}, v3.16b"),
     ("2030030e", "tbx v0.8b, {v1.16b, v2.16b}, v3.8b"),
+    # the mask or index register also data
+    ("201ca16e", "bit v0.16b, v1.16b, v1.16b"),
+    ("001c606e", "bsl v0.16b, v0.16b, v0.16b"),
+    ("201c606e", "bsl v0.16b, v1.16b, v0.16b"),
+    ("001ce02e", "bif v0.8b, v0.8b, v0.8b"),
+    ("2000014e", "tbl v0.16b, {v1.16b}, v1.16b"),
+    ("2010004e", "tbx v0.16b, {v1.16b}, v0.16b"),
     ("2048284e", "aese v0.16b, v1.16b"),
     ("2000025e", "sha1c q0, s1, v2.4s"),
 ]
