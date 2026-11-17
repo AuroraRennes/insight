@@ -80,6 +80,9 @@ def check(path: Path, max_issues: int, *, against_r: bool) -> int:
             f"{path}: {report.blocks} blocks, {report.groups} instructions, {report.sends} sends, "
             f"{len(report.issues)} issues\n"
         )
+        if report.page_origins:
+            origins = ", ".join(f"{count} {origin}" for origin, count in sorted(report.page_origins.items()))
+            out.write(f"sends whose page is not followed in the block: {origins}\n")
     if against_r:
         unsupported = sum(report.unsupported.values())
         out.write(f"R: {unsupported} instructions without a rule\n")
