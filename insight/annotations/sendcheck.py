@@ -1,7 +1,8 @@
-"""Checking each group's send lines against its instruction: a send is a store to the channel page."""
+"""Checking each group's send lines against its instructions: a send is a store to the channel page."""
 
 from __future__ import annotations
 
+import itertools
 from collections import Counter
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
@@ -24,7 +25,7 @@ if TYPE_CHECKING:
     from capstone import CsInsn
     from elftools.elf.elffile import ELFFile
 
-    from insight.annotations.framing import Block
+    from insight.annotations.framing import Block, Group
 
 CHANNEL_SYMBOL = "__hbng_chan"
 PAGE_MASK = ~0xFFF
@@ -106,31 +107,82 @@ class SendCheck:
 
 
 def check_sends(block: Block, insns: Sequence[CsInsn], page: int) -> SendCheck:
-    """The send lines of every group against its instruction, page being the channel's."""
-    if len(insns) != len(block.groups):
-        msg = f"{len(insns)} instructions for {len(block.groups)} groups"
+    """The send lines of every group against its instructions, page being the channel's."""
+    if len(insns) != block.size // 4:
+        msg = f"{len(insns)} instructions for a block of {block.size // 4}"
         raise ValueError(msg)
     result = SendCheck()
-    for k, (group, insn) in enumerate(zip(block.groups, insns, strict=True)):
+    start = 0
+    for group in block.groups:
         listed = [reg.n for reg in group.form.sends]
+        span = range(start, start + group.count)
+        start += group.count
         if not listed:
             continue  # a store that is not a send is memory, compared with R
-        text = f"{insn.mnemonic} {insn.op_str}"
-        shape = send_shape(insn)
-        if shape is None:
-            result.issues.append((group.offset, f"{text}: lists {sends_text(listed)} but is not a send"))
-            continue
-        base, sent = shape
-        if list(sent) != listed:
-            result.issues.append(
-                (group.offset, f"{text} makes {sends_text(sent)}, the group lists {sends_text(listed)}")
-            )
-            continue
-        origin = page_origin(insns, k, base, page)
-        if origin is None:
-            result.issues.append((group.offset, f"{text}: x{base} does not hold the channel page"))
-            continue
-        result.sends.add(k)
-        if origin != "adrp":
-            result.origins[origin] += 1
+        if group.count > 1:
+            check_span(result, insns, group, listed=listed, page=page)
+        else:
+            check_one(result, insns, span[0], offset=group.offset, listed=listed, page=page)
     return result
+
+
+def check_one(
+    result: SendCheck, insns: Sequence[CsInsn], k: int, *, offset: int, listed: list[int], page: int
+) -> None:
+    insn = insns[k]
+    text = f"{insn.mnemonic} {insn.op_str}"
+    shape = send_shape(insn)
+    if shape is None:
+        result.issues.append((offset, f"{text}: lists {sends_text(listed)} but is not a send"))
+        return
+    base, sent = shape
+    if list(sent) != listed:
+        result.issues.append(
+            (offset, f"{text} makes {sends_text(sent)}, the group lists {sends_text(listed)}")
+        )
+        return
+    origin = page_origin(insns, k, base, page)
+    if origin is None:
+        result.issues.append((offset, f"{text}: x{base} does not hold the channel page"))
+        return
+    result.sends.add(k)
+    if origin != "adrp":
+        result.origins[origin] += 1
+
+
+def check_span(
+    result: SendCheck, insns: Sequence[CsInsn], group: Group, *, listed: list[int], page: int
+) -> None:
+    """A block form's sends against the instructions the block table gives, in order."""
+    at = [offset // 4 for offset in group.send_at]
+    named_insns = []
+    i = 0
+    while i < len(listed):
+        k = at[i]
+        named_insns.append(k)
+        insn = insns[k]
+        shape = send_shape(insn)
+        count = len(shape[1]) if shape else 1
+        named = listed[i : i + count]
+        if shape is None or list(shape[1]) != named or at[i : i + count] != [k] * count:
+            text = f"{insn.mnemonic} {insn.op_str}"
+            result.issues.append(
+                (
+                    4 * k,
+                    f"{text}: named by {sends_text(named)}, sends {sends_text(shape[1] if shape else ())}",
+                )
+            )
+            i += count
+            continue
+        origin = page_origin(insns, k, shape[0], page)
+        if origin is None:
+            result.issues.append(
+                (4 * k, f"{insn.mnemonic} {insn.op_str}: x{shape[0]} does not hold the channel page")
+            )
+        else:
+            result.sends.add(k)
+            if origin != "adrp":
+                result.origins[origin] += 1
+        i += count
+    if any(a >= b for a, b in itertools.pairwise(named_insns)):
+        result.issues.append((group.offset, "the sends are not in the order of their instructions"))

@@ -1,6 +1,6 @@
 import pytest
 
-from insight.annotations.framing import read_block
+from insight.annotations.framing import Entry, read_block
 from insight.annotations.pairing import decode
 from insight.annotations.sendcheck import check_sends, send_shape
 
@@ -120,5 +120,33 @@ def test_send_lines_on_something_else():
 
 
 def test_instruction_count_must_match():
-    with pytest.raises(ValueError, match="1 instructions for 2 groups"):
+    with pytest.raises(ValueError, match="1 instructions for a block of 2"):
         check_sends(read_block("@0\n@4\nEND\n", 0x1000), code("ldr x0, [x0]"), PAGE)
+
+
+FORM = code("adrp x16, 0x400000", "stp x1, x0, [x16]", "str x0, [x16]", "ldr x0, [x0]")
+
+
+def form(sends: str, at: tuple[int, ...]):
+    """The block of FORM as one form, its sends at the instructions the block table gives."""
+    return read_block(f"@0\n{sends}END\n", 0x1000, Entry(0x1000, 0, 4, at))
+
+
+def test_form_sends():
+    result = check_sends(form("send X0\nsend X1\nsend X0\n", (1, 1, 2)), FORM, PAGE)
+    assert (result.issues, result.sends) == ([], {1, 2})
+
+
+def test_form_sends_must_match_their_store():
+    result = check_sends(form("send X1\nsend X0\nsend X0\n", (1, 1, 2)), FORM, PAGE)
+    assert result.issues == [(4, "stp x1, x0, [x16]: named by send X1, send X0, sends send X0, send X1")]
+
+
+def test_form_send_at_something_else():
+    result = check_sends(form("send X0\nsend X1\nsend X0\n", (1, 1, 3)), FORM, PAGE)
+    assert result.issues == [(12, "ldr x0, [x0]: named by send X0, sends no send")]
+
+
+def test_form_sends_in_order():
+    result = check_sends(form("send X0\nsend X0\nsend X1\n", (2, 1, 1)), FORM, PAGE)
+    assert result.issues == [(0, "the sends are not in the order of their instructions")]
