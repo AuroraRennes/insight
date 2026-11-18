@@ -1,6 +1,6 @@
 import pytest
 
-from insight.annotations.framing import read_block
+from insight.annotations.framing import Entry, read_block
 from insight.annotations.pairing import PairingError, decode, pair_sends, register_writes
 from insight.dsl.locations import Mem, Reg, VByte
 from insight.dsl.syntax import parse
@@ -103,8 +103,23 @@ def test_sp_values_from_a_sent_register():
     assert paired.forms[4].value("SP") == S[0] & -64
 
 
+def test_a_group_after_a_form():
+    # The form covers @0 and @4: its writes are both instructions'.
+    text = "@0\nsend X0\nX1 <- M[S0 .. +8]\n@8\nX2 <- M[<X0> .. +8]\nEND\n"
+    block = read_block(text, 0x400, Entry(0x400, 0, 3, (0,)))
+    assert pair_sends(block, [NONE, frozenset({1}), NONE]).forms[1].same_meaning(form("X2 <- M[S0 .. +8]"))
+    with pytest.raises(PairingError, match="no send of X0"):
+        pair_sends(block, [NONE, frozenset({0}), NONE])
+
+
+def test_no_register_in_a_form():
+    block = read_block("@0\nX1 <- M[<X0> .. +8]\n@8\nEND\n", 0x400, Entry(0x400, 0, 3, ()))
+    with pytest.raises(PairingError, match="an <Xn> in a group of several instructions"):
+        pair_sends(block, [NONE] * 3)
+
+
 def test_writes_count_must_match():
-    with pytest.raises(ValueError, match="1 instructions for 2 groups"):
+    with pytest.raises(ValueError, match="1 instructions for a block of 2"):
         pair_sends(read_block("@0\n@4\nEND\n", 0x400), [NONE])
 
 

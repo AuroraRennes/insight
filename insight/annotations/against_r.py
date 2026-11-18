@@ -1,11 +1,4 @@
-"""The static check of each instruction's annotation against R.
-
-<FP> updates are not compared (a convention of the compiler), and LO12 is replaced by the
-instruction's encoded offset, which is what R reads. The entry load of a jump-table dispatch
-(adr, ldr, add) is compared with a clear: the table is read-only and starts untagged. A send (a
-store to the channel page, as the send check found it) is compared with its sends: the channel is
-not tracked memory.
-"""
+"""The static check of each instruction's annotation, or each block form, against R."""
 
 from __future__ import annotations
 
@@ -14,12 +7,15 @@ from typing import TYPE_CHECKING
 
 from capstone.arm64 import ARM64_OP_MEM, ARM64_SFT_INVALID, ARM64_SFT_LSL
 
+from insight.annotations.framing import INSTRUCTION_SIZE
+from insight.annotations.pairing import pair_forms, pair_sends, register_writes
 from insight.annotations.sendcheck import send_shape
+from insight.dsl.errors import DslError
 from insight.dsl.locations import Reg
 from insight.dsl.terms import Sym, Term
-from insight.dsl.transfer import Dep, Opaque, Transfer
-from insight.semantics.operands import GReg, UnsupportedFormError, address, gregs
-from insight.semantics.rules import rule
+from insight.dsl.transfer import Dep, Opaque, Transfer, compose
+from insight.semantics.operands import FP_INDEX, GReg, UnsupportedFormError, address, gregs
+from insight.semantics.rules import rule, sp_value
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -110,7 +106,8 @@ def shift_of(insn: CsInsn) -> int | None:
 
 
 def jump_table_load(adr: CsInsn, load: CsInsn, add: CsInsn) -> Transfer | None:
-    """The convention's transfer of load, Ws <- 0, when the three are a jump-table dispatch."""
+    """The convention's transfer of load, Ws <- 0, when the three are a jump-table dispatch: the
+    table is read-only and starts untagged."""
     if (adr.mnemonic, add.mnemonic) != ("adr", "add") or load.mnemonic not in JUMP_TABLE_ENTRIES:
         return None
     view, index_shift, entry_shift = JUMP_TABLE_ENTRIES[load.mnemonic]
@@ -136,7 +133,7 @@ def jump_table_load(adr: CsInsn, load: CsInsn, add: CsInsn) -> Transfer | None:
 
 
 def send_transfer(insn: CsInsn) -> Transfer:
-    """What a send does: its registers go to the channel, nothing tracked changes."""
+    """What a send does: its registers go to the channel, which is not tracked memory."""
     shape = send_shape(insn)
     if shape is None:
         msg = f"{insn.mnemonic} {insn.op_str} is not a send"
@@ -144,25 +141,113 @@ def send_transfer(insn: CsInsn) -> Transfer:
     return Transfer(sends=tuple(Reg(n) for n in shape[1]))
 
 
+def reference(insns: Sequence[CsInsn], i: int, sends: set[int] | None) -> tuple[Transfer, bool]:
+    """R's transfer of insns[i], or the convention's for a send or a jump-table load (then True)."""
+    insn = insns[i]
+    if sends and i in sends:
+        return send_transfer(insn), True
+    convention = jump_table_load(insns[i - 1], insn, insns[i + 1]) if 0 < i < len(insns) - 1 else None
+    return (rule(insn), False) if convention is None else (convention, True)
+
+
+# Block forms
+# \____________
+
+
+def fp_update(insn: CsInsn, sent: tuple[int, ...]) -> Term | None:
+    """The compiler's convention for the tracked FP, which R does not give; None when unchanged."""
+    # A send of x29 gives it.
+    if 29 in sent:
+        return Term.sym("<X29>")
+    if 29 not in register_writes(insn):
+        return None
+    try:
+        dests, addr = gregs(insn), None
+        # An add, sub or mov from SP or FP computes it.
+        if (
+            dests
+            and dests[0].kind == "x"
+            and dests[0].n == FP_INDEX
+            and insn.mnemonic in {"add", "sub", "mov"}
+        ):
+            sources = dests[1:]
+            if len(sources) == 1 and (sources[0].kind == "sp" or sources[0].n == FP_INDEX):
+                return sp_value(insn, sources)
+        # So does a write-back of an FP base.
+        if insn.op_str.count("[") == 1:
+            addr = address(insn)
+        if addr is not None and addr.mode != "offset" and addr.base.n == FP_INDEX and addr.post_reg is None:
+            return addr.written_back()
+    except (UnsupportedFormError, ValueError):
+        pass
+    # Any other write of x29 (a reload, say) leaves it until x29 is sent.
+    return None
+
+
 def compare_block(block: Block, insns: Sequence[CsInsn], sends: set[int] | None = None) -> Comparison:
-    """Each group against R; sends are the indices of the instructions that are sends."""
+    """Each group against R, sends being the indices of the instructions that are sends."""
+    sends = sends or set()
     result = Comparison()
-    for i, (group, insn) in enumerate(zip(block.groups, insns, strict=True)):
-        text = f"{insn.mnemonic} {insn.op_str}"
-        if sends and i in sends:
-            convention: Transfer | None = send_transfer(insn)
-        elif 0 < i < len(insns) - 1:
-            convention = jump_table_load(insns[i - 1], insn, insns[i + 1])
-        else:
-            convention = None
+    refs: list[Transfer | None] = []
+    for i, insn in enumerate(insns):
         try:
-            reference = rule(insn) if convention is None else convention
+            ref, convention = reference(insns, i, sends)
         except UnsupportedFormError as error:
-            result.unsupported.append((group.offset, f"{text}: {error.reason}"))
+            refs.append(None)
+            result.unsupported.append(
+                (INSTRUCTION_SIZE * i, f"{insn.mnemonic} {insn.op_str}: {error.reason}")
+            )
             continue
-        annotation = without_fp(group.form.subst({LO12: Term.of(encoded_offset(insn))}))
-        result.mismatches.extend(
-            (group.offset, f"{text}: {diff}") for diff in differences(annotation, reference)
+        result.jump_table_loads += convention and i not in sends
+        fp = fp_update(insn, tuple(reg.n for reg in ref.sends))
+        values = dict(ref.values) | ({"FP": fp} if fp is not None else {})
+        refs.append(
+            Transfer(ref.tags, values, ref.opaque, ref.sends).subst({LO12: Term.of(encoded_offset(insn))})
         )
-        result.jump_table_loads += convention is not None and not (sends and i in sends)
+    # Both sides are paired with the sends first.
+    writes = [register_writes(insn) for insn in insns]
+    _, paired_refs = pair_forms([Transfer() if ref is None else ref for ref in refs], writes, strict=False)
+    forms = pair_sends(block, writes, strict=False).forms
+    start = 0
+    for group, form in zip(block.groups, forms, strict=True):
+        span = range(start, start + group.count)
+        start += group.count
+        if any(refs[k] is None for k in span):
+            continue  # counted as unsupported
+        # R reads the offset the linker encoded in the instruction.
+        offsets = {Sym(f"LO12@{INSTRUCTION_SIZE * k}"): Term.of(encoded_offset(insns[k])) for k in span}
+        offsets[LO12] = Term.of(encoded_offset(insns[span[0]]))
+        annotation = form.subst(offsets)
+        # One instruction against its rule, FP aside: a convention of the compiler.
+        if group.count == 1:
+            insn = insns[span[0]]
+            result.mismatches.extend(
+                (group.offset, f"{insn.mnemonic} {insn.op_str}: {diff}")
+                for diff in differences(without_fp(annotation), paired_refs[span[0]])
+            )
+            continue
+        # A block form against R composed over its instructions, FP included (fp_update).
+        try:
+            composed = compose(
+                Transfer(paired_refs[k].tags, paired_refs[k].values, paired_refs[k].opaque) for k in span
+            )
+        except DslError as error:
+            result.mismatches.append((group.offset, f"R over {group.count} instructions: {error}"))
+            continue
+        result.mismatches.extend(
+            (group.offset, f"{group.count} instructions: {diff}")
+            for diff in form_differences(annotation, composed)
+        )
     return result
+
+
+def form_differences(annotation: Transfer, reference: Transfer) -> list[str]:
+    """differences() for block forms: the sends set aside, FP compared."""
+    found = differences(
+        Transfer(annotation.tags, annotation.values, annotation.opaque),
+        Transfer(reference.tags, reference.values, reference.opaque),
+    )
+    a_fp, r_fp = annotation.normalized().values.get("FP"), reference.normalized().values.get("FP")
+    if a_fp != r_fp:
+        found.append(f"annotation <FP> <- {a_fp or '<FP>'}, R <FP> <- {r_fp or '<FP>'}")
+    return found

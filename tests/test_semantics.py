@@ -328,7 +328,7 @@ def test_good_elf_against_r(annotation_elfs):
     found = [issue.message.removeprefix("R: ") for issue in report.issues]
     assert len(found) == 16
     assert all(message.startswith("stlxp w9, x8, x1, [x0]: annotation M[") for message in found)
-    assert "stlxp w9, x8, x1, [x0]: annotation M[<X0>] <- X8, R M[<X0>] <- M[<X0>] | X8" in found
+    assert "stlxp w9, x8, x1, [x0]: annotation M[S0] <- X8, R M[S0] <- M[S0] | X8" in found
 
 
 def block_of(words, forms):

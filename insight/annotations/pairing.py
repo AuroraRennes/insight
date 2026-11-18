@@ -12,7 +12,9 @@ from typing import TYPE_CHECKING
 
 from capstone import CS_ARCH_ARM64, CS_MODE_ARM, Cs
 
+from insight.annotations.framing import INSTRUCTION_SIZE
 from insight.dsl.terms import Term
+from insight.dsl.transfer import Transfer
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -23,7 +25,6 @@ if TYPE_CHECKING:
     from insight.annotations.framing import Block
     from insight.dsl.locations import Reg
     from insight.dsl.terms import Sym
-    from insight.dsl.transfer import Transfer
 
 REGISTER_RE = re.compile(r"[xw]([0-9]|[12][0-9]|30)")
 REGISTER_ALIASES = {"fp": 29, "lr": 30}
@@ -46,7 +47,7 @@ class PairingError(Exception):
 @dataclass(frozen=True)
 class Send:
     index: int  # S<index>
-    group: int  # the index of the group that sends it
+    group: int  # the index of the instruction that sends it
     reg: Reg
 
 
@@ -118,30 +119,69 @@ def block_writes(elf: ELFFile, block: Block) -> list[frozenset[int]]:
 # \________
 
 
-def pair_sends(block: Block, writes: Sequence[frozenset[int]]) -> PairedBlock:
-    """Every <Xn> of the block paired with its send; writes gives each group's register writes."""
-    if len(writes) != len(block.groups):
-        msg = f"{len(writes)} instructions for {len(block.groups)} groups"
+def pair_sends(block: Block, writes: Sequence[frozenset[int]], *, strict: bool = True) -> PairedBlock:
+    """Every <Xn> of the block paired with its send; writes gives each instruction's register
+    writes. The pairing runs over instructions, each send at the instruction the block table gives:
+    a block form's writes keep their order with its sends. A group of several instructions has no
+    <Xn> left to pair; not strict, an <Xn> without a send stays."""
+    if len(writes) != block.size // INSTRUCTION_SIZE:
+        msg = f"{len(writes)} instructions for a block of {block.size // INSTRUCTION_SIZE}"
         raise ValueError(msg)
+    units = [Transfer() for _ in writes]
+    for group in block.groups:
+        first = group.offset // INSTRUCTION_SIZE
+        if group.count == 1:
+            units[first] = group.form
+            continue
+        if strict and any(sym.is_register for sym in group.form.symbols()):
+            msg = "an <Xn> in a group of several instructions"
+            raise PairingError(msg, block.address, group.offset)
+        for offset, reg in zip(group.send_at, group.form.sends, strict=True):
+            k = offset // INSTRUCTION_SIZE
+            units[k] = Transfer(sends=(*units[k].sends, reg))
+    try:
+        sends, paired = pair_forms(units, writes, strict=strict)
+    except UnpairedError as error:
+        raise PairingError(error.message, block.address, INSTRUCTION_SIZE * error.unit) from error
+    forms = tuple(
+        paired[group.offset // INSTRUCTION_SIZE] if group.count == 1 else group.form for group in block.groups
+    )
+    return PairedBlock(block, sends, forms)
+
+
+class UnpairedError(Exception):
+    def __init__(self, message: str, unit: int) -> None:
+        super().__init__(message)
+        self.message = message
+        self.unit = unit
+
+
+def pair_forms(
+    forms: Sequence[Transfer], writes: Sequence[frozenset[int]], *, strict: bool = True
+) -> tuple[tuple[Send, ...], tuple[Transfer, ...]]:
+    """The sends of a sequence of forms (groups or instructions), numbered in order, and each form
+    with its <Xn> replaced by the send that carries it; not strict, an <Xn> without one stays."""
     sends = tuple(
-        Send(index, group, reg)
-        for index, (group, reg) in enumerate(
-            (group, reg) for group, each in enumerate(block.groups) for reg in each.form.sends
+        Send(index, unit, reg)
+        for index, (unit, reg) in enumerate(
+            (unit, reg) for unit, form in enumerate(forms) for reg in form.sends
         )
     )
-    forms: list[Transfer] = []
-    for k, group in enumerate(block.groups):
+    paired: list[Transfer] = []
+    for k, form in enumerate(forms):
         mapping: dict[Sym, Term] = {}
-        for sym in sorted(group.form.symbols(), key=str):
+        for sym in sorted(form.symbols(), key=str):
             if not sym.is_register:
                 continue
             send = find_send(int(sym.name[2:-1]), k, sends, writes.__getitem__)
             if send is None:
+                if not strict:
+                    continue
                 msg = f"{sym}: no send of X{sym.name[2:-1]} in the block without a write in between"
-                raise PairingError(msg, block.address, group.offset)
+                raise UnpairedError(msg, k)
             mapping[sym] = Term.sym(f"S{send.index}")
-        forms.append(group.form.subst(mapping))
-    return PairedBlock(block, sends, tuple(forms))
+        paired.append(form.subst(mapping))
+    return sends, tuple(paired)
 
 
 def find_send(
