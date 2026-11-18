@@ -228,6 +228,9 @@ class Replay:
         if code is None:
             entry, text = self.blocks[addr]
             block = read_block(text, addr, entry)
+            if block.block_forms:
+                msg = f"block {self.where(addr)} has block forms: the replay follows instruction groups"
+                raise self.fail(msg)
             code = self.compiled[addr] = compile_block(block, self.insns(block))
         return code
 

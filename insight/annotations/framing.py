@@ -1,9 +1,4 @@
-"""The framing of the annotation section: each block's '@<offset>' groups, closed by END.
-
-The block table (.hbngbbt) locates each block's text in .hbngannot, and gives its instructions
-and the instruction of each send: one group per instruction, in order, empty groups included,
-each holding one DSL transfer. A block not starting with '@0' is in the old format.
-"""
+"""The framing of the annotation section: each block's '@<offset>' groups, closed by END."""
 
 from __future__ import annotations
 
@@ -45,16 +40,25 @@ class OldFormatError(FramingError):
 class Group:
     offset: int
     form: Transfer
+    count: int = 1  # the instructions it describes, from offset on
+    send_at: tuple[int, ...] = ()  # the offset of each send's instruction
 
 
 @dataclass(frozen=True)
 class Block:
+    """Its groups: one per instruction, or block forms, each describing the instructions up to the
+    next group, its <Xn> already paired (S<i>)."""
+
     address: int
     groups: tuple[Group, ...]
 
     @property
     def size(self) -> int:
-        return INSTRUCTION_SIZE * len(self.groups)
+        return INSTRUCTION_SIZE * sum(group.count for group in self.groups)
+
+    @property
+    def block_forms(self) -> bool:
+        return any(group.count > 1 for group in self.groups)
 
 
 @dataclass(frozen=True)
@@ -73,7 +77,7 @@ class Entry:
 
 
 def split_groups(text: str, address: int) -> list[tuple[int, list[tuple[int, str]]]]:
-    """The groups of one block's text: (offset, [(line number, line)]), checked for framing."""
+    """The groups of one block's text: (offset, [(line number, line)]), with increasing offsets."""
     lines = [(lineno, raw.split("#", 1)[0].strip()) for lineno, raw in enumerate(text.splitlines(), 1)]
     lines = [(lineno, line) for lineno, line in lines if line]
     if not lines or lines[0][1] != "@0":
@@ -93,9 +97,8 @@ def split_groups(text: str, address: int) -> list[tuple[int, list[tuple[int, str
             return groups
         if match := GROUP_RE.fullmatch(line):
             offset = int(match.group(1))
-            expected = INSTRUCTION_SIZE * len(groups)
-            if offset != expected:
-                msg = f"line {lineno}: group @{offset} where @{expected} was expected"
+            if groups and (offset <= groups[-1][0] or offset % INSTRUCTION_SIZE):
+                msg = f"line {lineno}: group @{offset} after @{groups[-1][0]}"
                 raise FramingError(msg, address)
             groups.append((offset, []))
         else:
@@ -105,22 +108,33 @@ def split_groups(text: str, address: int) -> list[tuple[int, list[tuple[int, str
 
 
 def read_block(text: str, address: int, entry: Entry | None = None) -> Block:
-    """One block's text, framed and each group parsed; its table entry, when given, must list as
-    many instructions, and each group's sends."""
+    """One block's text, framed and each group parsed. The entry gives the block's instructions and
+    sends; without one, there is a group per instruction and each send is its group's."""
     framed = split_groups(text, address)
-    if entry is not None and entry.count != len(framed):
-        msg = f"{len(framed)} groups, the block table gives {entry.count} instructions"
+    offsets = [offset for offset, _ in framed]
+    size = INSTRUCTION_SIZE * (len(framed) if entry is None else entry.count)
+    if entry is None:
+        for k, offset in enumerate(offsets):
+            if offset != INSTRUCTION_SIZE * k:
+                msg = f"group @{offset} where @{INSTRUCTION_SIZE * k} was expected"
+                raise FramingError(msg, address)
+    if offsets[-1] >= size:
+        msg = f"group @{offsets[-1]} past the block's {size // INSTRUCTION_SIZE} instructions"
         raise FramingError(msg, address)
     groups: list[Group] = []
-    for k, (offset, lines) in enumerate(framed):
+    for (offset, lines), end in zip(framed, [*offsets[1:], size], strict=True):
         try:
             form = parse("\n".join(line for _, line in lines))
         except DslSyntaxError as error:
             raise FramingError(str(error), address, offset) from error
-        if entry is not None and len(form.sends) != entry.sends.count(k):
-            msg = f"{len(form.sends)} send lines, the block table lists {entry.sends.count(k)} sends here"
-            raise FramingError(msg, address, offset)
-        groups.append(Group(offset, form))
+        if entry is None:
+            send_at = (offset,) * len(form.sends)
+        else:
+            send_at = tuple(INSTRUCTION_SIZE * k for k in entry.sends if offset <= INSTRUCTION_SIZE * k < end)
+            if len(send_at) != len(form.sends):
+                msg = f"{len(form.sends)} send lines, the block table lists {len(send_at)} sends here"
+                raise FramingError(msg, address, offset)
+        groups.append(Group(offset, form, (end - offset) // INSTRUCTION_SIZE, send_at))
     return Block(address, tuple(groups))
 
 

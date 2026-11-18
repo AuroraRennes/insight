@@ -21,8 +21,11 @@ label       ::= 'HBNG_' NAME '_annot:'            (* HBNG_<function>[_n_<block>]
 group       ::= '@' DEC NL (stmt? NL)*
 
 (* Not expressed above:
-   - the offsets are 0, 4, 8, ...: every instruction of the block has its group, in order,
-     empty groups included. A block whose first line is not '@0' is the old format, rejected;
+   - the offsets increase from @0, a group describing the instructions from its offset to the
+     next group's, or to the block's end; the block table gives the block's instructions and the
+     instruction of each send. One group per instruction, empty groups included, or block forms:
+     a group of several instructions uses the sends S<i>, never <Xn>, and LO12@<offset> for the
+     instruction at that offset. A block whose first line is not '@0' is the old format, rejected;
    - a group's send lines are its channel entries, in the order the channel receives them:
      a send 'stp a, b' to the channel page is 'send b' then 'send a'. A register may be sent
      several times;
@@ -114,8 +117,9 @@ SYMBOL      ::= '<X' XNUM '>'                     (* Xn's value; instruction gro
               | '<SP>' | '<FP>'                   (* the tracked SP and FP, not <X29> *)
               | 'S' INDEX                         (* the block's i-th send, block forms only *)
               | 'GLOBAL'                          (* the image base *)
-              | 'LO12'                            (* the offset the linker writes into the
-                                                     instruction, ':lo12:sym': its encoding gives it *)
+              | 'LO12' ('@' DEC)?                 (* the offset the linker writes into the
+                                                     instruction, ':lo12:sym': its encoding gives it;
+                                                     in a block form, of the instruction at DEC *)
 EXT         ::= 'uxtw' | 'sxtw' | 'uxtx' | 'sxtx'
 
 

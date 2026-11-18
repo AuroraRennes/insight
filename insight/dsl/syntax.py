@@ -19,7 +19,7 @@ TOKEN_RE = re.compile(
         (?P<str>"[^"]*")
       | (?P<op><-|\.\.|[\[\]()|+\-*&,:])
       | (?P<num>0x[0-9a-fA-F]+|[0-9]+)
-      | (?P<sym><(?:X[0-9]+|SP|FP)>)
+      | (?P<sym><(?:X[0-9]+|SP|FP)>|LO12@[0-9]+)
       | (?P<name>[A-Za-z_][A-Za-z0-9_]*)
     )""",
     re.VERBOSE,

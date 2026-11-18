@@ -48,7 +48,7 @@ def test_old_format_is_rejected():
     [
         ("@4\nEND\n", "first group is @4"),
         ("@0\n@8\nEND\n", "@8 where @4 was expected"),
-        ("@0\n@0\nEND\n", "@0 where @4 was expected"),
+        ("@0\n@0\nEND\n", "group @0 after @0"),
         ("@0\nX0 <- 0\n", "no END"),
         ("@0\nEND\nX0 <- 0\n", "after END"),
         ("@0\nX0 <- [<X0> + Imm(0)]_64\nEND\n", r"block 0x400 @0: line 1"),
@@ -86,8 +86,14 @@ def test_block_text_outside_the_section():
         block_texts([Entry(0x1000, 0x3000, 1, ())], b"@0\nEND\n", 0x2000)
 
 
-def test_entry_must_agree_with_the_text():
-    with pytest.raises(FramingError, match="2 groups, the block table gives 3 instructions"):
-        read_block("@0\n@4\nEND\n", 0x400, Entry(0x400, 0, 3, ()))
+def test_block_forms_cover_their_instructions():
+    block = read_block("@0\nsend X1\n@12\nEND\n", 0x400, Entry(0x400, 0, 4, (2,)))
+    groups = [(group.offset, group.count, group.send_at) for group in block.groups]
+    assert groups == [(0, 3, (8,)), (12, 1, ())]
+    assert block.size == 16
+    assert block.block_forms
+
+
+def test_sends_must_agree_with_the_block_table():
     with pytest.raises(FramingError, match="1 send lines, the block table lists 0 sends here"):
         read_block("@0\nsend X0\n@4\nEND\n", 0x400, Entry(0x400, 0, 2, (1,)))

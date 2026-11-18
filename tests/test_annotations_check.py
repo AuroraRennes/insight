@@ -27,7 +27,7 @@ def test_bad_reports_every_block(report_of):
         (0, "ldr x0, [x0]"),
         (4, "str x0, [x16]"),
         (0, "<X1>"),
-        (None, "line 2"),
+        (None, "group @8 past the block's 2 instructions"),
         (0, "line 1"),
     ]
     assert "lists send X0 but is not a send" in report.issues[0].message
