@@ -1,6 +1,7 @@
 import pytest
 
 from insight.annotations.framing import (
+    Entry,
     FramingError,
     OldFormatError,
     block_table,
@@ -59,13 +60,34 @@ def test_framing_errors(text, message):
 
 
 def test_block_table_and_texts():
-    table = block_table(bytes.fromhex("0010000000000000 0020000000000000 0410000000000000 0820000000000000"))
-    assert table == [(0x1000, 0x2000), (0x1004, 0x2008)]
+    table = block_table(
+        bytes.fromhex(
+            "0010000000000000 0020000000000000 0100 0000 00000000"  # one instruction, no send
+            "0410000000000000 0820000000000000 0200 0200 0100 0100"  # an stp send
+        )
+    )
+    assert table == [Entry(0x1000, 0x2000, 1, ()), Entry(0x1004, 0x2008, 2, (1, 1))]
     annotations = b"@0\nEND\n\n@0\nEND\n"
     texts = block_texts(table, annotations, 0x2000)
-    assert texts == [(0x1000, "@0\nEND\n\n"), (0x1004, "@0\nEND\n")]
+    assert [(entry.address, text) for entry, text in texts] == [
+        (0x1000, "@0\nEND\n\n"),
+        (0x1004, "@0\nEND\n"),
+    ]
+
+
+def test_old_block_table():
+    # Two 16-byte entries: the second's address read as an instruction count.
+    with pytest.raises(ValueError, match="an old table"):
+        block_table(bytes.fromhex("0010400000000000 0020400000000000 0410400000000000 0820400000000000"))
 
 
 def test_block_text_outside_the_section():
     with pytest.raises(FramingError, match="outside"):
-        block_texts([(0x1000, 0x3000)], b"@0\nEND\n", 0x2000)
+        block_texts([Entry(0x1000, 0x3000, 1, ())], b"@0\nEND\n", 0x2000)
+
+
+def test_entry_must_agree_with_the_text():
+    with pytest.raises(FramingError, match="2 groups, the block table gives 3 instructions"):
+        read_block("@0\n@4\nEND\n", 0x400, Entry(0x400, 0, 3, ()))
+    with pytest.raises(FramingError, match="1 send lines, the block table lists 0 sends here"):
+        read_block("@0\nsend X0\n@4\nEND\n", 0x400, Entry(0x400, 0, 2, (1,)))

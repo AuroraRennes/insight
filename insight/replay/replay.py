@@ -16,7 +16,7 @@ from elftools.elf.elffile import ELFFile
 from elftools.elf.sections import SymbolTableSection
 
 from insight.annotations.against_r import LO12, encoded_offset
-from insight.annotations.framing import annotation_texts, read_block
+from insight.annotations.framing import Entry, annotation_texts, read_block
 from insight.annotations.pairing import code_at, decode, pair_sends, register_writes
 from insight.dsl.locations import Mem
 from insight.dsl.terms import Sym, Term
@@ -184,13 +184,13 @@ class Frame:
 class Replay:
     def __init__(
         self,
-        blocks: Mapping[int, str],
+        blocks: Mapping[int, tuple[Entry, str]],
         insns: Callable[[Block], list[CsInsn]],
         symbols: Symbols | None = None,
         word: Callable[[int], bytes] | None = None,
         readonly: Iterable[tuple[int, int]] = (),
     ) -> None:
-        self.blocks = blocks  # each block's annotation text, parsed when first entered
+        self.blocks = blocks  # each block's table entry and text, parsed when first entered
         self.insns = insns
         self.word = word or (lambda _: b"")
         self.readonly = sorted(readonly)  # (start, end) of the image's read-only segments
@@ -226,7 +226,8 @@ class Replay:
     def code(self, addr: int) -> Compiled:
         code = self.compiled.get(addr)
         if code is None:
-            block = read_block(self.blocks[addr], addr)
+            entry, text = self.blocks[addr]
+            block = read_block(text, addr, entry)
             code = self.compiled[addr] = compile_block(block, self.insns(block))
         return code
 

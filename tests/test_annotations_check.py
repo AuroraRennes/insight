@@ -39,7 +39,7 @@ def test_old_format_stops_the_check(report_of):
     report = report_of("old")
     assert report.old_format
     assert not report.ok
-    assert "rebuild with hbng-23.x" in report.issues[0].message
+    assert "an old table? rebuild" in report.issues[0].message
 
 
 def test_not_an_hbng_executable(annotation_elfs):

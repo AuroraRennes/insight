@@ -1,13 +1,14 @@
 """The framing of the annotation section: each block's '@<offset>' groups, closed by END.
 
-The block table (.hbngbbt) locates each block's text in .hbngannot: one group per instruction, in
-order, empty groups included, each holding one DSL transfer. A block not starting with '@0' is in
-the old format.
+The block table (.hbngbbt) locates each block's text in .hbngannot, and gives its instructions
+and the instruction of each send: one group per instruction, in order, empty groups included,
+each holding one DSL transfer. A block not starting with '@0' is in the old format.
 """
 
 from __future__ import annotations
 
 import re
+import struct
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -22,6 +23,7 @@ if TYPE_CHECKING:
 ANNOTATION_SECTION = ".hbngannot"
 BLOCK_TABLE_SECTION = ".hbngbbt"
 INSTRUCTION_SIZE = 4
+HEADER_SIZE = 20  # of a block table entry, before its sends
 
 GROUP_RE = re.compile(r"@(0|[1-9][0-9]*)")
 
@@ -53,6 +55,17 @@ class Block:
     @property
     def size(self) -> int:
         return INSTRUCTION_SIZE * len(self.groups)
+
+
+@dataclass(frozen=True)
+class Entry:
+    """A block's entry in the table: its address, its text's, its instructions, and the index of
+    the instruction of each send (an stp's twice)."""
+
+    address: int
+    annotation: int
+    count: int
+    sends: tuple[int, ...]
 
 
 # One block
@@ -91,14 +104,22 @@ def split_groups(text: str, address: int) -> list[tuple[int, list[tuple[int, str
     raise FramingError(msg, address)
 
 
-def read_block(text: str, address: int) -> Block:
-    """One block's text, framed and each group parsed."""
+def read_block(text: str, address: int, entry: Entry | None = None) -> Block:
+    """One block's text, framed and each group parsed; its table entry, when given, must list as
+    many instructions, and each group's sends."""
+    framed = split_groups(text, address)
+    if entry is not None and entry.count != len(framed):
+        msg = f"{len(framed)} groups, the block table gives {entry.count} instructions"
+        raise FramingError(msg, address)
     groups: list[Group] = []
-    for offset, lines in split_groups(text, address):
+    for k, (offset, lines) in enumerate(framed):
         try:
             form = parse("\n".join(line for _, line in lines))
         except DslSyntaxError as error:
             raise FramingError(str(error), address, offset) from error
+        if entry is not None and len(form.sends) != entry.sends.count(k):
+            msg = f"{len(form.sends)} send lines, the block table lists {entry.sends.count(k)} sends here"
+            raise FramingError(msg, address, offset)
         groups.append(Group(offset, form))
     return Block(address, tuple(groups))
 
@@ -107,43 +128,55 @@ def read_block(text: str, address: int) -> Block:
 # \_____________
 
 
-def block_table(data: bytes) -> list[tuple[int, int]]:
-    """(block address, annotation address) pairs: two little-endian 64-bit words each."""
-    entry = 16
-    if len(data) % entry:
-        msg = f"block table of {len(data)} bytes, not a multiple of {entry}"
-        raise ValueError(msg)
-    return [
-        (int.from_bytes(data[i : i + 8], "little"), int.from_bytes(data[i + 8 : i + 16], "little"))
-        for i in range(0, len(data), entry)
-    ]
+def block_table(data: bytes) -> list[Entry]:
+    """The entries, each 8-aligned: block and annotation addresses (64 bits), the number of
+    instructions and of sends (16 bits), then each send's instruction index (16 bits)."""
+    entries: list[Entry] = []
+    pos = 0
+    while pos < len(data):
+        if len(data) - pos < HEADER_SIZE:
+            msg = f"block table entry at {pos} truncated: an old table? rebuild"
+            raise ValueError(msg)
+        address, annotation, count, sends = struct.unpack_from("<QQHH", data, pos)
+        end = pos + HEADER_SIZE + 2 * sends
+        if not count or sends > 2 * count or end > len(data):
+            msg = f"block table entry at {pos}: {count} instructions, {sends} sends: an old table? rebuild"
+            raise ValueError(msg)
+        indices = struct.unpack_from(f"<{sends}H", data, pos + HEADER_SIZE)
+        if any(index >= count for index in indices):
+            msg = f"block table entry at {pos}: a send past the block's {count} instructions"
+            raise ValueError(msg)
+        entries.append(Entry(address, annotation, count, indices))
+        pos = (end + 7) & ~7
+    return entries
 
 
-def block_texts(table: list[tuple[int, int]], annotations: bytes, base: int) -> list[tuple[int, str]]:
-    """(block address, text): each block's text runs to the next one's in the section."""
-    starts = sorted({annotation for _, annotation in table})
+def block_texts(table: list[Entry], annotations: bytes, base: int) -> list[tuple[Entry, str]]:
+    """Each entry with its text, which runs to the next one's in the section."""
+    starts = sorted({entry.annotation for entry in table})
     ends = dict(zip(starts, [*starts[1:], base + len(annotations)], strict=True))
-    texts: list[tuple[int, str]] = []
-    for address, annotation in table:
-        if not base <= annotation < base + len(annotations):
-            msg = f"annotations at {annotation:#x}, outside {ANNOTATION_SECTION}"
-            raise FramingError(msg, address)
-        chunk = annotations[annotation - base : ends[annotation] - base]
-        texts.append((address, chunk.decode("ascii")))
+    texts: list[tuple[Entry, str]] = []
+    for entry in table:
+        if not base <= entry.annotation < base + len(annotations):
+            msg = f"annotations at {entry.annotation:#x}, outside {ANNOTATION_SECTION}"
+            raise FramingError(msg, entry.address)
+        chunk = annotations[entry.annotation - base : ends[entry.annotation] - base]
+        texts.append((entry, chunk.decode("ascii")))
     return texts
 
 
 def read_blocks(elf: ELFFile) -> list[Block]:
     """Every annotated block of an executable."""
-    return [read_block(text, address) for address, text in annotation_texts(elf).items()]
+    return [read_block(text, address, entry) for address, (entry, text) in annotation_texts(elf).items()]
 
 
-def annotation_texts(elf: ELFFile) -> dict[int, str]:
-    """Every annotated block's text, by address, not parsed yet."""
+def annotation_texts(elf: ELFFile) -> dict[int, tuple[Entry, str]]:
+    """Every annotated block's entry and text, by address, not parsed yet."""
     table_section = elf.get_section_by_name(BLOCK_TABLE_SECTION)
     annotation_section = elf.get_section_by_name(ANNOTATION_SECTION)
     if table_section is None or annotation_section is None:
         msg = f"no {BLOCK_TABLE_SECTION} or {ANNOTATION_SECTION} section: not built with the HBNG compiler"
         raise ValueError(msg)
     table = block_table(table_section.data())
-    return dict(block_texts(table, annotation_section.data(), annotation_section["sh_addr"]))
+    texts = block_texts(table, annotation_section.data(), annotation_section["sh_addr"])
+    return {entry.address: (entry, text) for entry, text in texts}

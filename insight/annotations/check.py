@@ -108,7 +108,10 @@ def check_elf(elf: ELFFile, *, against_r: bool = False) -> Report:
     if table_section is None or annotation_section is None:
         msg = f"no {BLOCK_TABLE_SECTION} or {ANNOTATION_SECTION} section: not built with the HBNG compiler"
         raise ValueError(msg)
-    table = block_table(table_section.data())
+    try:
+        table = block_table(table_section.data())
+    except ValueError as error:
+        return Report(0, 0, 0, (Issue(table_section["sh_addr"], None, str(error)),), old_format=True)
     texts = block_texts(table, annotation_section.data(), annotation_section["sh_addr"])
     page: int | None = None  # looked up at the first block in the current format
 
@@ -116,9 +119,9 @@ def check_elf(elf: ELFFile, *, against_r: bool = False) -> Report:
     issues: list[Issue] = []
     tally = RTally() if against_r else None
     origins: Counter[str] = Counter()
-    for address, text in texts:
+    for entry, text in texts:
         try:
-            block = read_block(text, address)
+            block = read_block(text, entry.address, entry)
         except OldFormatError as error:
             return Report(len(texts), 0, 0, (Issue(error.address, None, error.message),), old_format=True)
         except FramingError as error:

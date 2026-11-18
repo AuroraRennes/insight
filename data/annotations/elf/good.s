@@ -45,6 +45,14 @@ HBNG_frame_annot:
 	.ascii	"@20\n" "END\n"
 
 	.section .hbngbbt,"a",@progbits
+	.p2align 3
+// Each entry: the block, its text, its instructions, its sends, then the instruction of each send.
 	.xword	HBNG_load, HBNG_load_annot
+	.hword	4, 1, 1
+	.p2align 3
 	.xword	HBNG_cas_n_2, HBNG_cas_n_2_annot
+	.hword	3, 2, 1, 1
+	.p2align 3
 	.xword	HBNG_frame, HBNG_frame_annot
+	.hword	6, 1, 4
+	.p2align 3

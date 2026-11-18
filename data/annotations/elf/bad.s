@@ -46,8 +46,20 @@ HBNG_syntax_annot:
 	.ascii	"@0\n" "X0 := 1\n" "END\n"
 
 	.section .hbngbbt,"a",@progbits
+	.p2align 3
+// Each entry: the block, its text, its instructions, its sends, then the instruction of each send.
 	.xword	HBNG_not_a_send, HBNG_not_a_send_annot
+	.hword	2, 1, 0
+	.p2align 3
 	.xword	HBNG_wrong_page, HBNG_wrong_page_annot
+	.hword	4, 1, 1
+	.p2align 3
 	.xword	HBNG_unpaired, HBNG_unpaired_annot
+	.hword	2, 0
+	.p2align 3
 	.xword	HBNG_gap, HBNG_gap_annot
+	.hword	2, 0
+	.p2align 3
 	.xword	HBNG_syntax, HBNG_syntax_annot
+	.hword	1, 0
+	.p2align 3
