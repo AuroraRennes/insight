@@ -10,15 +10,17 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
+from insight.dsl.errors import AliasUndecidedError, InstructionFormError, OpaqueError
 from insight.dsl.locations import Mem
-from insight.dsl.terms import Sym, Term
+from insight.dsl.terms import Sym, Term, relation
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Mapping
+    from collections.abc import Callable, Iterable, Iterator, Mapping
 
     from insight.dsl.locations import Loc, Reg
 
 ValueReg = Literal["SP", "FP"]
+VALUE_REGS: tuple[ValueReg, ...] = ("SP", "FP")
 ENTRY_SYMS: dict[ValueReg, Sym] = {"SP": Sym("<SP>"), "FP": Sym("<FP>")}
 
 EMPTY: frozenset[Loc] = frozenset()
@@ -130,3 +132,86 @@ class Transfer:
         from insight.dsl.printer import dump  # noqa: PLC0415 (printer imports this module)
 
         return dump(self)
+
+    # Composition
+    # \____________
+
+    def check_composable(self) -> None:
+        """Only block forms compose: no opaque statement, no send, no <Xn>."""
+        if self.opaque:
+            msg = f"cannot compose through {self.opaque[0]}"
+            raise OpaqueError(msg)
+        if self.sends:
+            msg = f"send {self.sends[0]}: pair the sends first, then compose the block form"
+            raise InstructionFormError(msg)
+        registers = sorted(str(sym) for sym in self.symbols() if sym.is_register)
+        if registers:
+            msg = f"{registers[0]}: compose block forms (sends), not instruction forms"
+            raise InstructionFormError(msg)
+
+    def at_exit(self, loc: Loc) -> Dep:
+        """What a location at this transfer's exit depends on at its entry."""
+        if not isinstance(loc, Mem):
+            return self.dep(loc)
+        written = same_byte(loc, [each for each in self.tags if isinstance(each, Mem)])
+        return Dep(frozenset({loc})) if written is None else self.tags[written]
+
+    def then(self, second: Transfer) -> Transfer:
+        """This transfer followed by second."""
+        self.check_composable()
+        second.check_composable()
+        entry = {ENTRY_SYMS[reg]: self.value(reg) for reg in VALUE_REGS}
+
+        def rebase(loc: Loc) -> Loc:
+            return Mem(loc.addr.subst(entry)) if isinstance(loc, Mem) else loc
+
+        tags: dict[Loc, Dep] = {}
+        for loc, dep in second.tags.items():
+            target = rebase(loc)
+            if target in tags:
+                msg = f"{target} written twice"
+                raise ValueError(msg)
+            tags[target] = self.through(dep, rebase)
+        second_mem = [loc for loc in tags if isinstance(loc, Mem)]
+        for loc, dep in self.tags.items():
+            if loc in tags or (isinstance(loc, Mem) and same_byte(loc, second_mem) is not None):
+                continue
+            tags[loc] = dep
+        values = {reg: second.value(reg).subst(entry) for reg in VALUE_REGS}
+        return Transfer(tags, values).normalized()
+
+    def through(self, dep: Dep, rebase: Callable[[Loc], Loc]) -> Dep:
+        """A dependency of the next transfer, its sources taken back through this one. A source
+        stays over-approximated only if every path to it is."""
+        srcs: set[Loc] = set()
+        exact: set[Loc] = set()
+        excl: set[Loc] = set()
+        over = {rebase(src) for src in dep.over}
+        for src in map(rebase, dep.srcs):
+            inner = self.at_exit(src)
+            srcs |= inner.srcs
+            excl |= inner.excl
+            if src not in over:
+                exact |= inner.srcs - inner.over
+        for src in map(rebase, dep.excl):
+            inner = self.at_exit(src)
+            excl |= inner.srcs | inner.excl
+        return Dep(frozenset(srcs), frozenset(excl), frozenset(srcs - exact))
+
+
+def same_byte(loc: Mem, written: Iterable[Mem]) -> Mem | None:
+    """The written location at the same address, if any; fails when that cannot be decided."""
+    written = list(written)
+    relations = [relation(loc.addr, other.addr) for other in written]
+    if "eq" in relations:
+        return written[relations.index("eq")]
+    if "unknown" in relations:
+        raise AliasUndecidedError(loc.addr, written[relations.index("unknown")].addr)
+    return None
+
+
+def compose(transfers: Iterable[Transfer]) -> Transfer:
+    result = Transfer()
+    for transfer in transfers:
+        result = result.then(transfer)
+    return result

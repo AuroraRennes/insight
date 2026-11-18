@@ -1,6 +1,6 @@
 import pytest
 
-from insight.dsl.terms import MASK, Sym, Term
+from insight.dsl.terms import MASK, Sym, Term, relation
 
 S0 = Term.sym("S0")
 S1 = Term.sym("S1")
@@ -71,3 +71,12 @@ def test_tracked_values_are_not_registers():
     assert not Sym("S0").is_register
     with pytest.raises(ValueError, match="unknown symbol"):
         Sym("SP0")
+
+
+def test_relation_by_constant_difference():
+    s0, s1, sp = Term.sym("S0"), Term.sym("S1"), Term.sym("<SP>")
+    assert relation(s0 + 8, s0 + 8) == "eq"
+    assert relation(s0 + 8, s0 + 9) == "ne"
+    assert relation(sp - 16, sp) == "ne"
+    assert relation(s0, s1) == "unknown"
+    assert relation(s0.ext("uxtw", 0), s0 & 0xFFFFFFFF) == "unknown"  # same bits, not decided

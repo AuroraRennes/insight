@@ -1,11 +1,13 @@
 import pytest
 
+from insight.dsl.errors import AliasUndecidedError, InstructionFormError, OpaqueError
 from insight.dsl.locations import Mem, Reg, VByte
 from insight.dsl.syntax import parse
 from insight.dsl.terms import Sym, Term
-from insight.dsl.transfer import Dep, Opaque, Transfer
+from insight.dsl.transfer import Dep, Opaque, Transfer, compose
 
 SP = Term.sym("<SP>")
+S0 = Term.sym("S0")
 
 
 def test_identity_entries_do_not_matter():
@@ -82,3 +84,127 @@ def test_subst_replaces_addresses_and_values():
 def test_subst_refuses_to_merge_two_written_locations():
     with pytest.raises(ValueError, match="written twice"):
         parse("M[<X1>] <- X0\nM[S0] <- X2").subst({Sym("<X1>"): Term.sym("S0")})
+
+
+# Composition
+# \____________
+
+
+def test_simultaneous_assignment():
+    swap = parse("X0 <- X1\nX1 <- X0")  # both sources read at the entry
+    assert swap.then(swap).same_meaning(Transfer())
+
+
+def test_registers_compose():
+    t = parse("X0 <- 0").then(parse("X1 <- X0 | X2"))
+    assert t.dep(Reg(1)).srcs == {Reg(2)}
+    assert t.dep(Reg(0)).srcs == frozenset()
+
+
+def test_prologue_epilogue():
+    # stp x29, x30, [sp, #-16]! ; ldp x29, x30, [sp], #16
+    stp = parse("M[<SP> - 16 .. +8] <- FP\nM[<SP> - 8 .. +8] <- LR\n<SP> <- <SP> - 16")
+    ldp = parse("FP <- M[<SP> .. +8]\nLR <- M[<SP> + 8 .. +8]\n<SP> <- <SP> + 16")
+    t = stp.then(ldp)
+    assert t.value("SP") == SP
+    assert t.dep(Reg(29)).srcs == {Reg(29)}
+    assert t.dep(Reg(30)).srcs == {Reg(30)}
+    # The saved bytes are still written by the block.
+    assert t.dep(Mem(SP - 16)).srcs == {Reg(29)}
+    assert set(t.normalized().tags) == {Mem(SP - 16 + k) for k in range(16)}
+
+
+def test_sp_rebases_the_second_transfer():
+    t = parse("<SP> <- <SP> - 32").then(parse("X0 <- M[<SP> + 8]"))
+    assert t.dep(Reg(0)).srcs == {Mem(SP - 24)}
+
+
+def test_store_then_load_same_byte():
+    t = parse("M[S0 + 4] <- X1").then(parse("X2 <- M[S0 + 4] | M[S0 + 5]"))
+    assert t.dep(Reg(2)).srcs == {Reg(1), Mem(S0 + 5)}
+
+
+def test_store_overwritten_by_later_store():
+    t = parse("M[S0] <- X1").then(parse("M[S0] <- X2"))
+    assert t.dep(Mem(S0)).srcs == {Reg(2)}
+
+
+def test_distinct_stack_slots():
+    t = parse("M[<SP> - 16] <- X1").then(parse("X2 <- M[<SP> - 32]\nM[<SP> - 8] <- X3"))
+    assert t.dep(Reg(2)).srcs == {Mem(SP - 32)}
+    assert t.dep(Mem(SP - 16)).srcs == {Reg(1)}
+
+
+def test_undecided_alias_fails():
+    with pytest.raises(AliasUndecidedError):
+        parse("M[S0] <- X1").then(parse("X2 <- M[S1]"))
+    with pytest.raises(AliasUndecidedError):
+        parse("M[S0] <- X1").then(parse("M[S1] <- X2"))
+
+
+def test_alias_decided_by_constant_difference_only():
+    # The same bits, but not a constant apart: undecided.
+    with pytest.raises(AliasUndecidedError):
+        parse("M[ext(S0, uxtw, 0)] <- X1").then(parse("X2 <- M[(S0 & 0xffffffff)]"))
+    with pytest.raises(AliasUndecidedError):
+        parse("M[S0] <- X1").then(parse("X2 <- M[<SP> - 8]"))
+
+
+def test_over_and_excl_propagate():
+    first = parse("V0[0:1] <- V1[0:1] | V2[0:1] over V2[0:1]\nX3 <- X4")
+    second = parse("X5 <- V0[0] | X6\nX7 <- 0 excl X3")
+    t = first.then(second)
+    dep = t.dep(Reg(5))
+    assert dep.srcs == {VByte(1, 0), VByte(1, 1), VByte(2, 0), VByte(2, 1), Reg(6)}
+    assert dep.over == {VByte(2, 0), VByte(2, 1)}
+    assert t.dep(Reg(7)) == Dep(frozenset(), frozenset({Reg(4)}))
+
+
+def test_source_both_exact_and_over_is_exact():
+    first = parse("X1 <- X9 | X8 over X9\nX2 <- X9")
+    t = first.then(parse("X0 <- X1 | X2"))
+    assert t.dep(Reg(0)).over == frozenset()
+
+
+def test_composition_is_associative():
+    a = parse("M[<SP> - 8 .. +8] <- X0\n<SP> <- <SP> - 16\nX1 <- X2 | X3")
+    b = parse("X3 <- M[<SP> + 8 .. +8]\nV0[0:3] <- X3")
+    c = parse("M[<SP> + 8 .. +4] <- V0[0:3] per 1\n<SP> <- <SP> + 16\nX0 <- X1")
+    left = a.then(b).then(c)
+    right = a.then(b.then(c))
+    assert left.same_meaning(right)
+    assert compose([a, b, c]).same_meaning(left)
+
+
+def test_instruction_form_is_not_composed():
+    with pytest.raises(InstructionFormError):
+        parse("X0 <- M[<X1>]").then(Transfer())
+
+
+def test_opaque_is_not_composed():
+    with pytest.raises(OpaqueError):
+        parse("svc").then(Transfer())
+    with pytest.raises(OpaqueError):
+        Transfer().then(parse('unsupported "TBXv16i8One"'))
+
+
+def test_sends_are_not_composed():
+    with pytest.raises(InstructionFormError, match="pair the sends"):
+        parse("send X0").then(Transfer())
+
+
+def test_fp_reload_once_paired():
+    # ldp x29, x30, [sp], #16 ; str x29, [x18] (send X29, then <FP> <- <X29>), paired as S0.
+    ldp = parse("FP <- M[<SP> .. +8]\nLR <- M[<SP> + 8 .. +8]\n<SP> <- <SP> + 16")
+    send = parse("<FP> <- S0")
+    t = ldp.then(send)
+    assert t.value("FP") == Term.sym("S0")
+    assert t.value("SP") == SP + 16
+    assert t.dep(Reg(29)).srcs == {Mem(SP + k) for k in range(8)}
+
+
+def test_tracked_fp_is_not_the_register():
+    with pytest.raises(InstructionFormError, match="<X29>"):
+        parse("<FP> <- <X29>").then(Transfer())
+    t = parse("<FP> <- <SP> + 16").then(parse("X0 <- M[<FP> - 8]"))
+    assert t.dep(Reg(0)).srcs == {Mem(SP + 8)}

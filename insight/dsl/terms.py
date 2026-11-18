@@ -234,3 +234,15 @@ class Term:
 
 def lift(value: Term | int) -> Term:
     return value if isinstance(value, Term) else Term.of(value)
+
+
+Relation = Literal["eq", "ne", "unknown"]
+
+
+def relation(a: Term, b: Term) -> Relation:
+    """Whether a and b are equal for every valuation, different for every one, or neither: decided
+    only when they differ by a constant."""
+    diff = a - b
+    if not diff.is_const:
+        return "unknown"
+    return "eq" if diff.const == 0 else "ne"
