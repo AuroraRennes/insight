@@ -69,7 +69,8 @@ class Alarm:
 @dataclass
 class Result:
     blocks: int = 0  # block instances run
-    groups: int = 0
+    instructions: int = 0  # run while tracking
+    groups: int = 0  # applied: one per instruction, or per block form
     sends: int = 0
     accesses: int = 0
     syscalls: int = 0
@@ -165,16 +166,37 @@ class Symbols:
 
 
 @dataclass
+class FormRun:
+    """A block form whose instructions are being run: the runs it names and their starts, taken at
+    its entry, and the real accesses of its instructions so far."""
+
+    group: Group
+    named: tuple[tuple[int, int], ...]
+    addrs: tuple[int, ...]
+    left: int  # its instructions not run yet
+    real: list[tuple[int, int]] = field(default_factory=list)
+
+    @property
+    def next_address(self) -> int:
+        return self.group.address + INSTRUCTION * (self.group.count - self.left)
+
+
+@dataclass
 class Instance:
     """A block being run: the send values taken so far."""
 
     code: Compiled
     next_group: int = 0
     sent: list[int] = field(default_factory=list)
+    form: FormRun | None = None
 
     @property
     def finished(self) -> bool:
-        return self.next_group == len(self.code.groups)
+        return self.next_group == len(self.code.groups) and self.form is None
+
+    @property
+    def next_address(self) -> int:
+        return self.form.next_address if self.form is not None else self.code.groups[self.next_group].address
 
 
 @dataclass
@@ -236,9 +258,6 @@ class Replay:
         if code is None:
             entry, text = self.blocks[addr]
             block = read_block(text, addr, entry)
-            if block.block_forms:
-                msg = f"block {self.where(addr)} has block forms: the replay follows instruction groups"
-                raise self.fail(msg)
             code = self.compiled[addr] = compile_block(block, self.insns(block))
         return code
 
@@ -284,27 +303,33 @@ class Replay:
         if self.frames and self.frames[-1].restorer <= pc < self.frames[-1].restorer + RESTORER_SIZE:
             self.skip(stream, n)  # its rt_sigreturn restores the interrupted context
             return
+        self.result.instructions += n
         i = 0
         while i < n:
-            group = self.enter(pc + INSTRUCTION * i, sp, fp, audit=i == 0)
+            self.instruction(stream, pc + INSTRUCTION * i, sp, fp, audit=i == 0)
             i += 1
-            if group is not None:
-                self.run_group(stream, group)
             self.drain_events(stream)
-            # The rest of the block follows group by group, as long as it is the current one (a
-            # signal's return changes it)
-            cur = self.current
-            if group is None or cur is None:
-                continue
-            groups = cur.code.groups
-            while i < n and cur.next_group < len(groups) and self.current is cur:
+            if self.current is not None:
+                i = self.follow(stream, self.current, i, n)
+
+    def follow(self, stream: Stream, cur: Instance, i: int, n: int) -> int:
+        """The block's instructions from the i-th of the n, as long as it is the current one (a
+        signal's return changes it): where it stopped."""
+        groups = cur.code.groups
+        while i < n and self.current is cur:
+            if cur.form is not None:
+                self.form_instruction(stream, cur, cur.form)
+            elif cur.next_group < len(groups):
                 group = groups[cur.next_group]
                 cur.next_group += 1
-                i += 1
-                self.run_group(stream, group)
-                head = stream.peek()
-                if head is not None and head[0] in EVENTS:
-                    self.drain_events(stream)
+                self.start(stream, group)
+            else:
+                break
+            i += 1
+            head = stream.peek()
+            if head is not None and head[0] in EVENTS:
+                self.drain_events(stream)
+        return i
 
     def skip(self, stream: Stream, n: int) -> None:
         """A block run untracked (the start code, a signal's restorer): its accesses are not
@@ -316,11 +341,21 @@ class Replay:
             if record[0] in EVENTS:
                 self.event(record)
 
+    def instruction(self, stream: Stream, addr: int, sp: int, fp: int, *, audit: bool) -> None:
+        """The instruction at addr: the next of the form being run, or the start of a group."""
+        cur = self.current
+        if cur is not None and cur.form is not None and cur.form.next_address == addr:
+            self.form_instruction(stream, cur, cur.form)
+            return
+        group = self.enter(addr, sp, fp, audit=audit)
+        if group is not None:
+            self.start(stream, group)
+
     def enter(self, addr: int, sp: int, fp: int, *, audit: bool) -> Group | None:
         """The group at addr: the current block's next, or a new block's first. None for an
         alignment nop between blocks, run when a block falls through it."""
         cur = self.current
-        if cur is not None and not cur.finished and cur.code.groups[cur.next_group].address == addr:
+        if cur is not None and cur.form is None and not cur.finished and cur.next_address == addr:
             group = cur.code.groups[cur.next_group]
             cur.next_group += 1
             return group
@@ -332,7 +367,8 @@ class Replay:
             raise self.fail(msg)
         if cur is not None and not cur.finished:
             msg = (
-                f"block {self.where(cur.code.block.address)} left at @{INSTRUCTION * cur.next_group}"
+                f"block {self.where(cur.code.block.address)} left at"
+                f" @{cur.next_address - cur.code.block.address}"
                 f" for {self.where(addr)}"
             )
             raise self.fail(msg)
@@ -346,6 +382,53 @@ class Replay:
         self.result.blocks += 1
         self.current.next_group = 1
         return self.current.code.groups[0]
+
+    def start(self, stream: Stream, group: Group) -> None:
+        """A group of one instruction runs at once; a block form, over its instructions."""
+        if group.count == 1:
+            self.run_group(stream, group)
+            return
+        cur = self.current
+        if cur is None:
+            msg = "a group outside a block"
+            raise self.fail(msg)
+        if len(cur.sent) <= group.needs:
+            self.take_sends(stream, cur, group)
+        named, addrs = group.where(self.state.sp, self.state.fp, cur.sent)
+        cur.form = FormRun(group, named, addrs, group.count)
+        self.form_instruction(stream, cur, cur.form)
+
+    def form_instruction(self, stream: Stream, cur: Instance, run: FormRun) -> None:
+        """One instruction of a block form: its accesses kept; at the last, the form is audited and
+        applied."""
+        address = run.next_address
+        while (record := stream.peek()) is not None and record[0] == "A" and record[1] == address:
+            stream.head = NOT_PEEKED  # taken
+            run.real.append((record[2], record[3]))
+            self.result.accesses += 1
+        run.left -= 1
+        if run.left:
+            return
+        cur.form = None
+        group = run.group
+        # The composition drops what its instructions access in between (a store reloaded, a load
+        # overwritten, a read-only table): every byte the form names must be accessed, not the
+        # other way round.
+        missing = run_bytes(run.named) - run_bytes(run.real)
+        if missing and record is None:
+            self.result.fault = self.where(address)
+            raise FatalFault
+        if missing:
+            msg = f"the form at {self.where(group.address)} names bytes not accessed: {describe(missing)}"
+            raise self.fail(msg, group)
+        if group.unsupported is not None:
+            msg = f"unsupported instruction run at {self.where(group.address)}: {group.unsupported}"
+            raise self.fail(msg, group)
+        state = self.state
+        state.sp, state.fp = group.apply(
+            run.addrs, state.sp, state.fp, cur.sent, state.x, state.v, state.mem.pages, state.mem.set
+        )
+        self.result.groups += 1
 
     def run_group(self, stream: Stream, group: Group) -> None:
         cur = self.current

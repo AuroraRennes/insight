@@ -154,7 +154,8 @@ def replay(elf: Path, trace: Path) -> int:
             f" (first at {alarm.first:#x})\n"
         )
     out.write(
-        f"{trace}: {result.blocks} blocks, {result.groups} instructions, {result.sends} sends, "
+        f"{trace}: {result.blocks} blocks, {result.instructions} instructions in {result.groups} groups,"
+        f" {result.sends} sends, "
         f"{result.accesses} accesses ({result.readonly_loads} read-only loads not named, "
         f"{result.discarded_loads} into the zero register), "
         f"{result.syscalls} syscalls, {result.signals} signals, {result.padding} padding nops, "

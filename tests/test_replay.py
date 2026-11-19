@@ -178,9 +178,9 @@ def test_replay_tiny(traced: Path):
     assert result.alarms == []
 
 
-def test_replay_stops_at_a_wrong_address(traced: Path, tmp_path: Path):
-    """The same trace with the store's address moved by 8: the audit stops the replay there."""
-    with TraceFile(traced / "tiny.trace") as trace:
+def first_access_moved(trace_path: Path, out: Path) -> Path:
+    """The trace with its first access's address moved by 8."""
+    with TraceFile(trace_path) as trace:
         header = trace.header
         records = list(trace.records)
     i = next(k for k, record in enumerate(records) if record[0] == "A")
@@ -188,10 +188,23 @@ def test_replay_stops_at_a_wrong_address(traced: Path, tmp_path: Path):
     data = HEADER.pack(MAGIC, 1, 0, header.chan, header.chan_size) + b"".join(
         record[0].encode() + FORMATS[ord(record[0])].pack(*record[1:]) for record in records
     )
-    path = tmp_path / "wrong.trace"
-    subprocess.run(["zstd", "-q", "-o", path], input=data, check=True)
+    subprocess.run(["zstd", "-q", "-o", out], input=data, check=True)
+    return out
+
+
+def test_replay_stops_at_a_wrong_address(traced: Path, tmp_path: Path):
+    """The same trace with the store's address moved by 8: the audit stops the replay there."""
     with pytest.raises(ReplayError, match="addresses differ"):
-        replay_file(traced / "tiny.elf", path)
+        replay_file(traced / "tiny.elf", first_access_moved(traced / "tiny.trace", tmp_path / "wrong.trace"))
+
+
+def test_replay_block_forms(traced: Path):
+    """forms.s, tiny.s as block forms: the same run in 6 groups."""
+    tiny = replay_file(traced / "tiny.elf", traced / "tiny.trace")
+    forms = replay_file(traced / "forms.elf", traced / "forms.trace")
+    assert (forms.blocks, forms.instructions, forms.groups, forms.sends, forms.accesses) == (1, 17, 6, 1, 4)
+    assert (tiny.instructions, tiny.groups) == (17, 17)
+    assert forms.sends_left == 0
 
 
 def test_lo12_of_a_one_instruction_group_in_block_forms():
@@ -200,6 +213,13 @@ def test_lo12_of_a_one_instruction_group_in_block_forms():
     text = "@0\nX16 <- 0\nsend X0\n@8\nX1 <- M[S0 + LO12@8 .. +8]\nEND\n"
     code = compile_block(read_block(text, 0x1000, Entry(0x1000, 0, 3, (1,))), insns)
     assert set(code.groups[1].mems) == {Term.sym("S0") + 16 + i for i in range(8)}
+
+
+def test_replay_block_form_names_bytes_not_accessed(traced: Path, tmp_path: Path):
+    """The form's store moved by 8: the bytes it names are not all accessed."""
+    wrong = first_access_moved(traced / "forms.trace", tmp_path / "wrong.trace")
+    with pytest.raises(ReplayError, match=r"names bytes not accessed: 0x[0-9a-f]+\.\.\+8"):
+        replay_file(traced / "forms.elf", wrong)
 
 
 def test_replay_ends_at_a_fatal_fault(traced: Path):
