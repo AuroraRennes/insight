@@ -94,6 +94,7 @@ class Group:
     apply: Callable[..., tuple[int, int]]  # the tags, then SP and FP (codegen.py)
     unsupported: str | None = None  # the text of an unsupported instruction
     discards: bool = False  # a load into the zero register: no tag changes, nothing to name
+    count: int = 1  # the instructions it covers: more than one for a block form
 
 
 @dataclass(frozen=True)
@@ -103,21 +104,27 @@ class Compiled:
 
     @property
     def end(self) -> int:
-        return self.block.address + INSTRUCTION * len(self.groups)
+        return self.block.address + self.block.size
 
 
 def compile_block(block: Block, insns: list[CsInsn], image_base: int = 0) -> Compiled:
     """The block's groups paired with its sends, LO12 and GLOBAL replaced by their values."""
     paired = pair_sends(block, [register_writes(insn) for insn in insns])
     groups = []
-    for k, paired_form in enumerate(paired.forms):
-        form = paired_form.subst({LO12: Term.of(encoded_offset(insns[k])), GLOBAL: Term.of(image_base)})
-        own = tuple(send.index for send in paired.sends if send.group == k)
+    for group, paired_form in zip(block.groups, paired.forms, strict=True):
+        k = group.offset // INSTRUCTION
+        span = range(k, k + group.count)
+        # In block forms, each instruction's LO12 is named by its offset
+        values = {Sym(f"LO12@{INSTRUCTION * i}"): Term.of(encoded_offset(insns[i])) for i in span}
+        values |= {LO12: values[Sym(f"LO12@{INSTRUCTION * k}")], GLOBAL: Term.of(image_base)}
+        form = paired_form.subst(values)
+        own = tuple(send.index for send in paired.sends if send.group in span)
         refs = [int(sym.name[1:]) for sym in form.symbols() if sym.name.startswith("S")]
         mems = [loc.addr for loc in form.locations() if isinstance(loc, Mem)]
         insn = insns[k]
         discards = (
-            insn.mnemonic.startswith("ld")
+            group.count == 1
+            and insn.mnemonic.startswith("ld")
             and bool(insn.operands)
             and insn.reg_name(insn.operands[0].reg) in {"xzr", "wzr"}
         )
@@ -126,7 +133,7 @@ def compile_block(block: Block, insns: list[CsInsn], image_base: int = 0) -> Com
         unsupported = next((opaque.text for opaque in form.opaque if opaque.kind == "unsupported"), None)
         groups.append(
             Group(
-                address=block.address + INSTRUCTION * k,
+                address=block.address + group.offset,
                 form=form,
                 sends=own,
                 needs=max([*own, *refs], default=-1),
@@ -135,6 +142,7 @@ def compile_block(block: Block, insns: list[CsInsn], image_base: int = 0) -> Com
                 apply=apply,
                 unsupported=unsupported,
                 discards=discards,
+                count=group.count,
             )
         )
     return Compiled(block, tuple(groups))

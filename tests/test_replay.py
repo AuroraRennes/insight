@@ -7,9 +7,11 @@ import pytest
 from elftools.elf.elffile import ELFFile
 from elftools.elf.sections import SymbolTableSection
 
+from insight.annotations.framing import Entry, read_block
+from insight.annotations.pairing import decode
 from insight.dsl.locations import Mem, Reg, VByte
 from insight.dsl.terms import Term
-from insight.replay.replay import ReplayError, replay_file
+from insight.replay.replay import ReplayError, compile_block, replay_file
 from insight.replay.state import PAGE, Shadow, State
 from insight.replay.trace import (
     FORMATS,
@@ -190,6 +192,14 @@ def test_replay_stops_at_a_wrong_address(traced: Path, tmp_path: Path):
     subprocess.run(["zstd", "-q", "-o", path], input=data, check=True)
     with pytest.raises(ReplayError, match="addresses differ"):
         replay_file(traced / "tiny.elf", path)
+
+
+def test_lo12_of_a_one_instruction_group_in_block_forms():
+    # adrp x16, 0x400000; str x0, [x16]; ldr x1, [x0, #16]: the last is a group of its own.
+    insns = decode(bytes.fromhex("f01f00f0000200f9010840f9"), 0x1000)
+    text = "@0\nX16 <- 0\nsend X0\n@8\nX1 <- M[S0 + LO12@8 .. +8]\nEND\n"
+    code = compile_block(read_block(text, 0x1000, Entry(0x1000, 0, 3, (1,))), insns)
+    assert set(code.groups[1].mems) == {Term.sym("S0") + 16 + i for i in range(8)}
 
 
 def test_replay_ends_at_a_fatal_fault(traced: Path):
