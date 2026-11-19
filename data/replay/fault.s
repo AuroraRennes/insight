@@ -34,5 +34,9 @@ HBNG_main_annot:
 	.ascii	"@24\n" "svc\n"
 	.ascii	"END\n"
 
+	// Per block: its address and annotations, its instructions, its sends and the index of each
+	// send's instruction
 	.section .hbngbbt,"a",@progbits
 	.xword	main, HBNG_main_annot
+	.hword	7, 1, 2
+	.p2align 3

@@ -124,6 +124,12 @@ HBNG_handler_annot:
 	.ascii	"@28\n"
 	.ascii	"END\n"
 
+	// Per block: its address and annotations, its instructions, its sends and the index of each
+	// send's instruction
 	.section .hbngbbt,"a",@progbits
 	.xword	main, HBNG_main_annot
+	.hword	36, 2, 8, 27
+	.p2align 3
 	.xword	handler, HBNG_handler_annot
+	.hword	8, 2, 1, 4
+	.p2align 3
