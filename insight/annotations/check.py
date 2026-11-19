@@ -14,6 +14,7 @@ from insight.annotations.against_r import compare_block
 from insight.annotations.framing import (
     ANNOTATION_SECTION,
     BLOCK_TABLE_SECTION,
+    INSTRUCTION_SIZE,
     FramingError,
     OldFormatError,
     block_table,
@@ -49,6 +50,7 @@ class Report:
     sends: int
     issues: tuple[Issue, ...]
     old_format: bool = False
+    instructions: int = 0  # as many as groups, unless there are block forms
     unsupported: dict[str, int] = field(default_factory=dict)  # R's missing rules, by reason
     jump_table_loads: int = 0  # compared with the jump-table convention instead of R
     page_origins: dict[str, int] = field(default_factory=dict)  # sends whose page is not followed
@@ -115,7 +117,7 @@ def check_elf(elf: ELFFile, *, against_r: bool = False) -> Report:
     texts = block_texts(table, annotation_section.data(), annotation_section["sh_addr"])
     page: int | None = None  # looked up at the first block in the current format
 
-    groups = sends = 0
+    groups = sends = instructions = 0
     issues: list[Issue] = []
     tally = RTally() if against_r else None
     origins: Counter[str] = Counter()
@@ -130,15 +132,19 @@ def check_elf(elf: ELFFile, *, against_r: bool = False) -> Report:
         if page is None:
             page = channel_page(elf)
         groups += len(block.groups)
+        instructions += block.size // INSTRUCTION_SIZE
         sends += sum(len(group.form.sends) for group in block.groups)
         issues += check_block(elf, block, page, tally, origins)
     if tally is None:
-        return Report(len(texts), groups, sends, tuple(issues), page_origins=dict(origins))
+        return Report(
+            len(texts), groups, sends, tuple(issues), instructions=instructions, page_origins=dict(origins)
+        )
     return Report(
         len(texts),
         groups,
         sends,
         tuple(issues),
+        instructions=instructions,
         unsupported=tally.unsupported,
         jump_table_loads=tally.jump_table_loads,
         page_origins=dict(origins),

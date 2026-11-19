@@ -14,7 +14,7 @@ def test_command_limits_the_printed_issues(capsys, annotation_elfs):
     out = capsys.readouterr().out.splitlines()
     assert len(out) == 4
     assert out[2] == "... 3 more"
-    assert out[3].endswith("5 blocks, 8 instructions, 2 sends, 5 issues")
+    assert out[3].endswith("5 blocks, 8 instructions in 8 groups, 2 sends, 5 issues")
 
 
 def test_command_counts_the_sends_whose_page_is_not_followed(capsys, annotation_elfs):

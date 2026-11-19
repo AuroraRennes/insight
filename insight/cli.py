@@ -80,7 +80,8 @@ def check(path: Path, max_issues: int, *, against_r: bool) -> int:
         out.write(f"{path}: old annotation format, not checked\n")
     else:
         out.write(
-            f"{path}: {report.blocks} blocks, {report.groups} instructions, {report.sends} sends, "
+            f"{path}: {report.blocks} blocks, {report.instructions} instructions in {report.groups} groups,"
+            f" {report.sends} sends, "
             f"{len(report.issues)} issues\n"
         )
         if report.page_origins:
