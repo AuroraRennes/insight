@@ -56,7 +56,9 @@ def test_not_an_hbng_executable(annotation_elfs):
 def test_waypoint_bits_against_the_instructions(annotation_elfs):
     with (annotation_elfs / "good.elf").open("rb") as file:
         elf = ELFFile(file)
-        entries = block_table(elf.get_section_by_name(".hbngbbt").data())
+        table = elf.get_section_by_name(".hbngbbt")
+        assert table is not None
+        entries = block_table(table.data())
         assert all(waypoint_issue(elf, entry) is None for entry in entries)
         load = next(entry for entry in entries if entry.count == 4)  # ends in ret
         issue = waypoint_issue(elf, replace(load, waypoint=False))
