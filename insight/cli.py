@@ -6,6 +6,7 @@ insight forms <elf>... -o <json> --origin <text>  add AArch64 executables to a c
 insight fliptest <json>          flip tests of R over a corpus
 insight replay <elf> <trace>     replay a flowsight-qemu trace of the executable: addresses audited, alarms
 insight compact <listing> --range <low> <high> -o <events>  ETM packets into the drain's 64-bit events
+insight drain <elf> <trace>      walk the events of a flowsight-qemu trace through the block table
 """
 
 from __future__ import annotations
@@ -79,6 +80,13 @@ def arguments() -> argparse.ArgumentParser:
     compact.add_argument("-o", "--output", type=Path, help="the events, 8 bytes each, little-endian")
     compact.add_argument("--hex", action="store_true", help="write one hex event per line instead")
     compact.add_argument("--print", type=int, default=0, metavar="N", help="print the first N events")
+    drain = commands.add_parser(
+        "drain",
+        help="walk the events a flowsight-qemu trace would give through the block table, and check the walk",
+    )
+    drain.add_argument("elf", type=Path, help="the post-linked HBNG executable that was traced")
+    drain.add_argument("trace", type=Path, help="its flowsight-qemu trace (zstd-compressed)")
+    drain.add_argument("-o", "--output", type=Path, help="also write the events, 8 bytes each, little-endian")
     return parser
 
 
@@ -209,7 +217,58 @@ def compact(args: argparse.Namespace) -> int:
     return 1 if stats["ERROR"] or stats["OVERFLOW"] else 0
 
 
-def main(argv: list[str] | None = None) -> int:
+def drain(args: argparse.Namespace) -> int:
+    from insight.drain.compactor import write_events  # noqa: PLC0415
+    from insight.drain.drain import CACHE_SIZES, Drain, Table, executed  # noqa: PLC0415
+    from insight.drain.synth import Code, Synth, runs  # noqa: PLC0415
+    from insight.replay.trace import TraceFile  # noqa: PLC0415
+
+    out = sys.stdout
+    with args.elf.open("rb") as file:
+        elf = ELFFile(file)
+        table, code = Table.from_elf(elf), Code.from_elf(elf)
+    synth = Synth(code)
+    with TraceFile(args.trace) as trace:
+        events = synth.run(trace.records)
+    if args.output is not None:
+        write_events(events, args.output, hex_lines=False)
+    walk = Drain(table)
+    walk.run(events)
+    with TraceFile(args.trace) as trace:
+        visits, sends = executed(table, runs(trace.records))
+    for report in walk.reports[:20]:
+        out.write(f"report: {report}\n")
+    s, d = synth.stats, walk.stats
+    blocks = len(walk.visits)
+    hits = ", ".join(
+        f"{100 * d[f'hits {size}'] / max(d['lookups'], 1):.1f}% at {size}" for size in CACHE_SIZES
+    )
+    out.write(
+        f"{args.trace}: {s['instructions']} instructions, {len(events)} events, {s['atoms']} atoms "
+        f"({s['isb']} after an isb), {s['syscalls']} syscalls, {s['signals']} signals\n"
+        f"drain: {blocks} blocks, {d['sends']} sends, {d['lookups']} lookups; "
+        f"{blocks / max(len(events), 1):.2f} blocks and "
+        f"{d['lookups'] / max(len(events), 1):.2f} lookups per event; "
+        f"target cache hits {hits}; {len(walk.reports)} reports\n"
+    )
+    ok = not walk.reports
+    for name, got, expected in (("blocks", walk.visits, visits), ("sends", walk.sends, sends)):
+        if got == expected:
+            out.write(f"{name}: the walk matches the {len(expected)} QEMU ran\n")
+            continue
+        ok = False
+        k = next(
+            (i for i, (a, b) in enumerate(zip(got, expected, strict=False)) if a != b),
+            min(len(got), len(expected)),
+        )
+        out.write(
+            f"{name}: the walk has {len(got)}, QEMU ran {len(expected)}; first difference at {k}: "
+            f"{got[k] if k < len(got) else None!r:} against {expected[k] if k < len(expected) else None!r}\n"
+        )
+    return 0 if ok else 1
+
+
+def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911 (one return per command)
     args = arguments().parse_args(argv)
     if args.command == "check":
         return check(args.elf, args.max_issues, against_r=args.against_r)
@@ -221,4 +280,6 @@ def main(argv: list[str] | None = None) -> int:
         return replay(args.elf, args.trace)
     if args.command == "compact":
         return compact(args)
+    if args.command == "drain":
+        return drain(args)
     return 2

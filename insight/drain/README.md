@@ -1,19 +1,26 @@
 # drain
 
-A model of the compactor, the hardware block that turns a core's ETMv4 trace into a stream of 64-bit events for
-the drain. The drain walks those events against the HBNG block table of the traced executable. The model serves as
-the reference for the compactor's RTL and as the input of a model of the drain.
+Models of the compactor, the hardware block that turns a core's ETMv4 trace into a stream of 64-bit events, and of
+the drain, which walks those events against the HBNG block table of the traced executable. The compactor's model is
+the reference its RTL is checked against; the drain's measures what the hardware will have to keep up with.
 
 - `events.py`: the event format, encoded and decoded
 - `compactor.py`: ETMv4 packets into events
+- `synth.py`: the events a flowsight-qemu trace would give, without a board
+- `drain.py`: the walk of the events through the table
 
 ```bash
 uv run insight compact decode.opencsd --range <low> <high> [--base <bias>] [-o events.bin | -o events.hex --hex] [--print N]
+uv run insight drain <elf> <trace> [-o events.bin]
 ```
 
-The input is a `trc_pkt_lister` listing of one core (`--trace-id`, 0x10 by default). The output is one
-little-endian 64-bit word per event, or with `--hex` one 16-digit hex word per line for a testbench. The command
-fails when an `ERROR` or `OVERFLOW` event comes out.
+`compact` reads a `trc_pkt_lister` listing of one core (`--trace-id`, 0x10 by default). Its output is one
+little-endian 64-bit word per event, or with `--hex` one 16-digit hex word per line for a testbench. It fails when an
+`ERROR` or `OVERFLOW` event comes out.
+
+`drain` makes the events of a flowsight-qemu trace of a post-linked HBNG executable, walks them, and checks the walk
+against what QEMU ran: the same blocks started in the same order, the same sends. It prints the counts the hardware
+is sized from: blocks and table lookups per event, and the hit rate of a direct-mapped cache of branch targets.
 
 ## What the trace must look like
 
@@ -64,8 +71,20 @@ For example, `0x02000002_00010034` is a `BRANCH` of two atoms, N then E, to `0x1
 
 ## How the drain reads it
 
-The drain holds the table entry of the block being executed. A block whose last instruction is a waypoint (a branch,
-a call, a return or an `isb`) takes one atom: an N moves to the next entry of the table, which the post-link step guarantees starts right after the block;
-an E moves to the entry at the target, found through the table's index. A block that ends without a waypoint takes
-no atom and moves to the next entry. Each entry gives the number of sends to take from the send FIFO. A target that is
-neither the start of an entry nor in an untracked range is reported.
+The drain holds the table entry of the block being executed and the next of its instructions to run.
+
+- A block whose last instruction is a waypoint (a branch, a call, a return or an `isb`) takes one atom. An N moves
+  to the next entry of the table, which the post-link step guarantees starts right after the block; an E moves to
+  the entry at the target, found through the table's index. A block that ends without a waypoint takes no atom and
+  moves to the next entry.
+- Each send is taken from the send FIFO when the drain passes its instruction, so a block cut by an exception takes
+  the sends before the exception's address, and the rest when execution comes back to that address.
+- After an exception, a `BRANCH` without atoms to another address is a signal handler: the drain keeps where the
+  signal interrupted, and goes back there when the handler's return comes back to that address.
+- A target in `.hbngskip` is untracked code: atoms are dropped until a branch reaches the start of an entry. Any other
+  target that is not the start of an entry is reported.
+
+`synth.py` makes the events from a flowsight-qemu trace. QEMU ends its blocks at every branch, so the last
+instruction of each run and the address of the next run give the atom and the target; an `svc` gives an `EXCEPTION`
+then a `BRANCH` without atoms. It gives an `isb` an address like a branch's, which the ETM may not send: an HBNG
+capture will tell.
