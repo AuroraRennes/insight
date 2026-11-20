@@ -257,7 +257,7 @@ class ETMAtomPacket(Packet):
         # format 6 holds 4-24 values
         atom_format_6: int = 6
         if format == atom_format_6:
-            return elements_nb in range(4, 24)
+            return elements_nb in range(4, 25)
         return format == elements_nb
 
 
