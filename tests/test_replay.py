@@ -1,5 +1,3 @@
-import os
-import shutil
 import subprocess
 from pathlib import Path
 
@@ -25,20 +23,6 @@ from insight.replay.trace import (
 )
 
 FIXTURES = Path(__file__).parent.parent / "data" / "replay"
-
-
-@pytest.fixture(scope="session")
-def traced(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """The fixtures built and traced by flowsight-qemu in a temporary directory; skipped without
-    HBNG_BIN (clang), MEASURE (the plugin) and qemu-aarch64."""
-    missing = [name for name in ("HBNG_BIN", "MEASURE") if not os.environ.get(name)]
-    if not shutil.which("qemu-aarch64"):
-        missing.append("qemu-aarch64 on the PATH")
-    if missing:
-        pytest.skip(f"no flowsight-qemu trace without {', '.join(missing)}")
-    out = tmp_path_factory.mktemp("replay")
-    subprocess.run([FIXTURES / "build.sh", out], check=True)
-    return out
 
 
 # Trace format

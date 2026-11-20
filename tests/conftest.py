@@ -83,6 +83,25 @@ def annotation_elfs(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return out
 
 
+# flowsight-qemu traces
+# \______________________
+
+
+@pytest.fixture(scope="session")
+def traced(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """The fixtures built and traced by flowsight-qemu in a temporary directory; skipped without
+    HBNG_BIN (clang), MEASURE (the plugin) and qemu-aarch64."""
+    missing = [name for name in ("HBNG_BIN", "MEASURE") if not os.environ.get(name)]
+    if not shutil.which("qemu-aarch64"):
+        missing.append("qemu-aarch64 on the PATH")
+    if missing:
+        pytest.skip(f"no flowsight-qemu trace without {', '.join(missing)}")
+    out = tmp_path_factory.mktemp("replay")
+    build = Path(__file__).parent.parent / "data" / "replay" / "build.sh"
+    subprocess.run([build, out], check=True)
+    return out
+
+
 # Capstone Disassembler
 # \______________________
 
