@@ -5,6 +5,7 @@ insight check --against-r <elf>  also compare each instruction's annotation with
 insight forms <elf>... -o <json> --origin <text>  add AArch64 executables to a corpus of forms
 insight fliptest <json>          flip tests of R over a corpus
 insight replay <elf> <trace>     replay a flowsight-qemu trace of the executable: addresses audited, alarms
+insight compact <listing> --range <low> <high> -o <events>  ETM packets into the drain's 64-bit events
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ from pathlib import Path
 from elftools.elf.elffile import ELFFile
 
 from insight.annotations.check import check_elf
+from insight.drain.events import Kind
 from insight.flips.forms import Corpus, add_file, load_corpus, save_corpus
 
 DEFAULT_MAX_ISSUES = 50
@@ -65,7 +67,23 @@ def arguments() -> argparse.ArgumentParser:
     )
     replay.add_argument("elf", type=Path, help="the HBNG executable that was traced")
     replay.add_argument("trace", type=Path, help="the trace (zstd-compressed)")
+    compact = commands.add_parser(
+        "compact", help="turn an OpenCSD packet listing, traced with branch broadcast, into drain events"
+    )
+    compact.add_argument("listing", type=Path, help="trc_pkt_lister output")
+    compact.add_argument(
+        "--range", nargs=2, type=hex_int, required=True, metavar=("LOW", "HIGH"), help="the traced code"
+    )
+    compact.add_argument("--base", type=hex_int, default=0, help="the load bias subtracted from addresses")
+    compact.add_argument("--trace-id", type=hex_int, default=0x10, help="the core's trace ID (default 0x10)")
+    compact.add_argument("-o", "--output", type=Path, help="the events, 8 bytes each, little-endian")
+    compact.add_argument("--hex", action="store_true", help="write one hex event per line instead")
+    compact.add_argument("--print", type=int, default=0, metavar="N", help="print the first N events")
     return parser
+
+
+def hex_int(text: str) -> int:
+    return int(text, 0)
 
 
 def check(path: Path, max_issues: int, *, against_r: bool) -> int:
@@ -169,6 +187,28 @@ def replay(elf: Path, trace: Path) -> int:
     return 0
 
 
+def compact(args: argparse.Namespace) -> int:
+    from insight.drain.compactor import Compactor, listing_packets, write_events  # noqa: PLC0415
+
+    out = sys.stdout
+    low, high = args.range
+    compactor = Compactor(low, high, args.base)
+    events = list(compactor.run(listing_packets(args.listing, args.trace_id)))
+    for event in events[: args.print]:
+        out.write(f"{event}\n")
+    if args.output is not None:
+        write_events(events, args.output, hex_lines=args.hex)
+    stats = compactor.stats
+    kinds = ", ".join(f"{stats[k.name]} {k.name}" for k in Kind if stats[k.name])
+    per_event = stats["atoms"] / len(events) if events else 0
+    out.write(
+        f"{args.listing}: {stats['packets']} packets, {stats['atoms']} atoms kept, "
+        f"{stats['atoms dropped']} dropped outside the range; {len(events)} events ({kinds}), "
+        f"{per_event:.2f} atoms per event\n"
+    )
+    return 1 if stats["ERROR"] or stats["OVERFLOW"] else 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = arguments().parse_args(argv)
     if args.command == "check":
@@ -179,4 +219,6 @@ def main(argv: list[str] | None = None) -> int:
         return fliptest(args.corpus, args.form, args.instances, args.aliases, args.jobs, verbose=args.verbose)
     if args.command == "replay":
         return replay(args.elf, args.trace)
+    if args.command == "compact":
+        return compact(args)
     return 2
