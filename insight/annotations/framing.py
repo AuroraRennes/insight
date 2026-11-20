@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 import struct
 from dataclasses import dataclass
+from itertools import pairwise
 from typing import TYPE_CHECKING
 
 from insight.dsl.errors import DslSyntaxError
@@ -17,8 +18,14 @@ if TYPE_CHECKING:
 
 ANNOTATION_SECTION = ".hbngannot"
 BLOCK_TABLE_SECTION = ".hbngbbt"
+INDEX_SECTION = ".hbngidx"
+INFO_SECTION = ".hbnginfo"
+FORMAT_VERSION = 1  # of the table, its index and the annotations, in .hbnginfo
 INSTRUCTION_SIZE = 4
-HEADER_SIZE = 20  # of a block table entry, before its sends
+HEADER_SIZE = 12  # of a block table entry, before its sends
+ENTRY_ALIGN = 4
+WAYPOINT_BIT = 0x8000  # in the instruction count: the block ends in a branch, call, return or isb
+INDEX_RECORD = struct.Struct("<II")  # block address, offset of its entry in the table
 
 GROUP_RE = re.compile(r"@(0|[1-9][0-9]*)")
 
@@ -63,13 +70,18 @@ class Block:
 
 @dataclass(frozen=True)
 class Entry:
-    """A block's entry in the table: its address, its text's, its instructions, and the index of
-    the instruction of each send (an stp's twice)."""
+    """A block's entry in the table: its address, its text's, its instructions, the index of the
+    instruction of each send (an stp's twice), and whether its last instruction is a waypoint."""
 
     address: int
     annotation: int
     count: int
     sends: tuple[int, ...]
+    waypoint: bool = False
+
+    @property
+    def end(self) -> int:
+        return self.address + INSTRUCTION_SIZE * self.count
 
 
 # One block
@@ -143,15 +155,22 @@ def read_block(text: str, address: int, entry: Entry | None = None) -> Block:
 
 
 def block_table(data: bytes) -> list[Entry]:
-    """The entries, each 8-aligned: block and annotation addresses (64 bits), the number of
-    instructions and of sends (16 bits), then each send's instruction index (16 bits)."""
-    entries: list[Entry] = []
+    """The entries, in table order."""
+    return [entry for _, entry in table_entries(data)]
+
+
+def table_entries(data: bytes) -> list[tuple[int, Entry]]:
+    """Each entry with its offset in the table. An entry is 4-aligned: block and annotation
+    addresses (32 bits), the number of instructions with the waypoint bit and the number of sends
+    (16 bits), then each send's instruction index (16 bits)."""
+    entries: list[tuple[int, Entry]] = []
     pos = 0
     while pos < len(data):
         if len(data) - pos < HEADER_SIZE:
             msg = f"block table entry at {pos} truncated: an old table? rebuild"
             raise ValueError(msg)
-        address, annotation, count, sends = struct.unpack_from("<QQHH", data, pos)
+        address, annotation, raw_count, sends = struct.unpack_from("<IIHH", data, pos)
+        count = raw_count & ~WAYPOINT_BIT
         end = pos + HEADER_SIZE + 2 * sends
         if not count or sends > 2 * count or end > len(data):
             msg = f"block table entry at {pos}: {count} instructions, {sends} sends: an old table? rebuild"
@@ -160,9 +179,48 @@ def block_table(data: bytes) -> list[Entry]:
         if any(index >= count for index in indices):
             msg = f"block table entry at {pos}: a send past the block's {count} instructions"
             raise ValueError(msg)
-        entries.append(Entry(address, annotation, count, indices))
-        pos = (end + 7) & ~7
+        entries.append((pos, Entry(address, annotation, count, indices, bool(raw_count & WAYPOINT_BIT))))
+        pos = (end + ENTRY_ALIGN - 1) & ~(ENTRY_ALIGN - 1)
     return entries
+
+
+def format_version(elf: ELFFile) -> None:
+    """Refuses an executable whose table is not in the format InSight reads."""
+    info = elf.get_section_by_name(INFO_SECTION)
+    if info is None:
+        msg = f"no {INFO_SECTION}: an old table? rebuild (the link runs llvm-hbng-postlink)"
+        raise ValueError(msg)
+    data = info.data()
+    if len(data) != 2:
+        msg = f"{INFO_SECTION} of {len(data)} bytes, not a 16-bit version"
+        raise ValueError(msg)
+    (version,) = struct.unpack("<H", data)
+    if version != FORMAT_VERSION:
+        msg = f"table format version {version}, InSight reads version {FORMAT_VERSION}"
+        raise ValueError(msg)
+
+
+def table_issues(data: bytes, index: bytes | None) -> list[tuple[int, str]]:
+    """(address, message) for each way the table is not sorted, or its index does not list each
+    entry in order with its offset."""
+    entries = table_entries(data)
+    issues: list[tuple[int, str]] = []
+    for (_, entry), (_, after) in pairwise(entries):
+        if after.address < entry.end:
+            issues.append((after.address, f"entry after {entry.address:#x}: not sorted, or overlapping"))
+    if index is None:
+        issues.append((0, f"no {INDEX_SECTION}"))
+        return issues
+    if len(index) != INDEX_RECORD.size * len(entries):
+        msg = f"{INDEX_SECTION} of {len(index)} bytes for {len(entries)} entries"
+        issues.append((0, msg))
+        return issues
+    for k, (offset, entry) in enumerate(entries):
+        address, at = INDEX_RECORD.unpack_from(index, INDEX_RECORD.size * k)
+        if (address, at) != (entry.address, offset):
+            msg = f"{INDEX_SECTION} record {k} is ({address:#x}, {at}), the entry at {offset} is this block"
+            issues.append((entry.address, msg))
+    return issues
 
 
 def block_texts(table: list[Entry], annotations: bytes, base: int) -> list[tuple[Entry, str]]:
@@ -191,6 +249,7 @@ def annotation_texts(elf: ELFFile) -> dict[int, tuple[Entry, str]]:
     if table_section is None or annotation_section is None:
         msg = f"no {BLOCK_TABLE_SECTION} or {ANNOTATION_SECTION} section: not built with the HBNG compiler"
         raise ValueError(msg)
+    format_version(elf)
     table = block_table(table_section.data())
     texts = block_texts(table, annotation_section.data(), annotation_section["sh_addr"])
     return {entry.address: (entry, text) for entry, text in texts}

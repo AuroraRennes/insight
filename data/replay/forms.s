@@ -7,6 +7,7 @@ _start:
 	adrp	x17, __hbng_chan
 	stp	x29, x16, [x17]
 	b	main
+.Lstart_end:
 main:
 	adrp	x9, __hbng_chan
 	adrp	x0, buf
@@ -25,6 +26,7 @@ main:
 	mov	x0, #0
 	mov	x8, #94
 	svc	#0
+	udf	#0	// exit_group does not return
 
 	.data
 	.p2align 3
@@ -47,9 +49,13 @@ HBNG_main_annot:
 	.ascii	"@64\n" "svc\n"
 	.ascii	"END\n"
 
-	// Per block: its address and annotations, its instructions, its sends and the index of each
-	// send's instruction
+	// Per block: its address and annotations, its instructions (0x8000: the last one is a branch,
+	// call, return or isb), its sends and the index of each send's instruction
 	.section .hbngbbt,"a",@progbits
-	.xword	main, HBNG_main_annot
+	.word	main, HBNG_main_annot
 	.hword	17, 1, 3
-	.p2align 3
+	.p2align 2
+
+	// Code with no entry: the start code
+	.section .hbngskip,"",@progbits
+	.word	_start, .Lstart_end

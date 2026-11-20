@@ -9,6 +9,7 @@ _start:
 	adrp	x17, __hbng_chan
 	stp	x29, x16, [x17]
 	b	main
+.Lstart_end:
 main:
 	ldr	x1, [sp, #16]
 	mov	x0, #-100
@@ -46,6 +47,7 @@ main:
 	mov	x0, #0
 	mov	x8, #94
 	svc	#0
+	udf	#0	// exit_group does not return
 handler:
 	adrp	x9, __hbng_chan
 	str	x2, [x9]
@@ -58,6 +60,7 @@ handler:
 restorer:
 	mov	x8, #139
 	svc	#0
+.Lrestorer_end:
 
 	.data
 	.p2align 3
@@ -124,12 +127,17 @@ HBNG_handler_annot:
 	.ascii	"@28\n"
 	.ascii	"END\n"
 
-	// Per block: its address and annotations, its instructions, its sends and the index of each
-	// send's instruction
+	// Per block: its address and annotations, its instructions (0x8000: the last one is a branch,
+	// call, return or isb), its sends and the index of each send's instruction
 	.section .hbngbbt,"a",@progbits
-	.xword	main, HBNG_main_annot
+	.word	main, HBNG_main_annot
 	.hword	36, 2, 8, 27
-	.p2align 3
-	.xword	handler, HBNG_handler_annot
-	.hword	8, 2, 1, 4
-	.p2align 3
+	.p2align 2
+	.word	handler, HBNG_handler_annot
+	.hword	0x8000 + 8, 2, 1, 4
+	.p2align 2
+
+	// Code with no entry: the start code and the signal restorer
+	.section .hbngskip,"",@progbits
+	.word	_start, .Lstart_end
+	.word	restorer, .Lrestorer_end

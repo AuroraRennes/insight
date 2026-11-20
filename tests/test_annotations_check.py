@@ -1,7 +1,10 @@
+from dataclasses import replace
+
 import pytest
 from elftools.elf.elffile import ELFFile
 
-from insight.annotations.check import Report, check_elf
+from insight.annotations.check import Report, check_elf, waypoint_issue
+from insight.annotations.framing import block_table
 
 
 @pytest.fixture
@@ -48,3 +51,23 @@ def test_not_an_hbng_executable(annotation_elfs):
         elf.get_section_by_name = lambda name: None  # type: ignore[method-assign]
         with pytest.raises(ValueError, match="not built with the HBNG"):
             check_elf(elf)
+
+
+def test_waypoint_bits_against_the_instructions(annotation_elfs):
+    with (annotation_elfs / "good.elf").open("rb") as file:
+        elf = ELFFile(file)
+        entries = block_table(elf.get_section_by_name(".hbngbbt").data())
+        assert all(waypoint_issue(elf, entry) is None for entry in entries)
+        load = next(entry for entry in entries if entry.count == 4)  # ends in ret
+        issue = waypoint_issue(elf, replace(load, waypoint=False))
+        assert issue is not None
+        assert issue.message == "no waypoint bit, but the block ends in ret"
+
+
+def test_index_issues_are_reported(annotation_elfs):
+    with (annotation_elfs / "good.elf").open("rb") as file:
+        elf = ELFFile(file)
+        sections = elf.get_section_by_name
+        elf.get_section_by_name = lambda name: None if name == ".hbngidx" else sections(name)  # type: ignore[method-assign]
+        report = check_elf(elf)
+    assert [issue.message for issue in report.issues] == ["no .hbngidx"]

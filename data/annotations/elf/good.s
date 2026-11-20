@@ -45,14 +45,16 @@ HBNG_frame_annot:
 	.ascii	"@20\n" "END\n"
 
 	.section .hbngbbt,"a",@progbits
-	.p2align 3
-// Each entry: the block, its text, its instructions, its sends, then the instruction of each send.
-	.xword	HBNG_load, HBNG_load_annot
-	.hword	4, 1, 1
-	.p2align 3
-	.xword	HBNG_cas_n_2, HBNG_cas_n_2_annot
-	.hword	3, 2, 1, 1
-	.p2align 3
-	.xword	HBNG_frame, HBNG_frame_annot
-	.hword	6, 1, 4
-	.p2align 3
+	.p2align 2
+// Each entry: the block, its text, its instructions (0x8000: the last one is a waypoint, a branch,
+// call, return or isb), its sends, then the instruction of each send. llvm-hbng-postlink sorts
+// them and adds the index and the format version.
+	.word	HBNG_frame, HBNG_frame_annot
+	.hword	0x8006, 1, 4
+	.p2align 2
+	.word	HBNG_load, HBNG_load_annot
+	.hword	0x8004, 1, 1
+	.p2align 2
+	.word	HBNG_cas_n_2, HBNG_cas_n_2_annot
+	.hword	0x8003, 2, 1, 1
+	.p2align 2

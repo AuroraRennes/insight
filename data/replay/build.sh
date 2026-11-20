@@ -12,6 +12,7 @@ chan=0x400000   # where __hbng_chan is linked
 for prog in tiny forms signal fault; do
     "$HBNG_BIN/clang" --target=aarch64-linux -nostdlib -static -fuse-ld=lld -Wl,--no-relax \
         -Wl,--section-start=.hbngchan=$chan -o "$out/$prog.elf" "$dir/$prog.s"
+    "$HBNG_BIN/llvm-hbng-postlink" "$out/$prog.elf"
 done
 
 for prog in tiny forms; do
